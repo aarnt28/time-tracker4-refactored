@@ -145,13 +145,13 @@
 
 
 
-  <div id="client-modal" class="modal-root" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.35);">
+  <div id="client-modal" class="modal-root" style="display:none;">
 
-    <div class="modal-card" style="max-width:720px; margin:5vh auto; background:#fff; border-radius:12px; padding:20px;">
+    <div class="modal-card modal-card--large">
 
-      <header style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+      <header class="modal-head">
 
-        <h2 id="client-modal-title" style="margin:0; font-size:1.25rem;">Edit Client</h2>
+        <h2 id="client-modal-title" class="modal-title">Edit Client</h2>
 
         <button id="client-modal-close" class="btn" type="button">Close</button>
 
@@ -161,7 +161,7 @@
 
         <div id="client-fields"></div>
 
-        <div style="display:flex; gap:8px; margin-top:10px;">
+        <div class="form-actions">
 
           <button class="btn" type="submit">Save</button>
 
@@ -175,13 +175,13 @@
 
 
 
-  <div id="ticket-modal" class="modal-root" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.35);">
+  <div id="ticket-modal" class="modal-root" style="display:none;">
 
-    <div class="modal-card" style="max-width:840px; margin:5vh auto; background:#fff; border-radius:12px; padding:20px;">
+    <div class="modal-card modal-card--wide">
 
-      <header style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+      <header class="modal-head">
 
-        <h2 id="ticket-modal-title" style="margin:0; font-size:1.25rem;">New Ticket</h2>
+        <h2 id="ticket-modal-title" class="modal-title">New Ticket</h2>
 
         <button id="ticket-modal-close" class="btn" type="button">Close</button>
 
@@ -191,7 +191,7 @@
 
         <input type="hidden" name="id" />
 
-        <div class="form-grid" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:12px;">
+        <div class="form-grid flexible">
 
           <label>Client<input name="client" class="mono" readonly /></label>
 
@@ -239,11 +239,11 @@
 
         </div>
 
-        <label style="display:block; margin-top:12px;">Notes<textarea name="note" rows="4" style="width:100%;"></textarea></label>
+        <label class="form-block">Notes<textarea name="note" rows="4"></textarea></label>
 
-        <div id="hardware-snapshot" style="margin-top:12px; font-size:0.9rem; color:#444; display:none;"></div>
+        <div id="hardware-snapshot" class="hardware-snapshot" style="display:none;"></div>
 
-        <div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:16px;">
+        <div class="form-actions wrap">
 
           <button class="btn" type="submit">Save</button>
 
@@ -987,6 +987,9 @@
   })();
 
 </script>
+
+
+
 
 
 

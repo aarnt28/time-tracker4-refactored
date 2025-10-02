@@ -36,22 +36,22 @@
   </main>
 
   <!-- Edit modal -->
-  <div id="edit-modal" class="modal-root" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.35);">
-    <div class="modal-card" style="max-width:720px; margin:5vh auto; background:#fff; border-radius:12px; padding:20px;">
-      <header style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
-        <h2 id="edit-title" style="margin:0; font-size:1.25rem;">Edit Client</h2>
+  <div id="edit-modal" class="modal-root" style="display:none;">
+    <div class="modal-card modal-card--large">
+      <header class="modal-head">
+        <h2 id="edit-title" class="modal-title">Edit Client</h2>
         <button id="edit-close" class="btn">Close</button>
       </header>
 
-      <form id="edit-form" style="display:block;">
+      <form id="edit-form" class="modal-form">
         <div id="edit-fields"></div>
 
-        <div style="display:flex; gap:8px; margin-top:8px;">
+        <div class="form-inline">
           <input type="text" id="new-key" placeholder="new attribute key" class="mono" />
           <input type="text" id="new-val" placeholder="value" class="mono" />
           <button class="btn" id="add-attr">Add attribute</button>
         </div>
-        <div style="margin-top:16px;">
+        <div class="form-actions">
           <button class="btn" type="submit">Save</button>
         </div>
       </form>
@@ -107,24 +107,30 @@
     Object.keys(tableData).sort((a, b) => a.localeCompare(b)).forEach(clientKey => {
       const entry = tableData[clientKey] || {};
       const tr = document.createElement('tr');
+      tr.classList.add('row');
       const tdKey = document.createElement('td');
       tdKey.textContent = clientKey;
       tdKey.className = 'mono';
+      tdKey.dataset.label = 'Client Key';
       tr.appendChild(tdKey);
 
       const tdName = document.createElement('td');
       tdName.textContent = entry.name || '';
       tdName.style.fontWeight = '600';
+      tdName.dataset.label = 'Name';
       tr.appendChild(tdName);
 
       sortedAttributes.forEach(attr => {
         const td = document.createElement('td');
         const value = entry[attr];
         td.textContent = value === undefined ? '' : String(value);
+        td.dataset.label = attr.replace(/_/g, ' ');
         tr.appendChild(td);
       });
 
       const tdAct = document.createElement('td');
+      tdAct.className = 'td-action';
+      tdAct.dataset.label = 'Actions';
       const delBtn = document.createElement('button');
       delBtn.className = 'btn btn-danger btn-icon';
       delBtn.type = 'button';
@@ -256,3 +262,4 @@
 
   loadTable();
 </script>
+
