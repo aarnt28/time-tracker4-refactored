@@ -95,6 +95,7 @@
     const closeBtn = document.getElementById('hardware-modal-close');
     const form = document.getElementById('hardware-form');
     const btnNew = document.getElementById('new-hardware');
+    const hardwareRows = document.getElementById('hardware-rows');
 
     function openModal(data){
       modal.style.display = 'block';
@@ -117,22 +118,33 @@
       modal.style.display = 'none';
     }
 
+    async function loadHardware(id){
+      if (!id) return;
+      try {
+        const res = await safeFetch(`/api/v1/hardware/${id}`, { headers: apiHeaders(false) });
+        if (!res.ok) throw new Error('failed hardware fetch');
+        const data = await res.json();
+        openModal(data);
+      } catch (err) {
+        window.alert('Failed to load hardware item');
+      }
+    }
+
     closeBtn.addEventListener('click', closeModal);
     btnNew.addEventListener('click', function(){ openModal(null); });
 
-    document.addEventListener('click', function(e){
-      const link = e.target.closest('a.edit-hardware');
-      if (!link) return;
-      e.preventDefault();
-      const id = link.dataset.id;
-      safeFetch(`/api/v1/hardware/${id}`, { headers: apiHeaders(false) })
-        .then(function(res){
-          if (!res.ok) throw new Error('failed hardware fetch');
-          return res.json();
-        })
-        .then(openModal)
-        .catch(function(){ window.alert('Failed to load hardware item'); });
-    });
+    if (hardwareRows){
+      hardwareRows.addEventListener('click', function(e){
+        const row = e.target.closest('tr.row');
+        if (!row) return;
+        if (e.target.closest('button, input, textarea, select, label')) return;
+        const link = e.target.closest('a.edit-hardware');
+        if (link) e.preventDefault();
+        const id = row.dataset.id;
+        if (!id) return;
+        loadHardware(id);
+      });
+    }
 
     form.addEventListener('submit', async function(e){
       e.preventDefault();

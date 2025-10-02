@@ -905,6 +905,21 @@
 
       }
 
+      const row = e.target.closest('tr.row');
+
+      if (!row) return;
+
+      if (e.target.closest('.open-client, .note-preview-btn, .js-delete-ticket, .js-toggle-status, .js-complete-checkbox, .invoice-input, button, input, textarea, select, label')) return;
+
+      if (!row.dataset.id) return;
+
+      e.preventDefault();
+
+      await openTicketEditor(row.dataset.id);
+
+      return;
+
+
     });
 
     ticketRows.addEventListener('change', async (e)=>{
