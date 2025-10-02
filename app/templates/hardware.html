@@ -130,6 +130,19 @@
       }
     }
 
+    async function refreshHardwareRows(){
+      if (!hardwareRows) return;
+      try {
+        const res = await fetch('/ui/hardware_table', { credentials: 'same-origin' });
+        if (!res.ok) throw new Error('refresh failed');
+        const html = await res.text();
+        hardwareRows.innerHTML = html;
+      } catch (err) {
+        console.error('hardware refresh failed', err);
+        window.alert('Failed to refresh hardware list. Please reload the page.');
+      }
+    }
+
     closeBtn.addEventListener('click', closeModal);
     btnNew.addEventListener('click', function(){ openModal(null); });
 
@@ -143,6 +156,21 @@
         const id = row.dataset.id;
         if (!id) return;
         loadHardware(id);
+      });
+
+      hardwareRows.addEventListener('submit', async function(e){
+        const formEl = e.target.closest('form');
+        if (!formEl || !formEl.classList.contains('inline')) return;
+        e.preventDefault();
+        const action = formEl.getAttribute('action') || formEl.action;
+        try {
+          const res = await fetch(action, { method: 'POST', credentials: 'same-origin' });
+          if (!res.ok) throw new Error('delete failed');
+          await refreshHardwareRows();
+        } catch (err) {
+          console.error('hardware delete failed', err);
+          window.alert('Delete failed');
+        }
       });
     }
 
@@ -170,7 +198,7 @@
       });
       if (res.ok){
         closeModal();
-        window.location.reload();
+        await refreshHardwareRows();
       } else {
         let msg = 'Save failed';
         try {
