@@ -45,21 +45,21 @@
     </section>
   </main>
 
-  <div id="hardware-modal" class="modal-root" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.35);">
-    <div class="modal-card" style="max-width:600px; margin:5vh auto; background:#fff; border-radius:12px; padding:20px;">
-      <header style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
-        <h2 id="hardware-modal-title" style="margin:0; font-size:1.25rem;">New Hardware</h2>
+  <div id="hardware-modal" class="modal-root" style="display:none;">
+    <div class="modal-card modal-card--medium">
+      <header class="modal-head">
+        <h2 id="hardware-modal-title" class="modal-title">New Hardware</h2>
         <button id="hardware-modal-close" class="btn" type="button">Close</button>
       </header>
-      <form id="hardware-form">
+      <form id="hardware-form" class="modal-form">
         <input type="hidden" name="id" />
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+        <div class="form-grid two-column">
           <label>Barcode<input name="barcode" required class="mono" /></label>
           <label>Description<input name="description" required /></label>
           <label>Acquisition Cost<input name="acquisition_cost" class="mono" /></label>
           <label>Sales Price<input name="sales_price" class="mono" /></label>
         </div>
-        <div style="display:flex; gap:8px; margin-top:12px;">
+        <div class="form-actions">
           <button class="btn" type="submit">Save</button>
         </div>
       </form>
@@ -214,3 +214,5 @@
   </script>
 </body>
 </html>
+
+
