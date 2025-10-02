@@ -34,6 +34,12 @@ def _fmt_dt(value: Any, fmt: str = "%Y-%m-%d %I:%M %p") -> str:
     dt = _to_dt(value)
     return dt.strftime(fmt) if dt else ""
 
+def _fmt_dt_compact(value: Any) -> str:
+    dt = _to_dt(value)
+    if not dt:
+        return ""
+    return f"{dt.month}/{dt.day} {dt.strftime('%H:%M')}"
+
 def _fmt_date(value: Any, fmt: str = "%Y-%m-%d") -> str:
     dt = _to_dt(value)
     return dt.strftime(fmt) if dt else ""
@@ -47,6 +53,8 @@ def get_templates() -> Jinja2Templates:
     templates = Jinja2Templates(directory=str(settings.TEMPLATES_DIR))
     env = templates.env
     env.filters["fmt_dt"] = _fmt_dt
+    env.filters["fmt_dt_compact"] = _fmt_dt_compact
     env.filters["fmt_date"] = _fmt_date
     env.filters["fmt_time"] = _fmt_time
     return templates
+
