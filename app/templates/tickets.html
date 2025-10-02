@@ -1,0 +1,977 @@
+<!doctype html>
+
+<html lang="en">
+
+<head>
+
+  <meta charset="utf-8" />
+
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+
+  <title>Tickets</title>
+
+  <link rel="stylesheet" href="/static/app.css" />
+
+  <link rel="icon" href="/static/favicon.ico" />
+
+  <style>
+
+    .tickets-table .note { max-width: 320px; }
+
+    .note-preview-btn {
+
+      display: block;
+
+      width: 100%;
+
+      text-align: left;
+
+      background: none;
+
+      border: none;
+
+      padding: 0;
+
+      color: inherit;
+
+      font: inherit;
+
+      cursor: pointer;
+
+      white-space: nowrap;
+
+      overflow: hidden;
+
+      text-overflow: ellipsis;
+
+    }
+
+    .row.is-expanded .note-preview-btn {
+
+      white-space: normal;
+
+      overflow: visible;
+
+    }
+
+    @media (min-width: 2560px) {
+
+      .tickets-table .note { max-width: 480px; }
+
+    }
+
+  </style>
+
+</head>
+
+<body class="dashboard">
+
+  <header class="app-header">
+
+    <div class="container">
+
+      <h1>Tickets</h1>
+
+      <div class="actions">
+
+        <button class="btn" type="button" id="new-ticket">New Ticket</button>
+
+      </div>
+
+      <nav class="links">
+        <a href="/" class="pill">Dashboard</a>
+        <a href="/tickets" class="pill active" aria-current="page">Tickets</a>
+        <a href="/hardware" class="pill">Hardware</a>
+        <a href="/clients" class="pill">Clients</a>
+      </nav>
+
+    </div>
+
+  </header>
+
+
+
+  <main class="container">
+
+    <section class="table-wrap">
+
+      <div class="table-scroll">
+
+        <table class="table tickets-table">
+
+          <thead>
+
+            <tr>
+
+              <th class="mono">ID</th>
+
+              <th>Client</th>
+
+              <th class="mono">Client Key</th>
+
+              <th class="mono hide-mobile">Start</th>
+
+              <th class="mono hide-mobile">End</th>
+
+              <th class="mono">Minutes</th>
+
+              <th class="mono">Rounded Hrs</th>
+
+              <th class="mono">Type</th>
+
+              <th>Notes / Hardware</th>
+
+              <th class="mono">Invoice</th>
+
+              <th class="th-action">Actions</th>
+
+            </tr>
+
+          </thead>
+
+          <tbody id="ticket-rows">
+
+            {% include "_rows.html" with context %}
+
+          </tbody>
+
+        </table>
+
+      </div>
+
+    </section>
+
+  </main>
+
+
+
+  <div id="client-modal" class="modal-root" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.35);">
+
+    <div class="modal-card" style="max-width:720px; margin:5vh auto; background:#fff; border-radius:12px; padding:20px;">
+
+      <header style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+
+        <h2 id="client-modal-title" style="margin:0; font-size:1.25rem;">Edit Client</h2>
+
+        <button id="client-modal-close" class="btn" type="button">Close</button>
+
+      </header>
+
+      <form id="client-form">
+
+        <div id="client-fields"></div>
+
+        <div style="display:flex; gap:8px; margin-top:10px;">
+
+          <button class="btn" type="submit">Save</button>
+
+        </div>
+
+      </form>
+
+    </div>
+
+  </div>
+
+
+
+  <div id="ticket-modal" class="modal-root" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.35);">
+
+    <div class="modal-card" style="max-width:840px; margin:5vh auto; background:#fff; border-radius:12px; padding:20px;">
+
+      <header style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+
+        <h2 id="ticket-modal-title" style="margin:0; font-size:1.25rem;">New Ticket</h2>
+
+        <button id="ticket-modal-close" class="btn" type="button">Close</button>
+
+      </header>
+
+      <form id="ticket-form">
+
+        <input type="hidden" name="id" />
+
+        <div class="form-grid" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:12px;">
+
+          <label>Client<input name="client" class="mono" readonly /></label>
+
+          <label>Client Key<input name="client_key" required class="mono" /></label>
+
+          <label>Entry Type
+
+            <select name="entry_type">
+
+              <option value="time">time</option>
+
+              <option value="hardware">hardware</option>
+
+            </select>
+
+          </label>
+
+          <label>Hardware Barcode<input name="hardware_barcode" class="mono" placeholder="Scan or enter barcode" /></label>
+
+          <label>Start<input name="start_iso" type="datetime-local" class="mono" required /></label>
+
+          <label>End<input name="end_iso" type="datetime-local" class="mono" /></label>
+
+          <label>Invoice #<input name="invoice_number" class="mono" /></label>
+
+          <label>Completed
+
+            <select name="completed">
+
+              <option value="0">Open</option>
+
+              <option value="1">Done</option>
+
+            </select>
+
+          </label>
+
+          <label>Elapsed Minutes<input name="elapsed_minutes" class="mono" readonly /></label>
+
+          <label>Rounded Minutes<input name="rounded_minutes" class="mono" readonly /></label>
+
+          <label>Rounded Hours<input name="rounded_hours" class="mono" readonly /></label>
+
+          <label>Created<input name="created_at" class="mono" readonly /></label>
+
+        </div>
+
+        <label style="display:block; margin-top:12px;">Notes<textarea name="note" rows="4" style="width:100%;"></textarea></label>
+
+        <div id="hardware-snapshot" style="margin-top:12px; font-size:0.9rem; color:#444; display:none;"></div>
+
+        <div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:16px;">
+
+          <button class="btn" type="submit">Save</button>
+
+          <button class="btn" type="button" id="ticket-mark-done">Toggle Done</button>
+
+        </div>
+
+      </form>
+
+    </div>
+
+  </div>
+
+
+
+  <script>
+
+  (function(){
+
+    function getApiToken(){ return window.localStorage.getItem('api_token') || ''; }
+
+    function setApiToken(t){ if (t) window.localStorage.setItem('api_token', t); }
+
+    function apiHeaders(json=true){
+
+      const h = {};
+
+      if (json) h['Content-Type'] = 'application/json';
+
+      const t = getApiToken();
+
+      if (t) h['X-API-Key'] = t;
+
+      return h;
+
+    }
+
+    async function safeFetch(url, opts={}, retry=true){
+
+      const res = await fetch(url, opts);
+
+      if (res.status === 401 && retry){
+
+        const t = window.prompt('Enter API token');
+
+        if (!t) return res;
+
+        setApiToken(t);
+
+        const newOpts = Object.assign({}, opts);
+
+        newOpts.headers = Object.assign({}, opts.headers || {}, {'X-API-Key': t});
+
+        return safeFetch(url, newOpts, false);
+
+      }
+
+      return res;
+
+    }
+
+
+
+    const ticketRows = document.getElementById('ticket-rows');
+
+    const modal = document.getElementById('ticket-modal');
+
+    const title = document.getElementById('ticket-modal-title');
+
+    const form = document.getElementById('ticket-form');
+
+    const btnNew = document.getElementById('new-ticket');
+
+    const btnClose = document.getElementById('ticket-modal-close');
+
+    const btnToggleDone = document.getElementById('ticket-mark-done');
+
+    const hardwareSnapshot = document.getElementById('hardware-snapshot');
+
+    const clientField = form.elements.client;
+
+    const clientKeyField = form.elements.client_key;
+
+    const clientModal = document.getElementById('client-modal');
+
+    const clientModalClose = document.getElementById('client-modal-close');
+
+    const clientModalTitle = document.getElementById('client-modal-title');
+
+    const clientForm = document.getElementById('client-form');
+
+    const clientFields = document.getElementById('client-fields');
+
+
+
+    function previewLimit(){
+
+      if (window.innerWidth >= 2000) return 100;
+
+      if (window.innerWidth >= 1600) return 80;
+
+      return 60;
+
+    }
+
+    function buildPreview(text, limit){
+
+      const clean = (text || '').replace(/\s+/g, ' ').trim();
+
+      if (!clean) return '';
+
+      if (clean.length <= limit) return clean;
+
+      return clean.slice(0, limit - 1) + '...';
+
+    }
+
+    function applyNotePreviews(){
+
+      const limit = previewLimit();
+
+      document.querySelectorAll('#ticket-rows .note').forEach(cell => {
+
+        if (cell.dataset.isHardware === '1') return;
+
+        const btn = cell.querySelector('.note-preview-btn');
+
+        if (!btn) return;
+
+        const full = cell.dataset.fullNote || '';
+
+        const preview = buildPreview(full, limit);
+
+        btn.textContent = preview;
+
+        btn.dataset.previewNote = preview;
+
+        btn.dataset.fullNote = full;
+
+        const row = cell.closest('tr');
+
+        if (row) row.classList.remove('is-expanded');
+
+      });
+
+    }
+
+    async function refreshTable(){
+
+      const res = await safeFetch('/ui/ticket_table', { headers: { 'X-Requested-With': 'fetch' } }, false);
+
+      if (res.ok){
+
+        ticketRows.innerHTML = await res.text();
+
+        applyNotePreviews();
+
+      }
+
+    }
+
+    function closeModal(){ modal.style.display = 'none'; }
+
+    function toLocalInput(iso){
+
+      if (!iso) return '';
+
+      const dt = new Date(iso);
+
+      if (Number.isNaN(dt.getTime())) return '';
+
+      const tzAdjusted = new Date(dt.getTime() - dt.getTimezoneOffset() * 60000);
+
+      return tzAdjusted.toISOString().slice(0, 16);
+
+    }
+
+    function fromLocalInput(value){
+
+      if (!value) return null;
+
+      const dt = new Date(value);
+
+      if (Number.isNaN(dt.getTime())) return null;
+
+      return dt.toISOString();
+
+    }
+
+    async function populateClientFromKey(clientKey, { silent = false } = {}){
+
+      const key = (clientKey || '').trim();
+
+      if (!key){
+
+        clientField.value = '';
+
+        return;
+
+      }
+
+      const res = await safeFetch(`/api/v1/clients/${encodeURIComponent(key)}`);
+
+      if (res.ok){
+
+        const data = await res.json();
+
+        const entry = data.client || {};
+
+        clientField.value = entry.name || key;
+
+      } else {
+
+        if (!silent) window.alert(`Client lookup failed for key "${key}"`);
+
+        clientField.value = '';
+
+      }
+
+    }
+
+    function setTicketFields(data){
+
+      const elements = form.elements;
+
+      elements.id.value = data.id || '';
+
+      elements.entry_type.value = data.entry_type || 'time';
+
+      elements.hardware_barcode.value = data.hardware_barcode || '';
+
+      elements.start_iso.value = toLocalInput(data.start_iso) || '';
+
+      elements.end_iso.value = toLocalInput(data.end_iso) || '';
+
+      elements.invoice_number.value = data.invoice_number || '';
+
+      elements.completed.value = String(data.completed || 0);
+
+      elements.elapsed_minutes.value = data.elapsed_minutes ?? '';
+
+      elements.rounded_minutes.value = data.rounded_minutes ?? '';
+
+      elements.rounded_hours.value = data.rounded_hours ?? '';
+
+      elements.created_at.value = data.created_at || '';
+
+      elements.note.value = data.note || '';
+
+      clientKeyField.value = data.client_key || '';
+
+      clientField.value = data.client || '';
+
+      if (data.entry_type === 'hardware'){
+
+        hardwareSnapshot.style.display = 'block';
+
+        const desc = data.hardware_description || '(no description)';
+
+        const price = data.hardware_sales_price ? ` — ${data.hardware_sales_price}` : '';
+
+        const barcode = data.hardware_barcode ? ` (barcode: ${data.hardware_barcode})` : '';
+
+        hardwareSnapshot.textContent = `Hardware Snapshot: ${desc}${price}${barcode}`;
+
+      } else {
+
+        hardwareSnapshot.style.display = 'none';
+
+        hardwareSnapshot.textContent = '';
+
+      }
+
+      btnToggleDone.disabled = !data.id;
+
+      btnToggleDone.dataset.id = data.id || '';
+
+      btnToggleDone.dataset.completed = data.completed ? '1' : '0';
+
+    }
+
+    function openModal(data){
+
+      modal.style.display = 'block';
+
+      form.reset();
+
+      const now = new Date();
+
+      if (data){
+
+        title.textContent = `Edit Ticket #${data.id}`;
+
+        setTicketFields(data);
+
+        populateClientFromKey(data.client_key, { silent: true });
+
+      } else {
+
+        title.textContent = 'New Ticket';
+
+        setTicketFields({
+
+          entry_type: 'time',
+
+          start_iso: now.toISOString(),
+
+          end_iso: '',
+
+          completed: 0,
+
+          created_at: now.toISOString(),
+
+          client_key: '',
+
+          client: ''
+
+        });
+
+      }
+
+    }
+
+    async function openTicketEditor(id){
+
+      const res = await safeFetch(`/api/v1/tickets/${id}`);
+
+      if (res.ok){
+
+        openModal(await res.json());
+
+      } else {
+
+        window.alert('Failed to load ticket');
+
+      }
+
+    }
+
+    async function openClientEditor(clientKey){
+
+      const res = await safeFetch(`/api/v1/clients/${encodeURIComponent(clientKey)}`);
+
+      if (!res.ok){
+
+        alert('Failed to load client');
+
+        return;
+
+      }
+
+      const data = await res.json();
+
+      const entry = data.client || {};
+
+      clientModalTitle.textContent = `Edit Client: ${clientKey}`;
+
+      clientFields.innerHTML = '';
+
+      const nameWrap = document.createElement('label');
+
+      nameWrap.style.display = 'block';
+
+      nameWrap.style.marginBottom = '8px';
+
+      nameWrap.textContent = 'Display Name ';
+
+      const nameInput = document.createElement('input');
+
+      nameInput.className = 'mono';
+
+      nameInput.value = entry.name || '';
+
+      nameInput.required = true;
+
+      nameWrap.appendChild(nameInput);
+
+      clientFields.appendChild(nameWrap);
+
+      const attributes = Object.assign({}, entry);
+
+      delete attributes.name;
+
+      Object.keys(attributes).sort().forEach(k => {
+
+        const wrap = document.createElement('label');
+
+        wrap.style.display='block';
+
+        wrap.style.marginBottom='6px';
+
+        wrap.textContent = k + ' ';
+
+        const input = document.createElement('input');
+
+        input.name = k;
+
+        input.value = String(attributes[k] ?? '');
+
+        input.className = 'mono';
+
+        wrap.appendChild(input);
+
+        clientFields.appendChild(wrap);
+
+      });
+
+      clientForm.onsubmit = async (ev)=>{
+
+        ev.preventDefault();
+
+        const name = nameInput.value.trim();
+
+        if (!name){
+
+          alert('Display name is required');
+
+          return;
+
+        }
+
+        const payload = { name, attributes: {} };
+
+        clientFields.querySelectorAll('input[name]').forEach(inp => {
+
+          if (inp === nameInput) return;
+
+          payload.attributes[inp.name] = inp.value;
+
+        });
+
+        const r = await safeFetch(`/api/v1/clients/${encodeURIComponent(clientKey)}`, {
+
+          method:'PATCH',
+
+          headers: apiHeaders(true),
+
+          body: JSON.stringify(payload)
+
+        });
+
+        if (r.ok){
+
+          clientModal.style.display = 'none';
+
+        } else {
+
+          alert('Client save failed');
+
+        }
+
+      };
+
+      clientModal.style.display = 'block';
+
+    }
+
+
+
+    btnClose.addEventListener('click', closeModal);
+
+    btnNew.addEventListener('click', ()=> openModal(null));
+
+    clientKeyField.addEventListener('change', ()=> populateClientFromKey(clientKeyField.value));
+
+    form.addEventListener('submit', async (e)=>{
+
+      e.preventDefault();
+
+      const elements = form.elements;
+
+      const id = elements.id.value;
+
+      const payload = {
+
+        client_key: elements.client_key.value.trim(),
+
+        client: elements.client.value || null,
+
+        note: elements.note.value,
+
+        invoice_number: elements.invoice_number.value,
+
+        entry_type: elements.entry_type.value,
+
+        hardware_barcode: elements.hardware_barcode.value.trim() || null,
+
+        completed: Number(elements.completed.value)
+
+      };
+
+      const startIso = fromLocalInput(elements.start_iso.value);
+
+      const endIso = fromLocalInput(elements.end_iso.value);
+
+      if (startIso) payload.start_iso = startIso;
+
+      if (endIso) payload.end_iso = endIso;
+
+      const method = id ? 'PATCH' : 'POST';
+
+      const url = id ? `/api/v1/tickets/${id}` : '/api/v1/tickets';
+
+      const res = await safeFetch(url, { method, headers: apiHeaders(true), body: JSON.stringify(payload) });
+
+      if (res.ok){
+
+        closeModal();
+
+        await refreshTable();
+
+      } else {
+
+        let msg = 'Save failed';
+
+        try {
+
+          const body = await res.json();
+
+          if (body && body.detail) msg = `Save failed: ${body.detail}`;
+
+        } catch (err) {}
+
+        window.alert(msg);
+
+      }
+
+    });
+
+    btnToggleDone.addEventListener('click', async ()=>{
+
+      const id = btnToggleDone.dataset.id;
+
+      if (!id) return;
+
+      const next = btnToggleDone.dataset.completed === '1' ? 0 : 1;
+
+      const res = await safeFetch(`/api/v1/tickets/${id}`, {
+
+        method: 'PATCH',
+
+        headers: apiHeaders(true),
+
+        body: JSON.stringify({ completed: next })
+
+      });
+
+      if (res.ok){
+
+        closeModal();
+
+        await refreshTable();
+
+      } else {
+
+        window.alert('Toggle failed');
+
+      }
+
+    });
+
+    ticketRows.addEventListener('click', async (e)=>{
+
+      const del = e.target.closest('.js-delete-ticket');
+
+      if (del){
+
+        e.preventDefault();
+
+        const id = del.dataset.id;
+
+        if (!id) return;
+
+        if (!window.confirm(`Delete ticket #${id}? This cannot be undone.`)) return;
+
+        const res = await safeFetch(`/api/v1/tickets/${id}`, {
+
+          method: 'DELETE',
+
+          headers: apiHeaders(false)
+
+        });
+
+        if (res.ok){
+
+          await refreshTable();
+
+        } else {
+
+          window.alert('Delete failed');
+
+        }
+
+        return;
+
+      }
+
+      const noteBtn = e.target.closest('.note-preview-btn');
+
+      if (noteBtn){
+
+        e.preventDefault();
+
+        const cell = noteBtn.closest('.note');
+
+        if (!cell || cell.dataset.isHardware === '1') return;
+
+        const row = noteBtn.closest('tr');
+
+        const wasExpanded = row ? row.classList.contains('is-expanded') : false;
+
+        if (wasExpanded){
+
+          if (row) row.classList.remove('is-expanded');
+
+          const full = cell.dataset.fullNote || '';
+
+          const preview = buildPreview(full, previewLimit());
+
+          noteBtn.textContent = preview;
+
+          noteBtn.dataset.previewNote = preview;
+
+        } else {
+
+          if (row) row.classList.add('is-expanded');
+
+          const full = noteBtn.dataset.fullNote || cell.dataset.fullNote || '';
+
+          noteBtn.textContent = full;
+
+        }
+
+        return;
+
+      }
+
+      const edit = e.target.closest('.js-edit-ticket');
+
+      if (edit){
+
+        e.preventDefault();
+
+        await openTicketEditor(edit.dataset.id);
+
+        return;
+
+      }
+
+      const clientLink = e.target.closest('.open-client');
+
+      if (clientLink){
+
+        e.preventDefault();
+
+        await openClientEditor(clientLink.dataset.clientKey);
+
+        return;
+
+      }
+
+    });
+
+    ticketRows.addEventListener('change', async (e)=>{
+
+      const checkbox = e.target.closest('.js-complete-checkbox');
+
+      if (checkbox){
+
+        const id = checkbox.dataset.id;
+
+        const next = checkbox.checked ? 1 : 0;
+
+        const res = await safeFetch(`/api/v1/tickets/${id}`, {
+
+          method: 'PATCH',
+
+          headers: apiHeaders(true),
+
+          body: JSON.stringify({ completed: next })
+
+        });
+
+        if (!res.ok) window.alert('Status update failed');
+
+        await refreshTable();
+
+        return;
+
+      }
+
+      const input = e.target.closest('.invoice-input');
+
+      if (!input) return;
+
+      const id = input.dataset.id;
+
+      const res = await safeFetch(`/api/v1/tickets/${id}`, {
+
+        method: 'PATCH',
+
+        headers: apiHeaders(true),
+
+        body: JSON.stringify({ invoice_number: input.value })
+
+      });
+
+      if (!res.ok){ window.alert('Invoice update failed'); await refreshTable(); }
+
+    });
+
+    clientModalClose.addEventListener('click', ()=>{ clientModal.style.display = 'none'; });
+
+    let resizeTimer;
+
+    window.addEventListener('resize', ()=>{
+
+      clearTimeout(resizeTimer);
+
+      resizeTimer = setTimeout(applyNotePreviews, 150);
+
+    });
+
+    applyNotePreviews();
+
+  })();
+
+</script>
+
+
+

@@ -1,0 +1,40 @@
+{% for r in rows %}
+<tr class="row {{ 'is-done' if r.completed else '' }}" data-id="{{ r.id }}">
+  <td class="mono">
+    <a href="#" class="js-edit-ticket" data-id="{{ r.id }}">{{ r.id }}</a>
+  </td>
+  <td>
+    <a href="#" class="open-client" data-client-key="{{ r.client_key }}">{{ r.client }}</a>
+  </td>
+  <td class="mono">{{ r.client_key }}</td>
+  <td class="mono hide-mobile">{{ r.start_iso | fmt_dt }}</td>
+  <td class="mono hide-mobile">{{ r.end_iso | fmt_dt }}</td>
+  <td class="mono">{{ r.minutes }}</td>
+  <td class="mono">{{ r.rounded_hours }}</td>
+  <td class="mono">{{ r.entry_type }}</td>
+  <td class="note" data-full-note="{{ (r.note or '')|escape }}" data-is-hardware="{{ 1 if r.entry_type == 'hardware' else 0 }}">
+    <button class="note-preview-btn" type="button">
+      {% if r.entry_type == 'hardware' %}
+        <strong>{{ r.hardware_description or '(no description)' }}</strong>{% if r.hardware_sales_price %} - {{ r.hardware_sales_price }}{% endif %}
+      {% else %}
+        {{ r.note or '' }}
+      {% endif %}
+    </button>
+  </td>
+  <td class="mono invoice">
+    <input type="text" class="invoice-input" data-id="{{ r.id }}" value="{{ r.invoice_number or '' }}" placeholder="Invoice #" />
+  </td>
+  <td class="td-action">
+    <label class="pill pill-checkbox {{ 'ok' if r.completed else '' }}">
+      <input type="checkbox" class="js-complete-checkbox" data-id="{{ r.id }}" {{ 'checked' if r.completed }} />
+      <span>{{ 'Done' if r.completed else 'Open' }}</span>
+    </label>
+    <button class="pill js-toggle-status {{ 'ok' if r.completed else '' }}" type="button" data-id="{{ r.id }}" data-completed="{{ 1 if r.completed else 0 }}">{{ 'Done' if r.completed else 'Open' }}</button>
+    <button class="btn btn-danger btn-icon js-delete-ticket" type="button" data-id="{{ r.id }}" aria-label="Delete ticket {{ r.id }}">
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path fill="currentColor" d="M9 3a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1h5v1h-2v16a2 2 0 0 1-2.1 2H8.1A2 2 0 0 1 6 20V4H4V3h5zm1 0h4v1h-4V3zM8 9h2v10H8V9zm4 0h2v10h-2V9zm4 0h2v10h-2V9z"/>
+      </svg>
+    </button>
+  </td>
+</tr>
+{% endfor %}

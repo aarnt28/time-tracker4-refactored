@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Hardware</title>
+  <link rel="stylesheet" href="/static/app.css" />
+  <link rel="icon" href="/static/favicon.ico" />
+</head>
+<body class="dashboard">
+  <header class="app-header">
+    <div class="container">
+      <h1>Hardware</h1>
+      <div class="actions">
+        <button class="btn" type="button" id="new-hardware">New Hardware</button>
+      </div>
+      <nav class="links">
+        <a href="/" class="pill">Dashboard</a>
+        <a href="/tickets" class="pill">Tickets</a>
+        <a href="/hardware" class="pill active" aria-current="page">Hardware</a>
+        <a href="/clients" class="pill">Clients</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="table-wrap">
+      <div class="table-scroll">
+        <table class="table">
+          <thead>
+            <tr>
+              <th class="mono">Barcode</th>
+              <th>Description</th>
+              <th class="mono">Acquisition Cost</th>
+              <th class="mono">Sales Price</th>
+              <th class="mono">Created</th>
+              <th class="th-action">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="hardware-rows">
+            {% include "_hardware_rows.html" with context %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <div id="hardware-modal" class="modal-root" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.35);">
+    <div class="modal-card" style="max-width:600px; margin:5vh auto; background:#fff; border-radius:12px; padding:20px;">
+      <header style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+        <h2 id="hardware-modal-title" style="margin:0; font-size:1.25rem;">New Hardware</h2>
+        <button id="hardware-modal-close" class="btn" type="button">Close</button>
+      </header>
+      <form id="hardware-form">
+        <input type="hidden" name="id" />
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+          <label>Barcode<input name="barcode" required class="mono" /></label>
+          <label>Description<input name="description" required /></label>
+          <label>Acquisition Cost<input name="acquisition_cost" class="mono" /></label>
+          <label>Sales Price<input name="sales_price" class="mono" /></label>
+        </div>
+        <div style="display:flex; gap:8px; margin-top:12px;">
+          <button class="btn" type="submit">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+  (function(){
+    function getApiToken(){ return window.localStorage.getItem('api_token') || ''; }
+    function setApiToken(t){ if (t) window.localStorage.setItem('api_token', t); }
+    function apiHeaders(json=true){
+      const h = {};
+      if (json) h['Content-Type'] = 'application/json';
+      const t = getApiToken();
+      if (t) h['X-API-Key'] = t;
+      return h;
+    }
+    async function safeFetch(url, opts={}, retry=true){
+      const res = await fetch(url, opts);
+      if (res.status === 401 && retry){
+        const t = window.prompt('Enter API token');
+        if (!t) return res;
+        setApiToken(t);
+        const newOpts = Object.assign({}, opts);
+        newOpts.headers = Object.assign({}, opts.headers || {}, {'X-API-Key': t});
+        return safeFetch(url, newOpts, false);
+      }
+      return res;
+    }
+
+    const modal = document.getElementById('hardware-modal');
+    const title = document.getElementById('hardware-modal-title');
+    const closeBtn = document.getElementById('hardware-modal-close');
+    const form = document.getElementById('hardware-form');
+    const btnNew = document.getElementById('new-hardware');
+
+    function openModal(data){
+      modal.style.display = 'block';
+      form.reset();
+      if (data){
+        title.textContent = `Edit Hardware (${data.barcode})`;
+        form.elements.id.value = data.id;
+        form.elements.barcode.value = data.barcode || '';
+        form.elements.description.value = data.description || '';
+        form.elements.acquisition_cost.value = data.acquisition_cost || '';
+        form.elements.sales_price.value = data.sales_price || '';
+      } else {
+        title.textContent = 'New Hardware';
+        form.elements.id.value = '';
+      }
+      form.elements.barcode.focus();
+    }
+
+    function closeModal(){
+      modal.style.display = 'none';
+    }
+
+    closeBtn.addEventListener('click', closeModal);
+    btnNew.addEventListener('click', function(){ openModal(null); });
+
+    document.addEventListener('click', function(e){
+      const link = e.target.closest('a.edit-hardware');
+      if (!link) return;
+      e.preventDefault();
+      const id = link.dataset.id;
+      safeFetch(`/api/v1/hardware/${id}`, { headers: apiHeaders(false) })
+        .then(function(res){
+          if (!res.ok) throw new Error('failed hardware fetch');
+          return res.json();
+        })
+        .then(openModal)
+        .catch(function(){ window.alert('Failed to load hardware item'); });
+    });
+
+    form.addEventListener('submit', async function(e){
+      e.preventDefault();
+      const id = form.elements.id.value;
+      const barcode = form.elements.barcode.value.trim();
+      const description = form.elements.description.value.trim();
+      if (!barcode || !description){
+        window.alert('Barcode and Description are required.');
+        return;
+      }
+      const payload = { barcode, description };
+      const acqRaw = form.elements.acquisition_cost.value.trim();
+      const saleRaw = form.elements.sales_price.value.trim();
+      if (acqRaw || id) payload.acquisition_cost = acqRaw;
+      if (saleRaw || id) payload.sales_price = saleRaw;
+
+      const method = id ? 'PATCH' : 'POST';
+      const url = id ? `/api/v1/hardware/${id}` : '/api/v1/hardware';
+      const res = await safeFetch(url, {
+        method,
+        headers: apiHeaders(true),
+        body: JSON.stringify(payload)
+      });
+      if (res.ok){
+        closeModal();
+        window.location.reload();
+      } else {
+        let msg = 'Save failed';
+        try {
+          const body = await res.json();
+          if (body && body.detail) msg = `Save failed: ${body.detail}`;
+        } catch (err) {
+          /* ignore json parse errors */
+        }
+        window.alert(msg);
+      }
+    });
+  })();
+  </script>
+</body>
+</html>

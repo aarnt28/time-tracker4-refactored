@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Clients</title>
+
+  <link rel="stylesheet" href="/static/app.css" />
+  <link rel="icon" href="/static/favicon.ico" />
+</head>
+<body class="dashboard">
+  <header class="app-header">
+    <div class="container">
+      <h1>Clients</h1>
+      <div class="actions">
+        <button class="btn" id="create-client">New Client</button>
+      </div>
+      <nav class="links">
+        <a href="/" class="pill">Dashboard</a>
+        <a href="/tickets" class="pill">Tickets</a>
+        <a href="/hardware" class="pill">Hardware</a>
+        <a href="/clients" class="pill active" aria-current="page">Clients</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="table-wrap">
+      <div class="table-scroll">
+        <table class="table" id="clients-table">
+          <thead id="clients-head"></thead>
+          <tbody id="clients-body"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <!-- Edit modal -->
+  <div id="edit-modal" class="modal-root" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.35);">
+    <div class="modal-card" style="max-width:720px; margin:5vh auto; background:#fff; border-radius:12px; padding:20px;">
+      <header style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+        <h2 id="edit-title" style="margin:0; font-size:1.25rem;">Edit Client</h2>
+        <button id="edit-close" class="btn">Close</button>
+      </header>
+
+      <form id="edit-form" style="display:block;">
+        <div id="edit-fields"></div>
+
+        <div style="display:flex; gap:8px; margin-top:8px;">
+          <input type="text" id="new-key" placeholder="new attribute key" class="mono" />
+          <input type="text" id="new-val" placeholder="value" class="mono" />
+          <button class="btn" id="add-attr">Add attribute</button>
+        </div>
+        <div style="margin-top:16px;">
+          <button class="btn" type="submit">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+  function getApiToken(){ return window.localStorage.getItem('api_token') || ''; }
+  function setApiToken(t){ if (t) window.localStorage.setItem('api_token', t); }
+  function apiHeaders(json=true){
+    const h = {};
+    if (json) h['Content-Type'] = 'application/json';
+    const t = getApiToken();
+    if (t) h['X-API-Key'] = t;
+    return h;
+  }
+  async function safeFetch(url, opts={}, retry=true){
+    const res = await fetch(url, opts);
+    if (res.status === 401 && retry){
+      const t = window.prompt('Enter API token');
+      if (!t) return res;
+      setApiToken(t);
+      const newOpts = Object.assign({}, opts);
+      newOpts.headers = Object.assign({}, opts.headers || {}, {'X-API-Key': t});
+      return safeFetch(url, newOpts, false);
+    }
+    return res;
+  }
+
+  function renderTable(data){
+    const tableData = data.clients || {};
+    const head = document.getElementById('clients-head');
+    const body = document.getElementById('clients-body');
+    head.innerHTML = '';
+    body.innerHTML = '';
+
+    const attributeKeys = new Set();
+    Object.values(tableData).forEach(entry => {
+      Object.keys(entry || {}).forEach(k => {
+        if (k !== 'name') attributeKeys.add(k);
+      });
+    });
+    const sortedAttributes = Array.from(attributeKeys).sort();
+
+    const trh = document.createElement('tr');
+    ['Client Key', 'Name', ...sortedAttributes, 'Actions'].forEach(label => {
+      const th = document.createElement('th');
+      th.textContent = label;
+      trh.appendChild(th);
+    });
+    head.appendChild(trh);
+
+    Object.keys(tableData).sort((a, b) => a.localeCompare(b)).forEach(clientKey => {
+      const entry = tableData[clientKey] || {};
+      const tr = document.createElement('tr');
+      const tdKey = document.createElement('td');
+      tdKey.textContent = clientKey;
+      tdKey.className = 'mono';
+      tr.appendChild(tdKey);
+
+      const tdName = document.createElement('td');
+      tdName.textContent = entry.name || '';
+      tdName.style.fontWeight = '600';
+      tr.appendChild(tdName);
+
+      sortedAttributes.forEach(attr => {
+        const td = document.createElement('td');
+        const value = entry[attr];
+        td.textContent = value === undefined ? '' : String(value);
+        tr.appendChild(td);
+      });
+
+      const tdAct = document.createElement('td');
+      const delBtn = document.createElement('button');
+      delBtn.className = 'btn btn-danger btn-icon';
+      delBtn.type = 'button';
+      delBtn.title = `Delete client ${clientKey}`;
+      delBtn.setAttribute('aria-label', `Delete client ${clientKey}`);
+      delBtn.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M9 3a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1h5v1h-2v16a2 2 0 0 1-2.1 2H8.1A2 2 0 0 1 6 20V4H4V3h5zm1 0h4v1h-4V3zM8 9h2v10H8V9zm4 0h2v10h-2V9zm4 0h2v10h-2V9z"/></svg>`;
+      delBtn.addEventListener('click', async (ev) => {
+        ev.stopPropagation();
+        if (!confirm(`Delete client "${clientKey}"? This cannot be undone.`)) return;
+        const r = await safeFetch(`/api/v1/clients/${encodeURIComponent(clientKey)}/delete`, { method: 'POST', headers: apiHeaders(false) });
+        if (r.ok) loadTable(); else alert('Delete failed');
+      });
+      tdAct.appendChild(delBtn);
+      tr.appendChild(tdAct);
+
+      tr.addEventListener('click', () => openEditor(clientKey, entry, sortedAttributes));
+      body.appendChild(tr);
+    });
+  }
+
+  function loadTable(){
+    fetch('/api/v1/clients')
+      .then(r => r.ok ? r.json() : Promise.reject(r))
+      .then(renderTable)
+      .catch(()=> alert('Failed to load clients'));
+  }
+
+  function openEditor(clientKey, entry, attributeKeys){
+    const modal = document.getElementById('edit-modal');
+    const fields = document.getElementById('edit-fields');
+    const nameValue = entry.name || '';
+    document.getElementById('edit-title').textContent = `Edit Client: ${clientKey}`;
+    fields.innerHTML = '';
+
+    const nameWrap = document.createElement('label');
+    nameWrap.style.display = 'block';
+    nameWrap.style.marginBottom = '10px';
+    nameWrap.textContent = 'Display Name ';
+    const nameInput = document.createElement('input');
+    nameInput.id = 'edit-name';
+    nameInput.value = nameValue;
+    nameInput.required = true;
+    nameInput.className = 'mono';
+    nameWrap.appendChild(nameInput);
+    fields.appendChild(nameWrap);
+
+    const attrContainer = document.createElement('div');
+    attrContainer.id = 'attribute-container';
+    attrContainer.style.display = 'flex';
+    attrContainer.style.flexDirection = 'column';
+    attrContainer.style.gap = '8px';
+    fields.appendChild(attrContainer);
+
+    function addAttrRow(key, value){
+      const wrap = document.createElement('label');
+      wrap.style.display = 'block';
+      wrap.style.marginBottom = '6px';
+      wrap.textContent = key + ' ';
+      const input = document.createElement('input');
+      input.value = value;
+      input.dataset.attrKey = key;
+      input.className = 'mono';
+      wrap.appendChild(input);
+      attrContainer.appendChild(wrap);
+    }
+
+    if (attributeKeys.length){
+      attributeKeys.forEach(k => {
+        const val = entry[k];
+        if (k !== 'name') addAttrRow(k, val === undefined ? '' : String(val));
+      });
+    } else {
+      Object.keys(entry).forEach(k => {
+        if (k !== 'name') addAttrRow(k, String(entry[k] ?? ''));
+      });
+    }
+
+    document.getElementById('edit-close').onclick = () => { modal.style.display = 'none'; };
+    modal.style.display = 'block';
+
+    document.getElementById('edit-form').onsubmit = async (ev) => {
+      ev.preventDefault();
+      const name = nameInput.value.trim();
+      if (!name){
+        alert('Display name is required');
+        return;
+      }
+      const payload = { name, attributes: {} };
+      attrContainer.querySelectorAll('input[data-attr-key]').forEach(inp => {
+        payload.attributes[inp.dataset.attrKey] = inp.value;
+      });
+      const r = await safeFetch(`/api/v1/clients/${encodeURIComponent(clientKey)}`, {
+        method: 'PATCH',
+        headers: apiHeaders(true),
+        body: JSON.stringify(payload)
+      });
+      if (r.ok){
+        modal.style.display = 'none';
+        loadTable();
+      } else {
+        alert('Save failed');
+      }
+    };
+
+    document.getElementById('add-attr').onclick = (ev) => {
+      ev.preventDefault();
+      const newKeyInput = document.getElementById('new-key');
+      const newValInput = document.getElementById('new-val');
+      const key = (newKeyInput.value || '').trim();
+      if (!key) return;
+      addAttrRow(key, newValInput.value || '');
+      newKeyInput.value = '';
+      newValInput.value = '';
+    };
+  }
+
+  document.getElementById('create-client').addEventListener('click', async () => {
+    const clientKey = prompt('New client key (e.g., nds):');
+    if (!clientKey) return;
+    const name = prompt('Display name for this client:');
+    if (!name) return;
+    const r = await safeFetch('/api/v1/clients', {
+      method: 'POST',
+      headers: apiHeaders(true),
+      body: JSON.stringify({ client_key: clientKey.trim(), name: name.trim(), attributes: {} })
+    });
+    if (r.ok) loadTable(); else alert('Create failed');
+  });
+
+  loadTable();
+</script>
