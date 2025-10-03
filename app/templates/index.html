@@ -2,454 +2,327 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Mission Control</title>
-  <link rel="icon" href="/static/favicon.ico" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Entries</title>
+
   <link rel="stylesheet" href="/static/app.css" />
-  <style>
-    :root {
-      --glass-bg: rgba(15, 23, 42, 0.55);
-      --glass-border: rgba(148, 163, 184, 0.2);
-      --glow: rgba(56, 189, 248, 0.45);
-      --accent: #38bdf8;
-      --accent-strong: #14b8a6;
-      --txt-primary: #e2e8f0;
-      --txt-muted: #94a3b8;
-      --card-shadow: 0 20px 40px rgba(15, 23, 42, 0.45);
-    }
-
-    body.landing {
-      min-height: 100vh;
-      margin: 0;
-      font-family: "Segoe UI", system-ui, sans-serif;
-      color: var(--txt-primary);
-      background: radial-gradient(120% 120% at 20% 20%, rgba(56, 189, 248, 0.2), transparent 55%),
-                  radial-gradient(100% 120% at 80% 0%, rgba(14, 165, 233, 0.45), transparent 60%),
-                  radial-gradient(100% 140% at 50% 80%, rgba(52, 211, 153, 0.22), #0f172a 70%);
-      background-attachment: fixed;
-    }
-
-    .orbital-grid {
-      position: fixed;
-      inset: 0;
-      background-image: linear-gradient(rgba(148, 163, 184, 0.05) 1px, transparent 1px),
-                        linear-gradient(90deg, rgba(148, 163, 184, 0.04) 1px, transparent 1px);
-      background-size: 48px 48px;
-      pointer-events: none;
-    }
-
-    .landing-wrapper {
-      position: relative;
-      padding: 64px min(8vw, 96px) 96px;
-      display: flex;
-      flex-direction: column;
-      gap: 48px;
-    }
-
-    header.hero {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-    }
-
-    header.hero h1 {
-      font-size: clamp(2.75rem, 4vw, 3.6rem);
-      margin: 0;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      color: #f8fafc;
-      text-shadow: 0 0 38px rgba(56, 189, 248, 0.45);
-    }
-
-    header.hero .subline {
-      font-size: 1.05rem;
-      color: var(--txt-muted);
-      max-width: 680px;
-      line-height: 1.6;
-    }
-
-    .status-bar {
-      display: grid;
-      gap: 18px;
-      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-    }
-
-    .status-card {
-      backdrop-filter: blur(18px);
-      border-radius: 18px;
-      padding: 22px 24px;
-      border: 1px solid var(--glass-border);
-      background: var(--glass-bg);
-      box-shadow: var(--card-shadow);
-      position: relative;
-      overflow: hidden;
-    }
-
-    .status-card::after {
-      content: "";
-      position: absolute;
-      inset: -40% 45% auto -30%;
-      height: 160%;
-      width: 65%;
-      background: radial-gradient(circle at center, var(--glow), transparent 70%);
-      opacity: 0.5;
-      pointer-events: none;
-      transform: rotate(15deg);
-    }
-
-    .status-card span.label {
-      text-transform: uppercase;
-      font-size: 0.75rem;
-      letter-spacing: 0.3em;
-      color: var(--txt-muted);
-    }
-
-    .status-card h2 {
-      font-size: clamp(2.4rem, 3vw, 3rem);
-      margin: 10px 0 4px;
-      color: #f8fafc;
-    }
-
-    .status-card .meta {
-      font-size: 0.95rem;
-      color: var(--txt-muted);
-      display: flex;
-      gap: 18px;
-      flex-wrap: wrap;
-    }
-
-    .status-card .progress {
-      height: 6px;
-      border-radius: 999px;
-      background: rgba(148, 163, 184, 0.15);
-      margin-top: 18px;
-      overflow: hidden;
-    }
-
-    .status-card .progress span {
-      display: block;
-      height: 100%;
-      background: linear-gradient(90deg, var(--accent), var(--accent-strong));
-      width: 0;
-      transition: width 0.6s ease;
-    }
-
-    .status-card[data-progress] .progress span {
-      width: attr(data-progress);
-    }
-
-    .status-card[data-progress]::after {
-      opacity: 0.7;
-    }
-
-    .status-card .progress span[data-width] {
-      width: var(--width, 0%);
-    }
-
-    .systems-grid {
-      display: grid;
-      grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
-      gap: 28px;
-    }
-
-    @media (max-width: 1100px) {
-      .systems-grid { grid-template-columns: 1fr; }
-    }
-
-    .panel-glass {
-      backdrop-filter: blur(16px);
-      border-radius: 22px;
-      border: 1px solid var(--glass-border);
-      background: rgba(15, 23, 42, 0.72);
-      box-shadow: var(--card-shadow);
-      padding: 28px;
-      display: flex;
-      flex-direction: column;
-      gap: 24px;
-    }
-
-    .panel-head {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 12px;
-    }
-
-    .panel-head h3 {
-      margin: 0;
-      font-size: 1.2rem;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      color: #e0f2fe;
-    }
-
-    .panel-head .chip {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 0.85rem;
-      padding: 4px 10px;
-      border-radius: 999px;
-      background: rgba(56, 189, 248, 0.2);
-      color: #bae6fd;
-    }
-
-    .quick-actions {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 12px;
-    }
-
-    .quick-actions a {
-      text-decoration: none;
-      padding: 12px 18px;
-      border-radius: 999px;
-      border: 1px solid rgba(56, 189, 248, 0.4);
-      color: #e0f2fe;
-      backdrop-filter: blur(12px);
-      transition: transform 0.25s ease, box-shadow 0.25s ease;
-    }
-
-    .quick-actions a:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 12px 30px rgba(56, 189, 248, 0.25);
-    }
-
-    .activity-feed {
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-    }
-
-    .activity-card {
-      border-radius: 16px;
-      padding: 16px 18px;
-      border: 1px solid rgba(148, 163, 184, 0.14);
-      background: rgba(15, 23, 42, 0.6);
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
-      gap: 10px;
-      align-items: baseline;
-    }
-
-    .activity-card strong { color: #f8fafc; }
-    .activity-card span.meta { color: var(--txt-muted); font-size: 0.85rem; }
-    .activity-card span.badge {
-      border-radius: 999px;
-      padding: 3px 10px;
-      font-size: 0.75rem;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      background: rgba(52, 211, 153, 0.18);
-      color: #6ee7b7;
-    }
-
-    .spotlight-list {
-      display: flex;
-      flex-direction: column;
-      gap: 14px;
-    }
-
-    .spotlight-item {
-      --time-column-width: clamp(120px, 14vw, 158px);
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) var(--time-column-width);
-      gap: 18px;
-      align-items: start;
-      border-bottom: 1px solid rgba(148, 163, 184, 0.12);
-      padding-bottom: 12px;
-    }
-
-    .spotlight-item:last-child {
-      border-bottom: none;
-      padding-bottom: 0;
-    }
-
-    .spotlight-item .spotlight-body {
-      display: grid;
-      gap: 6px;
-      min-width: 0;
-    }
-
-    .spotlight-item .title {
-      font-size: 1.05rem;
-      color: #f8fafc;
-    }
-
-    .spotlight-item .subtitle {
-      display: grid;
-      gap: 4px;
-      color: var(--txt-muted);
-      font-size: 0.85rem;
-    }
-
-    .spotlight-item .subtitle .meta {
-      font-size: 0.85rem;
-      letter-spacing: 0.01em;
-    }
-
-    .spotlight-item .subtitle .note {
-      font-size: 0.9rem;
-      display: -webkit-box;
-      -webkit-line-clamp: 2;
-      -webkit-box-orient: vertical;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      max-width: clamp(32ch, 44vw, 72ch);
-      line-height: 1.35;
-      max-height: calc(1.35em * 2);
-    }
-
-    .spotlight-item .time {
-      font-size: 0.9rem;
-      color: rgba(226, 232, 240, 0.85);
-      min-width: 0;
-      justify-self: end;
-      width: var(--time-column-width);
-      text-align: right;
-      letter-spacing: 0.02em;
-    }
-    @media (min-width: 1200px) {
-      .spotlight-item { --time-column-width: clamp(132px, 10vw, 168px); }
-      .spotlight-item .subtitle .note { max-width: clamp(40ch, 46vw, 88ch); }
-    }
-
-    @media (min-width: 1600px) {
-      .spotlight-item { --time-column-width: clamp(138px, 8vw, 172px); }
-      .spotlight-item .subtitle .note { max-width: clamp(48ch, 48vw, 96ch); }
-    }
-
-    @media (min-width: 1920px) {
-      .spotlight-item { --time-column-width: clamp(144px, 7vw, 184px); }
-      .spotlight-item .subtitle .note {
-        display: block;
-        -webkit-line-clamp: unset;
-        max-height: none;
-        max-width: 100%;
-        overflow: visible;
-      }
-    }
-
-    @media (max-width: 900px) {
-      .landing-wrapper { padding: 48px 24px 72px; }
-      header.hero { align-items:center; text-align:center; }
-      header.hero .subline { max-width: 520px; }
-      .status-bar { grid-template-columns: 1fr; }
-      .panel-glass { padding: 20px; }
-      .spotlight-item { --time-column-width: clamp(120px, 32vw, 148px); }
-      .spotlight-item .subtitle .note { -webkit-line-clamp: 3; max-height: calc(1.35em * 3); max-width: clamp(32ch, 80vw, 54ch); }
-      .spotlight-item .time { width: var(--time-column-width); }
-    }
-
-    @media (max-width: 600px) {
-      .landing-wrapper { padding: 32px 18px 56px; gap: 36px; }
-      header.hero .subline { font-size: 0.98rem; }
-      .panel-head { flex-direction: column; align-items: flex-start; gap: 8px; }
-      .quick-actions { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
-      .spotlight-item { grid-template-columns: 1fr; gap: 12px; }
-      .spotlight-item .time { text-align: left; min-width: auto; width: auto; justify-self: start; font-size: 0.85rem; letter-spacing: 0.01em; }
-      .spotlight-item .subtitle .note { -webkit-line-clamp: 4; max-height: calc(1.35em * 4); max-width: 100%; }
-    }
-
-</style>
+  <link rel="icon" href="/static/favicon.ico" />
 </head>
-<body class="landing">
-  <div class="orbital-grid" aria-hidden="true"></div>
-  <div class="landing-wrapper">
-    <header class="hero">
-      <h1>Mission Control</h1>
-      <p class="subline">Stay ahead of support work, field installs, and client updates with real-time telemetry across every module.</p>
-    </header>
+<body class="dashboard">
+  <header class="app-header">
+    <div class="container">
+      <h1>Entries</h1>
 
-    <section class="status-bar">
-      <div class="status-card" style="position:relative;" data-progress>
-        <span class="label">Tickets</span>
-        <h2>{{ stats.tickets_open }}/{{ stats.tickets_total }}</h2>
-        <div class="meta">
-          <span>Open</span>
-          <span>Completion: {{ stats.tickets_completion }}%</span>
+      <form class="filters" action="/" method="get">
+        <div class="row">
+          <label>
+            <span>Client</span>
+            <input type="text" name="client" value="{{ client or '' }}" />
+          </label>
+          <label>
+            <span>Key</span>
+            <input type="text" name="client_key" value="{{ client_key or '' }}" />
+          </label>
+          <label>
+            <span>Status</span>
+            <select name="status">
+              <option value="" {{ 'selected' if not status }}>All</option>
+              <option value="open" {{ 'selected' if status == 'open' }}>Open</option>
+              <option value="done" {{ 'selected' if status == 'done' }}>Done</option>
+            </select>
+          </label>
+          <label>
+            <span>Search</span>
+            <input type="text" name="q" value="{{ q or '' }}" placeholder="client, key, note, invoice…" />
+          </label>
+          <label>
+            <span>Since</span>
+            <input type="date" name="since" value="{{ since or '' }}" />
+          </label>
+          <label>
+            <span>Until</span>
+            <input type="date" name="until" value="{{ until or '' }}" />
+          </label>
+          <label>
+            <span>Sort</span>
+            <select name="sort">
+              <option value="open_first_newest" {{ 'selected' if sort == 'open_first_newest' }}>Open first, newest</option>
+              <option value="id_asc" {{ 'selected' if sort == 'id_asc' }}>ID asc</option>
+              <option value="start_asc" {{ 'selected' if sort == 'start_asc' }}>Start asc</option>
+              <option value="start_desc" {{ 'selected' if sort == 'start_desc' }}>Start desc</option>
+            </select>
+          </label>
+          <label>
+            <span>Limit</span>
+            <input class="mono" type="number" name="limit" value="{{ limit }}" min="1" max="2000" />
+          </label>
+          <button class="btn" type="submit">Apply</button>
+          <a class="btn" href="/">Clear</a>
         </div>
-        <div class="progress">
-          <span style="--width: {{ stats.tickets_completion }}%; width: {{ stats.tickets_completion }}%;"></span>
-        </div>
-      </div>
+      </form>
 
-      <div class="status-card">
-        <span class="label">Hardware Inventory</span>
-        <h2>{{ stats.hardware_total }}</h2>
-        <div class="meta">
-          <span>Tracked assets</span>
-          <span><a href="/hardware" class="chip" style="text-decoration:none;">Jump to inventory</a></span>
-        </div>
+      <div class="actions">
+        <a class="btn" href="/api/export.csv?client={{ client or '' }}&client_key={{ client_key or '' }}&completed=&since={{ since or '' }}&until={{ until or '' }}&q={{ q or '' }}&sort={{ sort or '' }}&limit={{ limit or 500 }}">Export CSV</a>
+        <a class="btn" href="/clients">Clients</a>
+        <a class="btn" href="/hardware">Hardware</a>
       </div>
+    </div>
+  </header>
 
-      <div class="status-card">
-        <span class="label">Client Roster</span>
-        <h2>{{ stats.clients_total }}</h2>
-        <div class="meta">
-          <span>Active relationships</span>
-          <span><a href="/clients" class="chip" style="text-decoration:none;">Manage roster</a></span>
-        </div>
+  <main class="container">
+    <section class="table-wrap">
+      <div class="table-scroll">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th class="hide-mobile">Client</th>
+              <th>Key</th>
+              <th class="hide-mobile">Start</th>
+              <th class="hide-mobile">End</th>
+              <th>Minutes</th>
+              <th>Rounded hrs</th>
+              <th>Note</th>
+              <th>Invoice #</th>
+              <th class="th-action">Action</th>
+            </tr>
+          </thead>
+          <tbody id="rows">
+            {% include "_rows.html" %}
+          </tbody>
+        </table>
       </div>
+      <p class="table-hint">Inline edits auto-save. CSV export respects current filters and sort.</p>
     </section>
+  </main>
+  
+  <!-- Ticket edit modal -->
+	<div id="entry-modal" class="modal-root" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.35); z-index:1000;">
+	  <div class="modal-card" style="max-width:720px; margin:5vh auto; background:#fff; border-radius:12px; padding:20px;">
+	    <header style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+	      <h2 id="entry-modal-title" style="margin:0; font-size:1.25rem;">Edit Ticket</h2>
+	      <button id="entry-modal-close" class="btn">Close</button>
+	    </header>
+	
+	    <form id="entry-edit-form" method="post">
+	      <div class="grid-2">
+	        <label><span>Client</span><input type="text" name="client" required /></label>
+	        <label><span>Key</span><input type="text" name="client_key" required /></label>
+	        <label><span>Start (ISO)</span><input type="text" name="start_iso" class="mono" /></label>
+	        <label><span>End (ISO)</span><input type="text" name="end_iso" class="mono" /></label>
+	        <label><span>Invoice #</span><input type="text" name="invoice_number" class="mono" /></label>
+	        <label><span>Completed</span><input type="checkbox" name="completed" /></label>
+	      </div>
+	
+	      <label style="display:block; margin-top:10px;">
+	        <span>Note</span>
+	        <textarea name="note" rows="6" style="width:80%;"></textarea>
+	      </label>
+	
+	      <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:16px;">
+	        <button type="button" id="entry-modal-cancel" class="btn">Cancel</button>
+	        <button type="submit" class="btn">Save</button>
+	      </div>
+	    </form>
+	  </div>
+	</div>
 
-    <section class="systems-grid">
-      <div class="panel-glass">
-        <div class="panel-head">
-          <h3>Active Missions</h3>
-          <span class="chip">{{ stats.tickets_open }} in progress</span>
-        </div>
-        <div class="spotlight-list">
-          {% if spotlight %}
-            {% for ticket in spotlight %}
-            <div class="spotlight-item">
-              <div class="spotlight-body">
-                <div class="title">{{ ticket.client }}</div>
-                <div class="subtitle">
-                  <span class="meta">Ticket #{{ ticket.id }} · {{ ticket.entry_type }}</span>
-                  <span class="note">{{ ticket.note or "No note" }}</span>
-                </div>
-              </div>
-              <div class="time">{{ ticket.start_iso | fmt_dt_compact }}</div>
-            </div>
-            {% endfor %}
-          {% else %}
-            <p class="subtitle">All tickets are complete. Enjoy the calm.</p>
-          {% endif %}
-        </div>
-        <div class="quick-actions">
-          <a href="/tickets">Open Tickets Dashboard</a>
-          <a href="/hardware">Review Hardware</a>
-          <a href="/clients">Update Clients</a>
-          <a href="/tickets" title="Export" style="border-color: rgba(148, 163, 184, 0.4);">Export & Reports</a>
-        </div>
-      </div>
-
-      <div class="panel-glass">
-        <div class="panel-head">
-          <h3>Recent Activity</h3>
-          <span class="chip">Last five updates</span>
-        </div>
-        <div class="activity-feed">
-          {% if recent_tickets %}
-            {% for ticket in recent_tickets %}
-            <div class="activity-card">
-              <div>
-                <strong>{{ ticket.client }}</strong>
-                <span class="meta">Ticket #{{ ticket.id }} · {{ ticket.entry_type }}</span>
-              </div>
-              <span class="badge">{{ 'Done' if ticket.completed else 'Open' }}</span>
-              <div style="grid-column: 1 / span 2; color: var(--txt-muted); font-size:0.9rem;">
-                {{ ticket.note or ticket.hardware_description or 'No details captured yet.' }}
-              </div>
-            </div>
-            {% endfor %}
-          {% else %}
-            <p class="subtitle">No tickets logged yet. Launch your first mission from the tickets screen.</p>
-          {% endif %}
-        </div>
-      </div>
-    </section>
+  <!-- Simple modal (read-only) for client details -->
+  <div id="client-modal" class="modal-root" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.35);">
+    <div class="modal-card" style="max-width:640px; margin:5vh auto; background:#fff; border-radius:12px; padding:20px;">
+      <header style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+        <h2 id="client-modal-title" style="margin:0; font-size:1.25rem;">Client</h2>
+        <button id="client-modal-close" class="btn">Close</button>
+      </header>
+      <div id="client-modal-body" class="mono" style="white-space:pre-wrap;"></div>
+    </div>
   </div>
+
+  <script>
+	(function(){
+	  const modal = document.getElementById('entry-modal');
+	  const title = document.getElementById('entry-modal-title');
+	  const form  = document.getElementById('entry-edit-form');
+	
+	  const openModal  = ()=> modal.style.display='block';
+	  const closeModal = ()=> modal.style.display='none';
+	
+	  document.getElementById('entry-modal-close').addEventListener('click', closeModal);
+	  document.getElementById('entry-modal-cancel').addEventListener('click', closeModal);
+	  modal.addEventListener('click', (e)=>{ if(e.target.id==='entry-modal') closeModal(); });
+	
+	  // open editor from ID link
+	  document.addEventListener('click', function(e){
+	    const a = e.target.closest('a.edit-entry');
+	    if(!a) return;
+	    e.preventDefault();
+	    const id = a.getAttribute('data-id');
+	    title.textContent = `Edit Ticket #${id}`;
+	
+	    fetch(`/api/entries/${id}`)
+	      .then(r => r.ok ? r.json() : Promise.reject())
+	      .then(data => {
+	        form.action = `/ui/entries/${id}/edit`;
+	        form.querySelector('[name=client]').value         = data.client || '';
+	        form.querySelector('[name=client_key]').value     = data.client_key || '';
+	        form.querySelector('[name=start_iso]').value      = data.start_iso || '';
+	        form.querySelector('[name=end_iso]').value        = data.end_iso || '';
+	        form.querySelector('[name=invoice_number]').value = data.invoice_number || '';
+	        form.querySelector('[name=completed]').checked    = !!data.completed;
+	        form.querySelector('[name=note]').value           = data.note || '';
+	        openModal();
+	      })
+	      .catch(()=>{ /* silently ignore */ });
+	  });
+	
+	  // submit and refresh table in place
+	  form.addEventListener('submit', function(e){
+	    e.preventDefault();
+	    const fd = new FormData(form);
+	    if(!fd.get('completed')) fd.set('completed','0');
+	    fetch(form.action, { method:'POST', body: fd })
+	      .then(() => fetch('/ui/table' + location.search))
+	      .then(r  => r.text())
+	      .then(html => {
+	        document.getElementById('rows').innerHTML = (html || '').trim();
+	        closeModal();
+	      })
+	      .catch(console.error);
+	  });
+	})();
+	</script>
+  
+  <script>
+    // Expand/collapse notes
+    document.addEventListener('click', function (e) {
+      const btn = e.target.closest('[data-note-toggle]');
+      if (!btn) return;
+      const tr = btn.closest('tr');
+      tr?.classList.toggle('is-open');
+    });
+  </script>
+
+  <script>
+    // Intercept inline form submits so actions happen quietly (no navigation).
+    // Applies to: toggle done, set invoice, delete.
+    document.addEventListener('submit', function (e) {
+      const form = e.target;
+      if (!(form instanceof HTMLFormElement)) return;
+      if (!form.closest('#rows')) return;
+      const path = new URL(form.action, location.href).pathname;
+      // Allow actions for both entries and hardware rows.  Paths we care
+      // about look like `/ui/entries/{id}/…` or `/ui/hardware/{id}/…`.
+      if (!/^\/ui\/(entries|hardware)\//.test(path)) return;
+
+      e.preventDefault();
+      const tr = form.closest('tr');
+
+      fetch(form.action, { method: 'POST', body: new FormData(form) })
+        .then(r => r.text())
+        .then(html => {
+          const trimmed = html.trim();
+          if (!trimmed) { tr?.remove(); return; } // delete case
+
+          const tmp = document.createElement('tbody');
+          tmp.innerHTML = trimmed;
+          const newTr = tmp.querySelector('tr');
+          if (newTr && tr) {
+            tr.replaceWith(newTr);
+          }
+
+          // Determine which table route to hit after a toggle or edit.
+          const tablePath = path.startsWith('/ui/hardware/') ? '/ui/hardware_table' : '/ui/table';
+          return fetch(tablePath + location.search);
+        })
+        .then(r => r ? r.text() : null)
+        .then(html => {
+          if (!html) return;
+          const tbody = document.getElementById('rows');
+          tbody.innerHTML = html.trim();
+        })
+        .catch(console.error);
+    });
+
+    // Submit invoice on Enter or on blur.
+    document.addEventListener('keydown', function (e) {
+      const el = e.target;
+      if (!(el instanceof HTMLInputElement)) return;
+      if (el.name !== 'invoice_number') return;
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        el.form?.requestSubmit();
+      }
+    });
+    document.addEventListener('blur', function (e) {
+      const el = e.target;
+      if (!(el instanceof HTMLInputElement)) return;
+      if (el.name !== 'invoice_number') return;
+      el.form?.requestSubmit();
+    }, true);
+
+    // ----- Client details modal from client_table.json -----
+    document.addEventListener('click', function (e) {
+      const a = e.target.closest('a[data-client]');
+      if (!a) return;
+      e.preventDefault();
+      const name = a.getAttribute('data-client');
+      const modal = document.getElementById('client-modal');
+      const title = document.getElementById('client-modal-title');
+      const body = document.getElementById('client-modal-body');
+      title.textContent = name;
+      body.textContent = 'Loading…';
+      modal.style.display = 'block';
+      fetch('/api/clients/' + encodeURIComponent(name))
+        .then(r => r.ok ? r.json() : Promise.reject())
+        .then(data => {
+          const attrs = data.attributes || {};
+          const lines = Object.keys(attrs).sort().map(k => `${k}: ${JSON.stringify(attrs[k])}`);
+          body.textContent = lines.length ? lines.join('\n') : 'No attributes found.';
+        })
+        .catch(() => { body.textContent = 'Not found.'; });
+    });
+    document.getElementById('client-modal-close').addEventListener('click', () => {
+      document.getElementById('client-modal').style.display = 'none';
+    });
+    document.getElementById('client-modal').addEventListener('click', (e) => {
+      if (e.target.id === 'client-modal') e.currentTarget.style.display = 'none';
+    });
+  </script>
+
+  <script>
+    document.addEventListener('change', function (e) {
+      const input = e.target;
+      if (!(input instanceof HTMLInputElement)) return;
+      if (input.type !== 'checkbox') return;
+      const form = input.closest('form');
+      if (!form || !form.action.includes('/toggle-completed')) return;
+      
+      const tr = input.closest('tr');
+      fetch(form.action, { method: 'POST' })
+        .then(r => r.text())
+        .then(html => {
+          const trimmed = (html || '').trim();
+          if (!trimmed) { tr?.remove(); return; }
+
+          const tmp = document.createElement('tbody');
+          tmp.innerHTML = trimmed;
+          const newTr = tmp.querySelector('tr');
+          if (newTr && tr) tr.replaceWith(newTr);
+
+          // Determine correct table endpoint based on the action path.
+          const path = new URL(form.action, location.href).pathname;
+          const tablePath = path.startsWith('/ui/hardware/') ? '/ui/hardware_table' : '/ui/table';
+          return fetch(tablePath + location.search);
+        })
+        .then(r => r ? r.text() : null)
+        .then(html => {
+          if (!html) return;
+          const tbody = document.getElementById('rows');
+          tbody.innerHTML = html.trim();
+        })
+        .catch(console.error);
+    });
+  </script>
+
 </body>
 </html>

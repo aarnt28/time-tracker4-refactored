@@ -2,36 +2,25 @@ from __future__ import annotations
 from pydantic import BaseModel, Field
 from typing import Optional
 
-
-class EntryBase(BaseModel):
-    client: Optional[str] = None
+class TicketBase(BaseModel):
+    client: str
     client_key: str
     note: Optional[str] = None
-    entry_type: str = Field(default="time", pattern="^(time|hardware)$")
-    hardware_id: Optional[int] = None  # when entry_type == 'hardware'
-    hardware_barcode: Optional[str] = None
 
-
-class EntryCreate(EntryBase):
+class TicketCreate(TicketBase):
     start_iso: str
     end_iso: Optional[str] = None
     invoice_number: Optional[str] = None
 
-
-class EntryUpdate(BaseModel):
+class TicketUpdate(BaseModel):
     client: Optional[str] = None
     client_key: Optional[str] = None
-    start_iso: Optional[str] = None
-    end_iso: Optional[str] = None
     note: Optional[str] = None
-    completed: Optional[int] = None
+    end_iso: Optional[str] = None
     invoice_number: Optional[str] = None
-    entry_type: Optional[str] = Field(default=None, pattern="^(time|hardware)$")
-    hardware_id: Optional[int] = None
-    hardware_barcode: Optional[str] = None
+    completed: Optional[int] = None
 
-
-class EntryOut(BaseModel):
+class TicketOut(BaseModel):
     id: int
     client: str
     client_key: str
@@ -45,11 +34,6 @@ class EntryOut(BaseModel):
     invoice_number: Optional[str]
     created_at: str
     minutes: int
-    entry_type: str
-    hardware_id: Optional[int] = None
-    hardware_barcode: Optional[str] = None
-    hardware_description: Optional[str] = None
-    hardware_sales_price: Optional[str] = None
 
     class Config:
         from_attributes = True
