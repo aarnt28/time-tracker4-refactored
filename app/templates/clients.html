@@ -76,7 +76,7 @@ const DEMOGRAPHIC_FIELDS = [
 const DEMOGRAPHIC_KEYS = new Set(DEMOGRAPHIC_FIELDS.map((f) => f.key));
 const ADDRESS_AUTOCOMPLETE_MIN_CHARS = 3;
 const ADDRESS_AUTOCOMPLETE_DEBOUNCE = 250;
-const ADDRESS_AUTOCOMPLETE_LIMIT = 8;
+const ADDRESS_AUTOCOMPLETE_LIMIT = 20;
 let ADDRESS_AUTOCOMPLETE_DISABLED = false;
 
 function getApiToken(){ return window.localStorage.getItem('api_token') || ''; }
