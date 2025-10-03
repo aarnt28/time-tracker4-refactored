@@ -18,6 +18,7 @@ RUN pip install --no-cache-dir \
     jinja2 \
     python-multipart \
     pydantic \
+    httpx \
     itsdangerous \
     bcrypt
 
