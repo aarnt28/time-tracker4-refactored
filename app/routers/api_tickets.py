@@ -1,12 +1,16 @@
 from __future__ import annotations
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from ..db.session import get_db
 from ..schemas.ticket import EntryCreate, EntryUpdate, EntryOut
-from ..crud.tickets import list_tickets, get_ticket, create_entry, update_ticket, delete_ticket
+from ..crud.tickets import list_tickets, list_active_tickets, get_ticket, create_entry, update_ticket, delete_ticket
 from ..deps.auth import require_ui_or_token
 
 router = APIRouter(prefix="/api/v1/tickets", tags=["tickets"])
+
+@router.get("/active", response_model=list[EntryOut], dependencies=[Depends(require_ui_or_token)])
+def api_list_active(client_key: str | None = Query(default=None), db: Session = Depends(get_db)):
+    return list_active_tickets(db, client_key=client_key)
 
 
 @router.get("", response_model=list[EntryOut], dependencies=[Depends(require_ui_or_token)])

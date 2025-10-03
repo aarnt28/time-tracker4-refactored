@@ -15,6 +15,13 @@ def list_tickets(db: Session, limit: int = 100, offset: int = 0):
     ).scalars().all()
 
 
+def list_active_tickets(db: Session, client_key: str | None = None, limit: int = 100, offset: int = 0):
+    stmt = select(Ticket).where(Ticket.end_iso.is_(None))
+    if client_key:
+        stmt = stmt.where(Ticket.client_key == client_key)
+    stmt = stmt.order_by(desc(Ticket.created_at)).limit(limit).offset(offset)
+    return db.execute(stmt).scalars().all()
+
 def get_ticket(db: Session, entry_id: int) -> Ticket | None:
     return db.get(Ticket, entry_id)
 
