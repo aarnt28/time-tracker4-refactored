@@ -191,6 +191,11 @@ async def verify_postal_address(
         if place_id:
             params = {**base_params, "place_id": place_id}
             response = await client.get(settings.GEOAPIFY_PLACE_URL, params=params)
+            if response.status_code == 404:
+                logger.info(
+                    "Geoapify place %s not found during address verification", place_id
+                )
+                return None
         else:
             street_parts = [street_line.strip()]
             if secondary and secondary.strip():
@@ -210,6 +215,12 @@ async def verify_postal_address(
             )
             params = {**base_params, "text": text_query or street_line.strip()}
             response = await client.get(settings.GEOAPIFY_GEOCODE_URL, params=params)
+            if response.status_code == 404:
+                logger.info(
+                    "Geoapify returned 404 for address verification query '%s'",
+                    text_query,
+                )
+                return None
 
     _raise_for_status(response, "address verification")
 
