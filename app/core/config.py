@@ -32,16 +32,19 @@ class Settings:
     HOST = os.getenv("HOST", "0.0.0.0")
     PORT = int(os.getenv("PORT", "8089"))
 
-    # Address autocomplete (SmartyStreets USPS-verified services)
-    SMARTY_AUTH_ID = os.getenv("SMARTY_AUTH_ID", "")
-    SMARTY_AUTH_TOKEN = os.getenv("SMARTY_AUTH_TOKEN", "")
-    SMARTY_AUTOCOMPLETE_URL = os.getenv(
-        "SMARTY_AUTOCOMPLETE_URL",
-        "https://us-autocomplete-pro.api.smartystreets.com/lookup",
+    # Address autocomplete & geocoding (Geoapify)
+    GEOAPIFY_API_KEY = os.getenv("GEOAPIFY_API_KEY", "")
+    GEOAPIFY_AUTOCOMPLETE_URL = os.getenv(
+        "GEOAPIFY_AUTOCOMPLETE_URL",
+        "https://api.geoapify.com/v1/geocode/autocomplete",
     )
-    SMARTY_STREET_URL = os.getenv(
-        "SMARTY_STREET_URL",
-        "https://us-street.api.smartystreets.com/street-address",
+    GEOAPIFY_GEOCODE_URL = os.getenv(
+        "GEOAPIFY_GEOCODE_URL",
+        "https://api.geoapify.com/v1/geocode/search",
+    )
+    GEOAPIFY_PLACE_URL = os.getenv(
+        "GEOAPIFY_PLACE_URL",
+        "https://api.geoapify.com/v1/geocode/retrieve",
     )
 
 settings = Settings()

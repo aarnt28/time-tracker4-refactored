@@ -144,12 +144,10 @@ function formatAddressMeta(item){
   const parts = [];
   if (cityState) parts.push(cityState);
   if (item.postal_code) parts.push(item.postal_code);
-  let meta = parts.join(' ').trim();
-  if (item.entries && item.entries > 1){
-    meta = meta ? `${meta} (${item.entries} matches)` : `${item.entries} matches`;
-  }
-  if (!meta) meta = 'USPS verified';
-  return meta;
+  if (item.country) parts.push(item.country);
+  if (!parts.length && item.formatted) parts.push(item.formatted);
+  if (!parts.length) parts.push('Geoapify');
+  return parts.join(' · ');
 }
 
 function setupAddressAutocomplete({ modal, container }){
@@ -280,6 +278,7 @@ function setupAddressAutocomplete({ modal, container }){
     if (stateValue) params.set('state', stateValue);
     const zipValue = item.postal_code || (postalInput ? postalInput.value.trim() : '');
     if (zipValue) params.set('zip', zipValue);
+    if (item.place_id) params.set('place_id', item.place_id);
     try {
       const res = await fetch(`/api/v1/address/verify?${params.toString()}`, {
         headers: apiHeaders(false),

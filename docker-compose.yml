@@ -18,6 +18,9 @@ services:
       SESSION_COOKIE_NAME: 'tt_session'
       SESSION_MAX_AGE: '2592000'  # 30 days in seconds
 
+      # --- Geoapify address autocomplete ---
+      GEOAPIFY_API_KEY: ${GEOAPIFY_API_KEY:-}
+
     volumes:
       - ./data:/data
     ports:
