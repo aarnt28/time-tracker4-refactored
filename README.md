@@ -16,6 +16,9 @@ stores data, and Docker Compose makes it easy to run everything locally.
   unique barcode, description, acquisition cost and sales price.
 * **Client list** – Load and display a list of clients from a JSON file
   (`client_table.json`).
+* **USPS-verified address autocomplete** – Client address fields can be
+  auto-completed with USPS-certified suggestions when SmartyStreets
+  credentials are provided.
 * **Responsive UI** – HTML pages served with Jinja2 templates and static
   resources provide a simple front‑end for managing tickets, hardware and
   clients.  Sessions and login keep your changes protected.
@@ -132,9 +135,28 @@ The application reads configuration from environment variables defined in
 | `TZ`                | Time zone for timestamps                    | `America/Chicago`    |
 | `SESSION_COOKIE_NAME` | Name of the session cookie                | `tt_session`         |
 | `SESSION_MAX_AGE`   | Session lifetime in seconds                 | `2592000` (30 days)  |
+| `SMARTY_AUTH_ID`    | SmartyStreets Auth ID for USPS address APIs | empty (disabled)     |
+| `SMARTY_AUTH_TOKEN` | SmartyStreets Auth Token                    | empty (disabled)     |
+| `SMARTY_AUTOCOMPLETE_URL` | Override for the autocomplete endpoint | Smarty default       |
+| `SMARTY_STREET_URL` | Override for the verification endpoint      | Smarty default       |
 
 Refer to `app/core/config.py` and `docker-compose.yml` for the full list of
 environment variables and their defaults.
+
+### Address autocomplete setup
+
+Address prefill in the client editor is powered by SmartyStreets' USPS-certified
+APIs. To enable it:
+
+1. Create a (free) SmartyStreets account and generate an **Auth ID** and
+   **Auth Token** for the US Autocomplete Pro and US Street APIs.
+2. Set the `SMARTY_AUTH_ID` and `SMARTY_AUTH_TOKEN` environment variables for
+   the application (for example in `.env` or your Docker Compose file).
+3. Restart the application. When editing a client, typing into **Address Line 1**
+   will display USPS-verified suggestions. Selecting a suggestion automatically
+   fills the remaining city/state/ZIP fields after verification.
+
+If the credentials are omitted, the UI silently falls back to manual entry.
 
 ## Contributing
 

@@ -32,4 +32,16 @@ class Settings:
     HOST = os.getenv("HOST", "0.0.0.0")
     PORT = int(os.getenv("PORT", "8089"))
 
+    # Address autocomplete (SmartyStreets USPS-verified services)
+    SMARTY_AUTH_ID = os.getenv("SMARTY_AUTH_ID", "")
+    SMARTY_AUTH_TOKEN = os.getenv("SMARTY_AUTH_TOKEN", "")
+    SMARTY_AUTOCOMPLETE_URL = os.getenv(
+        "SMARTY_AUTOCOMPLETE_URL",
+        "https://us-autocomplete-pro.api.smartystreets.com/lookup",
+    )
+    SMARTY_STREET_URL = os.getenv(
+        "SMARTY_STREET_URL",
+        "https://us-street.api.smartystreets.com/street-address",
+    )
+
 settings = Settings()
