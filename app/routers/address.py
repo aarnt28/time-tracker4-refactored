@@ -45,6 +45,7 @@ async def verify_address(
     state: str | None = Query(default=None),
     postal_code: str | None = Query(default=None, alias="zip"),
     secondary: str | None = Query(default=None),
+    place_id: str | None = Query(default=None),
 ):
     try:
         candidate = await verify_postal_address(
@@ -53,6 +54,7 @@ async def verify_address(
             state=state,
             postal_code=postal_code,
             secondary=secondary,
+            place_id=place_id,
         )
     except AddressServiceNotConfigured as exc:  # pragma: no cover - configuration guard
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, str(exc)) from exc

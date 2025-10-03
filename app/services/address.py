@@ -9,21 +9,34 @@ from ..core.config import settings
 
 logger = logging.getLogger(__name__)
 
+
 class AddressServiceNotConfigured(Exception):
     """Raised when address autocomplete credentials are missing."""
 
 
 def _ensure_configured() -> None:
-    if not settings.SMARTY_AUTH_ID or not settings.SMARTY_AUTH_TOKEN:
+    if not settings.GEOAPIFY_API_KEY:
         raise AddressServiceNotConfigured("Address autocomplete is not configured")
 
 
-def _format_zip(components: Dict[str, Any]) -> str:
-    zipcode = (components.get("zipcode") or "").strip()
-    plus4 = (components.get("plus4_code") or "").strip()
-    if zipcode and plus4:
-        return f"{zipcode}-{plus4}"
-    return zipcode
+def _compose_street_line(properties: Dict[str, Any]) -> str:
+    line1 = (properties.get("address_line1") or "").strip()
+    if line1:
+        return line1
+    parts = [properties.get("housenumber"), properties.get("street")]
+    return " ".join(part for part in parts if part).strip()
+
+
+def _format_postal_code(properties: Dict[str, Any]) -> str:
+    postcode = (properties.get("postcode") or "").strip()
+    extension = (properties.get("postcode_ext") or "").strip()
+    if postcode and extension:
+        return f"{postcode}-{extension}"
+    return postcode
+
+
+def _extract_state(properties: Dict[str, Any]) -> str:
+    return (properties.get("state_code") or properties.get("state") or "").strip()
 
 
 async def fetch_autocomplete_suggestions(
@@ -34,50 +47,58 @@ async def fetch_autocomplete_suggestions(
     postal_code: Optional[str] = None,
     max_results: int = 10,
 ) -> List[Dict[str, Any]]:
-    """Return USPS-verified address suggestions via SmartyStreets Autocomplete Pro."""
+    """Return address suggestions via Geoapify's autocomplete service."""
 
     _ensure_configured()
 
     if not search or not search.strip():
         return []
 
+    search_text = search.strip()
+
     params: Dict[str, Any] = {
-        "search": search.strip(),
-        "auth-id": settings.SMARTY_AUTH_ID,
-        "auth-token": settings.SMARTY_AUTH_TOKEN,
-        "source": "all",
-        "max_results": max_results,
+        "text": search_text,
+        "apiKey": settings.GEOAPIFY_API_KEY,
+        "format": "json",
+        "limit": max_results,
+        "filter": "countrycode:us",
+        "lang": "en",
     }
 
+    context_parts: List[str] = []
     if city:
-        params["include_only_cities"] = city
+        context_parts.append(city.strip())
     if state:
-        params["include_only_states"] = state
+        context_parts.append(state.strip())
     if postal_code:
-        params["include_only_zip_codes"] = postal_code
+        context_parts.append(postal_code.strip())
+    if context_parts:
+        params["text"] = ", ".join([search_text, ", ".join(context_parts)])
 
     timeout = httpx.Timeout(6.0)
     async with httpx.AsyncClient(timeout=timeout) as client:
-        response = await client.get(settings.SMARTY_AUTOCOMPLETE_URL, params=params)
+        response = await client.get(settings.GEOAPIFY_AUTOCOMPLETE_URL, params=params)
 
-    if response.status_code == 401:
-        logger.warning("SmartyStreets authentication failed for address autocomplete")
+    if response.status_code in {401, 403}:
+        logger.warning("Geoapify authentication failed for address autocomplete")
         raise httpx.HTTPStatusError("Unauthorized", request=response.request, response=response)
     if response.status_code >= 500:
-        logger.error("SmartyStreets service error %s", response.status_code)
+        logger.error("Geoapify service error %s", response.status_code)
         raise httpx.HTTPStatusError("Service unavailable", request=response.request, response=response)
 
     data = response.json()
     suggestions: List[Dict[str, Any]] = []
-    for item in data.get("suggestions", []):
+    for feature in data.get("features", []):
+        properties = feature.get("properties") or {}
         suggestion = {
-            "street_line": item.get("street_line") or item.get("primary_line"),
-            "secondary": item.get("secondary") or "",
-            "city": item.get("city"),
-            "state": item.get("state"),
-            "postal_code": item.get("zipcode"),
-            "entries": item.get("entries"),
-            "source": item.get("source"),
+            "street_line": _compose_street_line(properties),
+            "secondary": properties.get("address_line2") or "",
+            "city": properties.get("city") or properties.get("county"),
+            "state": _extract_state(properties),
+            "postal_code": properties.get("postcode"),
+            "entries": None,
+            "source": "Geoapify",
+            "place_id": properties.get("place_id"),
         }
         suggestions.append(suggestion)
 
@@ -91,57 +112,68 @@ async def verify_postal_address(
     state: Optional[str] = None,
     postal_code: Optional[str] = None,
     secondary: Optional[str] = None,
+    place_id: Optional[str] = None,
 ) -> Optional[Dict[str, Any]]:
-    """Verify a selected address via SmartyStreets US Street API."""
+    """Verify a selected address via Geoapify's geocoding service."""
 
     _ensure_configured()
 
-    payload: List[Dict[str, Any]] = [
-        {
-            "street": street_line,
-            "city": city,
-            "state": state,
-            "zipcode": postal_code,
-            "secondary": secondary or None,
-            "candidates": 1,
-        }
-    ]
-
     timeout = httpx.Timeout(6.0)
-    params = {
-        "auth-id": settings.SMARTY_AUTH_ID,
-        "auth-token": settings.SMARTY_AUTH_TOKEN,
+    base_params: Dict[str, Any] = {
+        "apiKey": settings.GEOAPIFY_API_KEY,
+        "format": "json",
+        "limit": 1,
     }
-    async with httpx.AsyncClient(timeout=timeout) as client:
-        response = await client.post(
-            settings.SMARTY_STREET_URL,
-            params=params,
-            json=payload,
-        )
 
-    if response.status_code == 401:
-        logger.warning("SmartyStreets authentication failed for address verification")
+    async with httpx.AsyncClient(timeout=timeout) as client:
+        if place_id:
+            params = dict(base_params)
+            params["place_id"] = place_id
+            response = await client.get(settings.GEOAPIFY_PLACE_URL, params=params)
+        else:
+            params = dict(base_params)
+            text_parts: List[str] = [street_line]
+            if secondary:
+                text_parts.append(secondary)
+            locality = ", ".join(part for part in [city, state] if part)
+            if locality:
+                text_parts.append(locality)
+            if postal_code:
+                text_parts.append(str(postal_code))
+            params["text"] = ", ".join(part for part in text_parts if part)
+            params["filter"] = "countrycode:us"
+            response = await client.get(settings.GEOAPIFY_SEARCH_URL, params=params)
+
+    if response.status_code in {401, 403}:
+        logger.warning("Geoapify authentication failed for address verification")
         raise httpx.HTTPStatusError("Unauthorized", request=response.request, response=response)
     if response.status_code >= 500:
-        logger.error("SmartyStreets street API error %s", response.status_code)
+        logger.error("Geoapify geocoding error %s", response.status_code)
         raise httpx.HTTPStatusError("Service unavailable", request=response.request, response=response)
 
-    candidates = response.json()
-    if not candidates:
+    payload = response.json()
+    features = None
+    if isinstance(payload, dict):
+        features = payload.get("features")
+    elif isinstance(payload, list):
+        features = payload
+    if not features:
         return None
 
-    candidate = candidates[0]
-    components = candidate.get("components") or {}
+    candidate_raw = features[0]
+    properties = candidate_raw.get("properties") or {}
 
     verified = {
-        "delivery_line_1": candidate.get("delivery_line_1"),
-        "delivery_line_2": candidate.get("delivery_line_2") or "",
-        "last_line": candidate.get("last_line"),
-        "city": components.get("city_name"),
-        "state": components.get("state_abbreviation"),
-        "postal_code": _format_zip(components),
-        "county": candidate.get("metadata", {}).get("county_name"),
-        "dpv_match_code": candidate.get("analysis", {}).get("dpv_match_code"),
-        "footnotes": candidate.get("analysis", {}).get("footnotes"),
+        "delivery_line_1": _compose_street_line(properties),
+        "delivery_line_2": properties.get("address_line2") or "",
+        "last_line": properties.get("formatted"),
+        "city": properties.get("city") or properties.get("county"),
+        "state": _extract_state(properties),
+        "postal_code": _format_postal_code(properties),
+        "county": properties.get("county"),
+        "confidence": (properties.get("rank") or {}).get("confidence"),
+        "place_id": properties.get("place_id"),
+        "latitude": properties.get("lat"),
+        "longitude": properties.get("lon"),
     }
     return verified
