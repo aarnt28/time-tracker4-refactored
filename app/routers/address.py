@@ -33,8 +33,11 @@ async def suggest_address(
             postal_code=postal_code,
             max_results=limit,
         )
-    except AddressServiceNotConfigured as exc:  # pragma: no cover - configuration guard
-        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, str(exc)) from exc
+    except AddressServiceNotConfigured:
+        # When the autocomplete integration is not configured we silently fall
+        # back to manual entry.  Returning an empty list keeps the UI happy
+        # without surfacing a 503 to the browser logs.
+        return {"suggestions": []}
     return {"suggestions": suggestions}
 
 
@@ -56,8 +59,9 @@ async def verify_address(
             secondary=secondary,
             place_id=place_id,
         )
-    except AddressServiceNotConfigured as exc:  # pragma: no cover - configuration guard
-        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, str(exc)) from exc
+    except AddressServiceNotConfigured:
+        # Fall back to manual entry when verification is unavailable.
+        return {"candidate": None}
     if not candidate:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Address not verified")
     return {"candidate": candidate}
