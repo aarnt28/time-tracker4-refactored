@@ -85,3 +85,32 @@ def resolve_client_name(client_key: str) -> str | None:
     if not entry:
         return None
     return entry.get("name") or entry.get("display_name") or client_key
+
+
+def resolve_client_key(client_name: str) -> str | None:
+    """Return the client_key for a given display/client name."""
+    if not client_name:
+        return None
+
+    sought = client_name.strip().casefold()
+    if not sought:
+        return None
+
+    table = load_client_table()
+    for key, entry in table.items():
+        if not isinstance(entry, dict):
+            continue
+
+        name = (entry.get("name") or "").strip()
+        display_name = (entry.get("display_name") or "").strip()
+
+        if name and name.casefold() == sought:
+            return key
+        if display_name and display_name.casefold() == sought:
+            return key
+
+        # Allow lookups where the caller already provided the client_key
+        if key.casefold() == sought:
+            return key
+
+    return None

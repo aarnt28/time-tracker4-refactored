@@ -1,7 +1,12 @@
 from __future__ import annotations
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from typing import Dict, Any
-from ..services.clientsync import load_client_table, save_client_table, get_client_entry
+from ..services.clientsync import (
+    load_client_table,
+    save_client_table,
+    get_client_entry,
+    resolve_client_key,
+)
 from ..deps.auth import require_ui_or_token
 
 router = APIRouter(prefix="/api/v1/clients", tags=["clients"])
@@ -10,6 +15,16 @@ router = APIRouter(prefix="/api/v1/clients", tags=["clients"])
 @router.get("")
 def list_clients():
     return {"clients": load_client_table()}
+
+@router.get("/lookup")
+def get_client_by_name(name: str = Query(..., min_length=1, description="Client display name")):
+    client_key = resolve_client_key(name)
+    if not client_key:
+        raise HTTPException(404, "Not found")
+    entry = get_client_entry(client_key)
+    if not entry:
+        raise HTTPException(404, "Not found")
+    return {"client_key": client_key, "client": entry}
 
 @router.get("/{client_key}")
 def get_client(client_key: str):
