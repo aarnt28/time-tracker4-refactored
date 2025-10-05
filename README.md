@@ -86,38 +86,335 @@ uvicorn app:app --reload --host 0.0.0.0 --port 8089
 By default a SQLite database will be created in `data/data.db`.  Set
 `DB_URL` in your environment to point at another database if required.
 
-## API usage
+## Headless API reference
 
-When `API_TOKEN` is set, all routes under `/api/v1/` require a matching
-`X‑API‑Key` header.  Example requests are shown below:
+The FastAPI application exposes every headless capability under the
+`/api/v1/…` prefix.  Unless noted otherwise, callers must include an
+`X‑API‑Key` header whose value matches `API_TOKEN`.  Interactive browser
+sessions that are already logged in via the UI may call the same endpoints
+without the header because the shared dependency accepts either an API key or
+an authenticated UI session.【F:app/deps/auth.py†L1-L29】
 
-### Create a hardware item
+The tables and examples below document every public, headless entry point and
+its supported query parameters.  Example payloads illustrate typical responses;
+fields that are `null` in the JSON payloads map to optional properties in the
+underlying Pydantic schemas.
+
+### Common response codes
+
+* `200 OK` – successful reads and updates.
+* `201 Created` – successful `POST` to create a resource (tickets, hardware).
+* `204 No Content` – not used; deletes return a JSON status payload.
+* `401 Unauthorized` – missing/invalid `X‑API‑Key` or unauthenticated session.
+* `404 Not Found` – resource does not exist or verification failed.
+* `409 Conflict` – attempting to create a client that already exists.
+* `422 Unprocessable Entity` – validation failed (missing required fields,
+  invalid enum value, etc.).
+
+### Hardware inventory API – `/api/v1/hardware`
+
+| Method & path | Description | Auth required | Notes |
+|---------------|-------------|---------------|-------|
+| `GET /api/v1/hardware` | List hardware items (newest first). | Yes | Supports `limit` (default `100`) and `offset` query parameters for pagination. |【F:app/routers/api_hardware.py†L12-L15】
+| `GET /api/v1/hardware/{item_id}` | Retrieve a single item by numeric id. | Yes | Returns `404` when the id is not found. |【F:app/routers/api_hardware.py†L18-L27】
+| `POST /api/v1/hardware` | Create a new hardware record. | Yes | JSON body must include `barcode` and `description`; `acquisition_cost` and `sales_price` are optional. Either field can also be provided via header aliases (see below). |【F:app/routers/api_hardware.py†L30-L45】【F:app/schemas/hardware.py†L6-L24】
+| `PATCH /api/v1/hardware/{item_id}` | Update an existing record. | Yes | Any subset of fields may be supplied. `acquisition_cost` and `sales_price` headers override body values. |【F:app/routers/api_hardware.py†L48-L65】
+| `DELETE /api/v1/hardware/{item_id}` | Remove a hardware record. | Yes | Responds with `{ "status": "deleted" }` when successful. |【F:app/routers/api_hardware.py†L68-L75】
+
+**Header shortcuts for price fields:** during `POST` and `PATCH`, the service
+accepts `Acquisition`/`Sales` values via any of the following header names:
+`acquisition-cost`, `acquisition_cost`, `x-acquisition-cost`,
+`x_acquisition_cost`, `sales-price`, `sales_price`, `x-sales-price`, and
+`x_sales_price`.  Header values take precedence when present.【F:app/routers/api_hardware.py†L33-L45】【F:app/routers/api_hardware.py†L52-L63】
+
+**Example – list hardware**
+
+```http
+GET /api/v1/hardware?limit=2&offset=0 HTTP/1.1
+Host: tracker.example.com
+X-API-Key: your-token
+Accept: application/json
+```
+
+```json
+[
+  {
+    "id": 42,
+    "barcode": "ROUTER-001",
+    "description": "4-port router",
+    "acquisition_cost": "29.99",
+    "sales_price": "49.99",
+    "created_at": "2023-09-01T15:24:00Z"
+  },
+  {
+    "id": 41,
+    "barcode": "AP-100",
+    "description": "Wireless access point",
+    "acquisition_cost": null,
+    "sales_price": null,
+    "created_at": "2023-08-15T19:02:18Z"
+  }
+]
+```
+
+**Example – create hardware**
 
 ```http
 POST /api/v1/hardware HTTP/1.1
 Host: tracker.example.com
 X-API-Key: your-token
 Content-Type: application/json
+x-acquisition-cost: 29.99
 
 {
-  "barcode": "12345",
-  "description": "Router",
-  "acquisition_cost": "29.99",
-  "sales_price": "49.99"
+  "barcode": "ROUTER-002",
+  "description": "Rack-mount router"
 }
 ```
 
-### List hardware
-
-```http
-GET /api/v1/hardware?limit=100&offset=0 HTTP/1.1
-Host: tracker.example.com
-X-API-Key: your-token
+```json
+{
+  "id": 43,
+  "barcode": "ROUTER-002",
+  "description": "Rack-mount router",
+  "acquisition_cost": "29.99",
+  "sales_price": null,
+  "created_at": "2023-09-05T10:12:45Z"
+}
 ```
 
-Similar endpoints exist for tickets (`/api/v1/tickets`) with standard CRUD
-operations.  See `app/routers/api_hardware.py` and `app/routers/api_tickets.py`
-for implementation details.
+### Ticket entries API – `/api/v1/tickets`
+
+Ticket entries can represent billable time (`entry_type="time"`) or a hardware
+sale (`entry_type="hardware"`).  Hardware-linked entries automatically copy the
+current hardware description and sales price when an item is referenced by id or
+barcode.【F:app/crud/tickets.py†L46-L85】
+
+| Method & path | Description | Auth required | Notes |
+|---------------|-------------|---------------|-------|
+| `GET /api/v1/tickets/active` | List open tickets (no `end_iso`). | Yes | Optional `client_key` filter narrows results to a single client. |【F:app/routers/api_tickets.py†L11-L14】
+| `GET /api/v1/tickets` | List recent tickets (newest first). | Yes | Returns up to 100 entries (internal default); no pagination parameters are exposed. |【F:app/routers/api_tickets.py†L17-L18】【F:app/crud/tickets.py†L5-L12】
+| `GET /api/v1/tickets/{entry_id}` | Retrieve one ticket. | Yes | `404` when the id is missing. |【F:app/routers/api_tickets.py†L21-L29】
+| `POST /api/v1/tickets` | Create a ticket entry. | Yes | Body must include `client_key` and `start_iso`. Optional fields include `end_iso`, `note`, `invoice_number`, `entry_type`, `hardware_id`, and `hardware_barcode`. |【F:app/routers/api_tickets.py†L32-L41】【F:app/schemas/ticket.py†L6-L35】【F:app/crud/tickets.py†L58-L76】
+| `PATCH /api/v1/tickets/{entry_id}` | Update fields on an existing ticket. | Yes | Any subset of fields may be supplied. Updating `client_key` or `client` revalidates the client table; changing `start_iso`/`end_iso` recomputes rounded minutes; switching to `entry_type="hardware"` will relink the referenced hardware. |【F:app/routers/api_tickets.py†L44-L55】【F:app/crud/tickets.py†L77-L101】
+| `DELETE /api/v1/tickets/{entry_id}` | Remove a ticket entry. | Yes | Returns `{ "status": "deleted" }` when successful. |【F:app/routers/api_tickets.py†L58-L65】
+
+**Example – list active tickets for a client**
+
+```http
+GET /api/v1/tickets/active?client_key=acme-co HTTP/1.1
+Host: tracker.example.com
+X-API-Key: your-token
+Accept: application/json
+```
+
+```json
+[
+  {
+    "id": 75,
+    "client": "Acme Co",
+    "client_key": "acme-co",
+    "start_iso": "2023-09-05T13:00:00-05:00",
+    "end_iso": null,
+    "elapsed_minutes": 0,
+    "rounded_minutes": 0,
+    "rounded_hours": "0.00",
+    "note": "Investigating outage",
+    "completed": 0,
+    "invoice_number": null,
+    "created_at": "2023-09-05T18:05:29Z",
+    "minutes": 0,
+    "entry_type": "time",
+    "hardware_id": null,
+    "hardware_barcode": null,
+    "hardware_description": null,
+    "hardware_sales_price": null
+  }
+]
+```
+
+**Example – create a hardware ticket**
+
+```http
+POST /api/v1/tickets HTTP/1.1
+Host: tracker.example.com
+X-API-Key: your-token
+Content-Type: application/json
+
+{
+  "client_key": "acme-co",
+  "entry_type": "hardware",
+  "start_iso": "2023-09-05T09:00:00-05:00",
+  "end_iso": "2023-09-05T09:15:00-05:00",
+  "note": "Sold replacement router",
+  "hardware_barcode": "ROUTER-002"
+}
+```
+
+```json
+{
+  "id": 76,
+  "client": "Acme Co",
+  "client_key": "acme-co",
+  "start_iso": "2023-09-05T09:00:00-05:00",
+  "end_iso": "2023-09-05T09:15:00-05:00",
+  "elapsed_minutes": 15,
+  "rounded_minutes": 15,
+  "rounded_hours": "0.25",
+  "note": "Sold replacement router",
+  "completed": 0,
+  "invoice_number": null,
+  "created_at": "2023-09-05T18:10:02Z",
+  "minutes": 15,
+  "entry_type": "hardware",
+  "hardware_id": 43,
+  "hardware_barcode": "ROUTER-002",
+  "hardware_description": "Rack-mount router",
+  "hardware_sales_price": "79.00"
+}
+```
+
+### Client table API – `/api/v1/clients`
+
+Client metadata is persisted in `client_table.json`.  Read operations are
+public; write operations require an API key or logged-in UI session.【F:app/routers/clients.py†L14-L68】
+
+| Method & path | Description | Auth required | Notes |
+|---------------|-------------|---------------|-------|
+| `GET /api/v1/clients` | Return the entire client table keyed by `client_key`. | No | Response shape: `{ "clients": { "key": { … } } }`. |【F:app/routers/clients.py†L16-L18】
+| `GET /api/v1/clients/lookup?name=…` | Resolve a client by display name or key. | No | Responds with `{ "client_key": "…", "client": { … } }` or `404` if unknown. |【F:app/routers/clients.py†L20-L27】
+| `GET /api/v1/clients/{client_key}` | Fetch a single client by key. | No | Same payload as lookup. |【F:app/routers/clients.py†L29-L35】
+| `POST /api/v1/clients` | Create a client entry. | Yes | Body must include non-empty `client_key` and `name`. Optional `attributes` dict merges into the stored record. |【F:app/routers/clients.py†L38-L66】
+| `PATCH /api/v1/clients/{client_key}` | Update a client entry. | Yes | Accepts optional `name` and `attributes` keys. Blank names are rejected. |【F:app/routers/clients.py†L68-L93】
+| `POST /api/v1/clients/{client_key}/delete` | Delete via POST (UI compatibility). | Yes | Equivalent to the `DELETE` endpoint. |【F:app/routers/clients.py†L95-L102】
+| `DELETE /api/v1/clients/{client_key}` | Delete via RESTful verb. | Yes | Returns `{ "status": "deleted", "client_key": "…" }`. |【F:app/routers/clients.py†L95-L102】
+
+**Example – list clients**
+
+```http
+GET /api/v1/clients HTTP/1.1
+Host: tracker.example.com
+Accept: application/json
+```
+
+```json
+{
+  "clients": {
+    "acme-co": {
+      "name": "Acme Co",
+      "contact": "support@acme.example",
+      "billing_rate": "125"
+    },
+    "globex": {
+      "name": "Globex Corporation",
+      "billing_rate": "140"
+    }
+  }
+}
+```
+
+**Example – update a client**
+
+```http
+PATCH /api/v1/clients/acme-co HTTP/1.1
+Host: tracker.example.com
+X-API-Key: your-token
+Content-Type: application/json
+
+{
+  "name": "Acme Co",
+  "attributes": {
+    "contact": "it@acme.example",
+    "notes": "Switch maintenance to quarterly"
+  }
+}
+```
+
+```json
+{
+  "status": "updated",
+  "client_key": "acme-co",
+  "client": {
+    "name": "Acme Co",
+    "contact": "it@acme.example",
+    "billing_rate": "125",
+    "notes": "Switch maintenance to quarterly"
+  }
+}
+```
+
+### Address autocomplete & verification API – `/api/v1/address`
+
+These endpoints proxy to Geoapify and are guarded by the same API key/session
+requirement as other headless routes.【F:app/routers/address.py†L5-L51】  When the
+Geoapify credentials are missing, `/suggest` returns an empty `suggestions`
+array and `/verify` responds with `{ "candidate": null }` instead of an error
+so the UI can fall back to manual entry.【F:app/routers/address.py†L32-L50】【F:app/services/address.py†L16-L117】
+
+| Method & path | Description | Query parameters | Notes |
+|---------------|-------------|------------------|-------|
+| `GET /api/v1/address/suggest` | Autocomplete address text. | `query` (required search string, alias `q`), optional `city`, `state`, `zip` (alias `postal_code`), `limit` (1–20, default 8). | Returns `{ "suggestions": [ … ] }` with Geoapify metadata and coordinates. |【F:app/routers/address.py†L19-L33】
+| `GET /api/v1/address/verify` | Verify a selected address. | Required `street` (alias `street_line`); optional `city`, `state`, `zip` (alias `postal_code`), `secondary`, `place_id`. | Returns `{ "candidate": { … } }` on success, `404` if the address cannot be verified. |【F:app/routers/address.py†L36-L51】
+
+**Example – autocomplete request**
+
+```http
+GET /api/v1/address/suggest?query=1600+Amphitheatre&city=Mountain+View&state=CA HTTP/1.1
+Host: tracker.example.com
+X-API-Key: your-token
+Accept: application/json
+```
+
+```json
+{
+  "suggestions": [
+    {
+      "street_line": "1600 Amphitheatre Parkway",
+      "secondary": "",
+      "city": "Mountain View",
+      "state": "CA",
+      "postal_code": "94043",
+      "country": "United States",
+      "formatted": "1600 Amphitheatre Parkway, Mountain View, CA 94043, United States",
+      "place_id": "1234567890abcdef",
+      "result_type": "building",
+      "confidence": 0.9,
+      "lat": 37.422,
+      "lon": -122.084
+    }
+  ]
+}
+```
+
+**Example – verify address by place id**
+
+```http
+GET /api/v1/address/verify?place_id=1234567890abcdef HTTP/1.1
+Host: tracker.example.com
+X-API-Key: your-token
+Accept: application/json
+```
+
+```json
+{
+  "candidate": {
+    "delivery_line_1": "1600 Amphitheatre Pkwy",
+    "delivery_line_2": "",
+    "last_line": "Mountain View, CA 94043",
+    "city": "Mountain View",
+    "state": "CA",
+    "postal_code": "94043",
+    "country": "United States",
+    "county": "Santa Clara County",
+    "dpv_match_code": null,
+    "footnotes": null,
+    "latitude": 37.422,
+    "longitude": -122.084,
+    "place_id": "1234567890abcdef",
+    "confidence": 0.9
+  }
+}
+```
 
 ## Configuration
 
