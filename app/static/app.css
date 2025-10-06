@@ -167,6 +167,20 @@ details[open] .note-toggle{ transform:rotate(90deg); }
   col.col-invoice { width: 160px; }
 }
 
+@media (max-width: 640px){
+  .barcode-field__controls{
+    flex-direction:column;
+    align-items:stretch;
+  }
+  .barcode-scan-btn{
+    width:100%;
+  }
+  .barcode-scanner__surface{
+    border-radius:14px;
+    padding:16px;
+  }
+}
+
 /*
  * Make the filter controls on the main page more naturally sized.
  * The default implementation positioned each label/input pair in a fixed
@@ -241,6 +255,7 @@ details[open] .note-toggle{ transform:rotate(90deg); }
   margin:min(5vh, 48px) auto;
   padding:24px;
   width:min(100%, 840px);
+  position:relative;
 }
 .modal-card--medium{ max-width:600px; }
 .modal-card--large{ max-width:720px; }
@@ -264,6 +279,97 @@ details[open] .note-toggle{ transform:rotate(90deg); }
 .form-block{ display:block; margin-top:12px; }
 .form-block textarea{ width:100%; min-height:110px; resize:vertical; }
 .hardware-snapshot{ margin-top:12px; font-size:0.9rem; color:#444; }
+
+.barcode-field{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  grid-column:span 2;
+}
+.barcode-field__label{ font-size:12px; color:var(--muted); font-weight:500; }
+.barcode-field__controls{
+  display:flex;
+  gap:10px;
+  align-items:center;
+}
+.barcode-field__controls input{
+  flex:1 1 auto;
+  min-width:0;
+}
+.barcode-scan-btn{
+  white-space:nowrap;
+  height:36px;
+  padding-inline:14px;
+}
+.barcode-scan-btn[disabled]{
+  opacity:0.6;
+  cursor:not-allowed;
+}
+.barcode-help{
+  margin:0;
+  font-size:12px;
+  color:var(--muted);
+}
+.barcode-status{
+  min-height:1em;
+  margin:0;
+  font-size:12px;
+  color:var(--ok);
+}
+.barcode-status.is-error{
+  color:var(--warn);
+}
+
+.barcode-scanner-overlay{
+  position:absolute;
+  inset:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:rgba(15,23,42,0.82);
+  padding:24px;
+  z-index:20;
+}
+.barcode-scanner-overlay[hidden]{
+  display:none !important;
+}
+.barcode-scanner__surface{
+  display:flex;
+  flex-direction:column;
+  gap:16px;
+  width:min(520px, 100%);
+  background:rgba(10,15,28,0.85);
+  border-radius:18px;
+  padding:18px;
+  color:#fff;
+}
+.barcode-scanner__header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+}
+.barcode-scanner__title{
+  margin:0;
+  font-size:1.1rem;
+}
+.barcode-scanner__close{
+  height:32px;
+  padding-inline:12px;
+}
+.barcode-scanner__video{
+  width:100%;
+  border-radius:14px;
+  background:#000;
+  aspect-ratio:3/2;
+  object-fit:cover;
+}
+.barcode-scanner__hint{
+  margin:0;
+  font-size:0.9rem;
+  color:#e5e7eb;
+  text-align:center;
+}
 
 .address-autocomplete{ position:relative; }
 .address-suggestions{

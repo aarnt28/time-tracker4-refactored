@@ -54,10 +54,28 @@
       <form id="hardware-form" class="modal-form">
         <input type="hidden" name="id" />
         <div class="form-grid two-column">
-          <label>Barcode<input name="barcode" required class="mono" /></label>
+          <label class="barcode-field">
+            <span class="barcode-field__label">Barcode</span>
+            <div class="barcode-field__controls">
+              <input name="barcode" required class="mono" aria-describedby="hardware-scan-help" />
+              <button class="btn-ghost barcode-scan-btn" type="button" id="hardware-scan">Scan barcode</button>
+            </div>
+            <p class="barcode-help" id="hardware-scan-help">Scan with your device's camera or enter the code manually.</p>
+            <p class="barcode-status" id="hardware-scan-status" role="status" aria-live="polite"></p>
+          </label>
           <label>Description<input name="description" required /></label>
           <label>Acquisition Cost<input name="acquisition_cost" class="mono" /></label>
           <label>Sales Price<input name="sales_price" class="mono" /></label>
+        </div>
+        <div class="barcode-scanner-overlay" id="hardware-scanner-overlay" hidden aria-hidden="true">
+          <div class="barcode-scanner__surface" role="dialog" aria-labelledby="hardware-scanner-title">
+            <div class="barcode-scanner__header">
+              <h3 class="barcode-scanner__title" id="hardware-scanner-title">Scan barcode</h3>
+              <button class="btn-ghost barcode-scanner__close" type="button" id="hardware-scanner-close">Close</button>
+            </div>
+            <video class="barcode-scanner__video" id="hardware-scanner-video" autoplay muted playsinline></video>
+            <p class="barcode-scanner__hint">Align the barcode within the frame.</p>
+          </div>
         </div>
         <div class="form-actions">
           <button class="btn" type="submit">Save</button>
@@ -96,8 +114,196 @@
     const form = document.getElementById('hardware-form');
     const btnNew = document.getElementById('new-hardware');
     const hardwareRows = document.getElementById('hardware-rows');
+    const scanBtn = form.querySelector('#hardware-scan');
+    const scanStatus = form.querySelector('#hardware-scan-status');
+    const scannerOverlay = document.getElementById('hardware-scanner-overlay');
+    const scannerVideo = document.getElementById('hardware-scanner-video');
+    const scannerClose = document.getElementById('hardware-scanner-close');
+
+    let scannerStream = null;
+    let barcodeDetector = null;
+    let scanAnimation = null;
+    let scannerActive = false;
+    let zxingReader = null;
+    let zxingLoader = null;
+    let statusTimer = null;
+
+    function setScanStatus(message, isError=false){
+      if (!scanStatus) return;
+      window.clearTimeout(statusTimer);
+      scanStatus.textContent = message || '';
+      if (isError){
+        scanStatus.classList.add('is-error');
+      } else {
+        scanStatus.classList.remove('is-error');
+      }
+      if (message && !isError){
+        statusTimer = window.setTimeout(function(){
+          if (!scannerActive){
+            scanStatus.textContent = '';
+            scanStatus.classList.remove('is-error');
+          }
+        }, 4000);
+      }
+    }
+
+    function hasCameraSupport(){
+      return !!(navigator.mediaDevices && typeof navigator.mediaDevices.getUserMedia === 'function');
+    }
+
+    async function ensureZXing(){
+      if (window.ZXingBrowser) return window.ZXingBrowser;
+      if (zxingLoader) return zxingLoader;
+      zxingLoader = new Promise(function(resolve, reject){
+        const existing = document.getElementById('zxing-lib');
+        if (existing){
+          existing.addEventListener('load', () => resolve(window.ZXingBrowser));
+          existing.addEventListener('error', () => reject(new Error('Failed to load barcode library')));
+          return;
+        }
+        const script = document.createElement('script');
+        script.id = 'zxing-lib';
+        script.async = true;
+        script.src = 'https://cdn.jsdelivr.net/npm/@zxing/library@0.20.0/umd/index.min.js';
+        script.onload = () => resolve(window.ZXingBrowser);
+        script.onerror = () => reject(new Error('Failed to load barcode library'));
+        document.head.appendChild(script);
+      });
+      try {
+        return await zxingLoader;
+      } catch (err) {
+        zxingLoader = null;
+        throw err;
+      }
+    }
+
+    function stopScanner(){
+      scannerActive = false;
+      if (scanAnimation){
+        window.cancelAnimationFrame(scanAnimation);
+        scanAnimation = null;
+      }
+      if (zxingReader){
+        try { zxingReader.reset(); } catch (err) { /* ignore */ }
+      }
+      if (scannerVideo){
+        try { scannerVideo.pause(); } catch (err) { /* ignore */ }
+        scannerVideo.srcObject = null;
+      }
+      if (scannerStream){
+        scannerStream.getTracks().forEach(function(track){ track.stop(); });
+        scannerStream = null;
+      }
+      if (scannerOverlay){
+        scannerOverlay.hidden = true;
+        scannerOverlay.setAttribute('aria-hidden', 'true');
+      }
+      if (scanBtn && hasCameraSupport()){
+        scanBtn.disabled = false;
+      }
+    }
+
+    function handleDecoded(rawValue){
+      if (!rawValue) return;
+      const text = String(rawValue).trim();
+      if (!text) return;
+      stopScanner();
+      form.elements.barcode.value = text;
+      setScanStatus(`Scanned barcode: ${text}`);
+      form.elements.barcode.focus();
+    }
+
+    function startNativeDetection(){
+      if (!scannerActive || !barcodeDetector) return;
+      const detect = async function(){
+        if (!scannerActive) return;
+        try {
+          const results = await barcodeDetector.detect(scannerVideo);
+          if (results && results.length){
+            const result = results[0];
+            const candidate = result.rawValue ?? result.rawValue ?? '';
+            if (candidate){
+              handleDecoded(candidate);
+              return;
+            }
+            return;
+          }
+        } catch (err) {
+          console.warn('BarcodeDetector error', err);
+        }
+        scanAnimation = window.requestAnimationFrame(detect);
+      };
+      detect();
+    }
+
+    async function startZXingDetection(){
+      const ZXingBrowser = await ensureZXing();
+      if (!ZXingBrowser) throw new Error('ZXing unavailable');
+      if (!zxingReader){
+        zxingReader = new ZXingBrowser.BrowserMultiFormatReader();
+      }
+      if (!scannerActive) return;
+      await zxingReader.decodeFromVideoDevice(null, scannerVideo, function(result, err){
+        if (result && scannerActive){
+          handleDecoded(result.getText());
+        }
+        if (err && !(err instanceof ZXingBrowser.NotFoundException)){
+          console.warn('ZXing error', err);
+        }
+      });
+    }
+
+    async function openScanner(){
+      if (!hasCameraSupport() || scannerActive) return;
+      setScanStatus('');
+      if (scanBtn){
+        scanBtn.disabled = true;
+      }
+      if (scannerOverlay){
+        scannerOverlay.hidden = false;
+        scannerOverlay.setAttribute('aria-hidden', 'false');
+      }
+      try {
+        scannerStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: 'environment' } }
+        });
+        if (!scannerVideo) throw new Error('Missing video element');
+        scannerVideo.srcObject = scannerStream;
+        scannerVideo.playsInline = true;
+        scannerVideo.muted = true;
+        await scannerVideo.play();
+        scannerActive = true;
+
+        if ('BarcodeDetector' in window){
+          try {
+            barcodeDetector = barcodeDetector || new window.BarcodeDetector({
+              formats: ['ean_13','ean_8','code_128','code_39','upc_a','upc_e','itf','qr_code']
+            });
+          } catch (err) {
+            console.warn('BarcodeDetector init failed', err);
+            barcodeDetector = null;
+          }
+        }
+
+        if (barcodeDetector){
+          startNativeDetection();
+        } else {
+          await startZXingDetection();
+        }
+      } catch (err) {
+        console.error('Unable to start scanner', err);
+        setScanStatus('Unable to access the camera. Enter the barcode manually.', true);
+        stopScanner();
+      }
+    }
 
     function openModal(data){
+      stopScanner();
+      if (hasCameraSupport()){
+        setScanStatus('');
+      } else {
+        setScanStatus('Camera scanning is unavailable on this device. Enter the barcode manually.', true);
+      }
       modal.style.display = 'block';
       form.reset();
       if (data){
@@ -115,6 +321,7 @@
     }
 
     function closeModal(){
+      stopScanner();
       modal.style.display = 'none';
     }
 
@@ -145,6 +352,32 @@
 
     closeBtn.addEventListener('click', closeModal);
     btnNew.addEventListener('click', function(){ openModal(null); });
+
+    if (scanBtn){
+      if (!hasCameraSupport()){
+        scanBtn.disabled = true;
+        scanBtn.setAttribute('title', 'Camera access is unavailable on this device. Enter the barcode manually.');
+        setScanStatus('Camera scanning is unavailable on this device. Enter the barcode manually.', true);
+      } else {
+        scanBtn.addEventListener('click', openScanner);
+      }
+    }
+
+    if (scannerClose){
+      scannerClose.addEventListener('click', function(){
+        stopScanner();
+        setScanStatus('Scanning cancelled. You can enter the barcode manually.');
+      });
+    }
+
+    if (scannerOverlay){
+      scannerOverlay.addEventListener('click', function(e){
+        if (e.target === scannerOverlay){
+          stopScanner();
+          setScanStatus('Scanning cancelled. You can enter the barcode manually.');
+        }
+      });
+    }
 
     if (hardwareRows){
       hardwareRows.addEventListener('click', function(e){
