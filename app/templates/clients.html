@@ -13,6 +13,7 @@
     <div class="container">
       <h1>Clients</h1>
       <div class="actions">
+        <button class="btn" id="manage-attributes">Manage Custom Attributes</button>
         <button class="btn" id="create-client">New Client</button>
       </div>
       <nav class="links">
@@ -45,16 +46,27 @@
 
       <form id="edit-form" class="modal-form">
         <div id="edit-fields"></div>
-
-        <div class="form-inline">
-          <input type="text" id="new-key" placeholder="new attribute key" class="mono" />
-          <input type="text" id="new-val" placeholder="value" class="mono" />
-          <button class="btn" id="add-attr">Add attribute</button>
-        </div>
         <div class="form-actions">
           <button class="btn" type="submit">Save</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <div id="attributes-modal" class="modal-root" style="display:none;">
+    <div class="modal-card">
+      <header class="modal-head">
+        <h2 class="modal-title">Manage Custom Attributes</h2>
+        <button id="attributes-close" class="btn">Close</button>
+      </header>
+      <div class="modal-form">
+        <p class="modal-note">Custom attributes appear for every client. Removing one will delete its values for all clients.</p>
+        <div id="attributes-list" class="attribute-list"></div>
+        <form id="attribute-add-form" class="form-inline" style="margin-top:16px;">
+          <input type="text" id="attribute-new-key" placeholder="new attribute key" class="mono" />
+          <button class="btn" type="submit">Add attribute</button>
+        </form>
+      </div>
     </div>
   </div>
 
@@ -78,6 +90,7 @@ const ADDRESS_AUTOCOMPLETE_MIN_CHARS = 3;
 const ADDRESS_AUTOCOMPLETE_DEBOUNCE = 250;
 const ADDRESS_AUTOCOMPLETE_LIMIT = 20;
 let ADDRESS_AUTOCOMPLETE_DISABLED = false;
+let currentAttributeKeys = [];
 
 function getApiToken(){ return window.localStorage.getItem('api_token') || ''; }
 function setApiToken(t){ if (t) window.localStorage.setItem('api_token', t); }
@@ -416,13 +429,15 @@ function renderTable(data){
   head.innerHTML = '';
   body.innerHTML = '';
 
-  const attributeKeys = new Set();
+  const declaredAttributes = Array.isArray(data.attribute_keys) ? data.attribute_keys : [];
+  const attributeKeys = new Set(declaredAttributes);
   Object.values(tableData).forEach((entry) => {
     Object.keys(entry || {}).forEach((k) => {
       if (k !== 'name' && !DEMOGRAPHIC_KEYS.has(k)) attributeKeys.add(k);
     });
   });
   const sortedAttributes = Array.from(attributeKeys).sort();
+  currentAttributeKeys = sortedAttributes.slice();
 
   const trh = document.createElement('tr');
   ['Client Key', 'Name', ...sortedAttributes, 'Actions'].forEach((label) => {
@@ -642,28 +657,128 @@ function openEditor(clientKey, entry, attributeKeys){
     }
   };
 
-  document.getElementById('add-attr').onclick = (ev) => {
-    ev.preventDefault();
-    const newKeyInput = document.getElementById('new-key');
-    const newValInput = document.getElementById('new-val');
-    const key = (newKeyInput.value || '').trim();
-    if (!key) return;
-    const value = newValInput.value || '';
-    if (DEMOGRAPHIC_KEYS.has(key)){
-      const target = demographicsContainer.querySelector(`input[data-attr-key="${key}"]`);
-      if (target){
-        target.value = value;
-        target.dispatchEvent(new Event('input'));
-        target.focus();
+}
+
+const attributesModal = document.getElementById('attributes-modal');
+const attributesList = document.getElementById('attributes-list');
+const manageAttributesBtn = document.getElementById('manage-attributes');
+const attributesCloseBtn = document.getElementById('attributes-close');
+const attributeAddForm = document.getElementById('attribute-add-form');
+const attributeNewKeyInput = document.getElementById('attribute-new-key');
+
+function closeAttributesModal(){
+  if (attributesModal) attributesModal.style.display = 'none';
+}
+
+function renderAttributesManager(){
+  if (!attributesList) return;
+  attributesList.innerHTML = '';
+  if (!currentAttributeKeys.length){
+    const empty = document.createElement('p');
+    empty.textContent = 'No custom attributes yet.';
+    empty.style.margin = '8px 0';
+    attributesList.appendChild(empty);
+    return;
+  }
+  currentAttributeKeys.forEach((key) => {
+    const row = document.createElement('div');
+    row.style.display = 'flex';
+    row.style.alignItems = 'center';
+    row.style.justifyContent = 'space-between';
+    row.style.gap = '8px';
+    row.style.marginBottom = '6px';
+
+    const label = document.createElement('span');
+    label.textContent = key;
+    label.className = 'mono';
+    label.style.flex = '1';
+    row.appendChild(label);
+
+    const removeBtn = document.createElement('button');
+    removeBtn.type = 'button';
+    removeBtn.className = 'btn';
+    removeBtn.textContent = 'Remove';
+    removeBtn.addEventListener('click', async () => {
+      if (!confirm(`Remove attribute "${key}"? This will delete the value for all clients.`)) return;
+      try {
+        const res = await safeFetch(`/api/v1/clients/attributes/${encodeURIComponent(key)}`, {
+          method: 'DELETE',
+          headers: apiHeaders(false)
+        });
+        if (!res.ok){
+          throw new Error('Failed to remove attribute');
+        }
+        const data = await res.json();
+        currentAttributeKeys = Array.isArray(data.attribute_keys) ? data.attribute_keys.slice().sort((a, b) => a.localeCompare(b)) : currentAttributeKeys.filter((k) => k !== key);
+        renderAttributesManager();
+        loadTable();
+      } catch (err) {
+        console.error(err);
+        alert('Failed to remove attribute');
       }
-    } else {
-      addAttrRow(key, value);
-      const target = attrContainer.querySelector(`input[data-attr-key="${key}"]`);
-      if (target) target.focus();
+    });
+    row.appendChild(removeBtn);
+    attributesList.appendChild(row);
+  });
+}
+
+async function refreshAttributeKeysFromServer(){
+  const res = await safeFetch('/api/v1/clients/attributes');
+  if (!res.ok){
+    throw new Error('Failed to load custom attributes');
+  }
+  const data = await res.json();
+  currentAttributeKeys = Array.isArray(data.attribute_keys) ? data.attribute_keys.slice().sort((a, b) => a.localeCompare(b)) : [];
+  return currentAttributeKeys;
+}
+
+if (attributesCloseBtn){
+  attributesCloseBtn.addEventListener('click', closeAttributesModal);
+}
+
+if (manageAttributesBtn){
+  manageAttributesBtn.addEventListener('click', async () => {
+    try {
+      await refreshAttributeKeysFromServer();
+      renderAttributesManager();
+      if (attributesModal) attributesModal.style.display = 'block';
+    } catch (err) {
+      console.error(err);
+      alert('Failed to load custom attributes');
     }
-    newKeyInput.value = '';
-    newValInput.value = '';
-  };
+  });
+}
+
+if (attributeAddForm){
+  attributeAddForm.addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    const key = attributeNewKeyInput ? (attributeNewKeyInput.value || '').trim() : '';
+    if (!key) return;
+    try {
+      const res = await safeFetch('/api/v1/clients/attributes', {
+        method: 'POST',
+        headers: apiHeaders(true),
+        body: JSON.stringify({ key })
+      });
+      if (res.ok){
+        const data = await res.json();
+        currentAttributeKeys = Array.isArray(data.attribute_keys) ? data.attribute_keys.slice().sort((a, b) => a.localeCompare(b)) : currentAttributeKeys;
+        if (attributeNewKeyInput) attributeNewKeyInput.value = '';
+        renderAttributesManager();
+        loadTable();
+      } else if (res.status === 409){
+        alert('Attribute already exists');
+      } else if (res.status === 422){
+        const data = await res.json().catch(() => ({}));
+        alert(data.detail || 'Attribute key is invalid');
+      } else {
+        throw new Error('Failed to add attribute');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Failed to add attribute');
+    }
+  });
 }
 
 document.getElementById('create-client').addEventListener('click', async () => {
