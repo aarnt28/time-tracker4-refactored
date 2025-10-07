@@ -54,6 +54,46 @@
 
     }
 
+    .tickets-table tr.row.is-open td {
+
+      background: rgba(45, 108, 223, 0.12);
+
+      color: #0f172a;
+
+      font-weight: 600;
+
+      transition: background-color 160ms ease-in-out, color 160ms ease-in-out;
+
+    }
+
+    .tickets-table tr.row.is-open:hover td {
+
+      background: rgba(45, 108, 223, 0.18);
+
+    }
+
+    .tickets-table tr.row.is-done td {
+
+      background: #f8fafc;
+
+      color: #94a3b8;
+
+      transition: background-color 160ms ease-in-out, color 160ms ease-in-out;
+
+    }
+
+    .tickets-table tr.row.is-done:hover td {
+
+      background: #f1f5f9;
+
+    }
+
+    .tickets-table tr.row.is-done a {
+
+      color: inherit;
+
+    }
+
     @media (min-width: 2560px) {
 
       .tickets-table .note { max-width: 480px; }
@@ -391,6 +431,40 @@
 
     }
 
+    function sortTicketRows(){
+
+      const rows = Array.from(ticketRows.querySelectorAll('tr.row'));
+
+      if (!rows.length) return;
+
+      const open = [];
+
+      const done = [];
+
+      rows.forEach(row => {
+
+        if (row.classList.contains('is-done')){
+
+          done.push(row);
+
+        } else {
+
+          open.push(row);
+
+        }
+
+      });
+
+      const frag = document.createDocumentFragment();
+
+      open.forEach(row => frag.appendChild(row));
+
+      done.forEach(row => frag.appendChild(row));
+
+      ticketRows.appendChild(frag);
+
+    }
+
     async function refreshTable(){
 
       const res = await safeFetch('/ui/ticket_table', { headers: { 'X-Requested-With': 'fetch' } }, false);
@@ -398,6 +472,8 @@
       if (res.ok){
 
         ticketRows.innerHTML = await res.text();
+
+        sortTicketRows();
 
         applyNotePreviews();
 
@@ -981,6 +1057,8 @@
       resizeTimer = setTimeout(applyNotePreviews, 150);
 
     });
+
+    sortTicketRows();
 
     applyNotePreviews();
 

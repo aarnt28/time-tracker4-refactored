@@ -1,5 +1,5 @@
 {% for r in rows %}
-<tr class="row {{ 'is-done' if r.completed else '' }}" data-id="{{ r.id }}">
+<tr class="row {{ 'is-done' if r.completed else 'is-open' }}" data-id="{{ r.id }}">
   <td class="mono" data-label="ID">
     <a href="#" class="js-edit-ticket" data-id="{{ r.id }}" style="color:inherit; text-decoration:none;">{{ r.id }}</a>
   </td>
