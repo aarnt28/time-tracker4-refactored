@@ -1122,6 +1122,26 @@
 
         const next = sentCheckbox.checked ? 1 : 0;
 
+        if (next === 1){
+
+          const row = sentCheckbox.closest('tr');
+
+          const invoiceInput = row ? row.querySelector('.invoice-input') : null;
+
+          const invoiceValue = invoiceInput ? invoiceInput.value.trim() : '';
+
+          if (!invoiceValue){
+
+            window.alert('Enter an invoice number before marking as sent.');
+
+            sentCheckbox.checked = false;
+
+            return;
+
+          }
+
+        }
+
         const res = await safeFetch(`/api/v1/tickets/${id}`, {
 
           method: 'PATCH',
