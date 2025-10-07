@@ -14,6 +14,9 @@ stores data, and Docker Compose makes it easy to run everything locally.
   ticket tracks description, client information, and completion status.
 * **Hardware inventory** – Maintain an inventory of hardware items with a
   unique barcode, description, acquisition cost and sales price.
+* **Built-in barcode capture** – The hardware editor can scan barcodes using
+  the browser camera (with a ZXing fallback) or an optional native bridge so
+  serial numbers are populated without manual typing.
 * **Client list** – Load and display a list of clients from a JSON file
   (`client_table.json`).
 * **Geoapify address autocomplete** – Client address fields can be
@@ -188,15 +191,17 @@ x-acquisition-cost: 29.99
 Ticket entries can represent billable time (`entry_type="time"`) or a hardware
 sale (`entry_type="hardware"`).  Hardware-linked entries automatically copy the
 current hardware description and sales price when an item is referenced by id or
-barcode.【F:app/crud/tickets.py†L46-L85】
+barcode.【F:app/crud/tickets.py†L46-L85】  Each record also tracks invoice status
+with a `sent` flag and optional `invoice_number`, making it easy to reconcile
+what's already been billed.【F:app/schemas/ticket.py†L15-L55】【F:app/crud/tickets.py†L90-L130】
 
 | Method & path | Description | Auth required | Notes |
 |---------------|-------------|---------------|-------|
 | `GET /api/v1/tickets/active` | List open tickets (no `end_iso`). | Yes | Optional `client_key` filter narrows results to a single client. |【F:app/routers/api_tickets.py†L11-L14】
 | `GET /api/v1/tickets` | List recent tickets (newest first). | Yes | Returns up to 100 entries (internal default); no pagination parameters are exposed. |【F:app/routers/api_tickets.py†L17-L18】【F:app/crud/tickets.py†L5-L12】
 | `GET /api/v1/tickets/{entry_id}` | Retrieve one ticket. | Yes | `404` when the id is missing. |【F:app/routers/api_tickets.py†L21-L29】
-| `POST /api/v1/tickets` | Create a ticket entry. | Yes | Body must include `client_key` and `start_iso`. Optional fields include `end_iso`, `note`, `invoice_number`, `entry_type`, `hardware_id`, and `hardware_barcode`. |【F:app/routers/api_tickets.py†L32-L41】【F:app/schemas/ticket.py†L6-L35】【F:app/crud/tickets.py†L58-L76】
-| `PATCH /api/v1/tickets/{entry_id}` | Update fields on an existing ticket. | Yes | Any subset of fields may be supplied. Updating `client_key` or `client` revalidates the client table; changing `start_iso`/`end_iso` recomputes rounded minutes; switching to `entry_type="hardware"` will relink the referenced hardware. |【F:app/routers/api_tickets.py†L44-L55】【F:app/crud/tickets.py†L77-L101】
+| `POST /api/v1/tickets` | Create a ticket entry. | Yes | Body must include `client_key` and `start_iso`. Optional fields include `end_iso`, `note`, `invoice_number`, `sent`, `entry_type`, `hardware_id`, and `hardware_barcode`. |【F:app/routers/api_tickets.py†L32-L41】【F:app/schemas/ticket.py†L6-L35】【F:app/crud/tickets.py†L58-L109】
+| `PATCH /api/v1/tickets/{entry_id}` | Update fields on an existing ticket. | Yes | Any subset of fields may be supplied. Updating `client_key` or `client` revalidates the client table; changing `start_iso`/`end_iso` recomputes rounded minutes; switching to `entry_type="hardware"` will relink the referenced hardware. Fields like `sent` and `invoice_number` can be adjusted to reflect billing progress. |【F:app/routers/api_tickets.py†L44-L55】【F:app/crud/tickets.py†L77-L130】
 | `DELETE /api/v1/tickets/{entry_id}` | Remove a ticket entry. | Yes | Returns `{ "status": "deleted" }` when successful. |【F:app/routers/api_tickets.py†L58-L65】
 
 **Example – list active tickets for a client**
@@ -221,6 +226,7 @@ Accept: application/json
     "rounded_hours": "0.00",
     "note": "Investigating outage",
     "completed": 0,
+    "sent": 0,
     "invoice_number": null,
     "created_at": "2023-09-05T18:05:29Z",
     "minutes": 0,
