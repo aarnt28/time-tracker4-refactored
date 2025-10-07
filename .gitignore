@@ -11,8 +11,8 @@ venv/
 *.log
 
 # DB / data (bind-mount/persistent volumes)
-# /data/
-# *.db
+/data/
+*.db
 
 # Node / front-end builds (if any)
 node_modules/
