@@ -147,8 +147,29 @@
       }
     }
 
+    function ensureGetUserMedia(){
+      if (!('mediaDevices' in navigator)){
+        navigator.mediaDevices = {};
+      }
+      if (typeof navigator.mediaDevices.getUserMedia === 'function'){
+        return true;
+      }
+
+      const legacy = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia || navigator.msGetUserMedia;
+      if (legacy){
+        navigator.mediaDevices.getUserMedia = function(constraints){
+          return new Promise(function(resolve, reject){
+            legacy.call(navigator, constraints, resolve, reject);
+          });
+        };
+        return true;
+      }
+
+      return false;
+    }
+
     function hasCameraSupport(){
-      return !!(navigator.mediaDevices && typeof navigator.mediaDevices.getUserMedia === 'function');
+      return ensureGetUserMedia();
     }
 
     async function ensureZXing(){
