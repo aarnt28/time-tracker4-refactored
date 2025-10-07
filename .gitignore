@@ -30,3 +30,4 @@ Thumbs.db
 *.env
 .env*
 docker-compose.override.yml
+data/data.db
