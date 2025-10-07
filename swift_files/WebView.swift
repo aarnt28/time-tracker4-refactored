@@ -12,7 +12,7 @@ struct WebView: UIViewRepresentable {
         let webView = WKWebView(frame: .zero, configuration: config)
         webView.allowsBackForwardNavigationGestures = true
         webView.load(URLRequest(url: url))
-        return WKWebView()
+        return webView
     }
 
     func updateUIView(_ uiView: WKWebView, context: Context) {
