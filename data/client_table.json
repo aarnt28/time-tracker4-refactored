@@ -126,8 +126,7 @@
     "primary_contact_email": "",
     "office_manager_name": "",
     "office_manager_phone": "",
-    "office_manager_email": "",
-    "test": "1"
+    "office_manager_email": ""
   },
   "brightway": {
     "contract": "true",
