@@ -169,12 +169,19 @@
       return false;
     }
 
-    function hasNativeBridge(){
-      return Boolean(window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.barcodeScanner);
-    }
+function hasNativeBridge(){
+  return Boolean(
+    window.webkit &&
+    window.webkit.messageHandlers &&
+    window.webkit.messageHandlers.barcodeScanner
+  );
+}
 
-    function hasCameraSupport(){
-      return ensureGetUserMedia() || hasNativeBridge();
+function hasCameraSupport(){
+  // We support camera either via web getUserMedia or an in-app native bridge.
+  return ensureGetUserMedia() || hasNativeBridge();
+}
+
     }
 
     async function ensureZXing(){
