@@ -111,10 +111,23 @@
     "office_manager_email": ""
   },
   "nds": {
-    "support_rate": 150,
-    "contract": false,
+    "support_rate": "150",
+    "contract": "false",
     "owner": "Dr. Ejesieme Ezinwanne",
-    "name": "North Dallas Smiles (NDS)"
+    "name": "North Dallas Smiles (NDS)",
+    "address_line1": "",
+    "address_line2": "",
+    "city": "",
+    "state": "",
+    "postal_code": "",
+    "support_hours_allowance": "2",
+    "primary_contact_name": "",
+    "primary_contact_phone": "",
+    "primary_contact_email": "",
+    "office_manager_name": "",
+    "office_manager_phone": "",
+    "office_manager_email": "",
+    "test": "1"
   },
   "brightway": {
     "contract": "true",
@@ -181,9 +194,6 @@
     "contract": "false",
     "owner": "self",
     "support_rate": "165"
-  },
-  "test": {
-    "name": "Test Client"
   },
   "finley": {
     "name": "Finley Ortho"
