@@ -184,5 +184,8 @@
   },
   "test": {
     "name": "Test Client"
+  },
+  "finley": {
+    "name": "Finley Ortho"
   }
 }
