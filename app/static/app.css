@@ -327,6 +327,10 @@ body.hide-sent #ticket-rows tr[data-sent="1"]{
 .form-actions.wrap{ flex-wrap:wrap; }
 .form-inline{ display:flex; gap:8px; flex-wrap:wrap; margin-top:8px; }
 .form-inline input{ flex:1 1 160px; }
+.column-option-list{ display:flex; flex-direction:column; gap:8px; margin-top:12px; }
+.column-option{ display:flex; align-items:center; gap:10px; font-size:0.95rem; }
+.column-option input[type="checkbox"]{ width:18px; height:18px; accent-color:var(--brand); }
+.column-option span{ flex:1; }
 .form-block{ display:block; margin-top:12px; }
 .form-block textarea{ width:100%; min-height:110px; resize:vertical; }
 .hardware-snapshot{ margin-top:12px; font-size:0.9rem; color:#444; }

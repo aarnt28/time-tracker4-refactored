@@ -13,6 +13,7 @@
     <div class="container">
       <h1>Clients</h1>
       <div class="actions">
+        <button class="btn" id="customize-columns">Customize Columns</button>
         <button class="btn" id="manage-attributes">Manage Custom Attributes</button>
         <button class="btn" id="create-client">New Client</button>
       </div>
@@ -70,6 +71,22 @@
     </div>
   </div>
 
+  <div id="columns-modal" class="modal-root" style="display:none;">
+    <div class="modal-card modal-card--medium">
+      <header class="modal-head">
+        <h2 class="modal-title">Customize Columns</h2>
+        <button id="columns-close" class="btn">Close</button>
+      </header>
+      <form id="columns-form" class="modal-form">
+        <p class="modal-note">Choose which columns should appear in the table. Newly added attributes are included automatically.</p>
+        <div id="columns-options" class="column-option-list"></div>
+        <div class="form-actions">
+          <button class="btn" type="submit">Apply</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <script>
 const DEMOGRAPHIC_FIELDS = [
   { key: 'address_line1', label: 'Address Line 1', placeholder: '123 Main St' },
@@ -91,6 +108,14 @@ const ADDRESS_AUTOCOMPLETE_DEBOUNCE = 250;
 const ADDRESS_AUTOCOMPLETE_LIMIT = 20;
 let ADDRESS_AUTOCOMPLETE_DISABLED = false;
 let currentAttributeKeys = [];
+const BASE_TABLE_COLUMNS = [
+  { key: '__client_key__', label: 'Client Key' },
+  { key: 'name', label: 'Name' }
+];
+const COLUMN_STORAGE_KEY = 'clients_table_columns_v1';
+let availableTableColumns = BASE_TABLE_COLUMNS.slice();
+let visibleColumnKeys = new Set(BASE_TABLE_COLUMNS.map((col) => col.key));
+let latestTablePayload = null;
 
 function getApiToken(){ return window.localStorage.getItem('api_token') || ''; }
 function setApiToken(t){ if (t) window.localStorage.setItem('api_token', t); }
@@ -112,6 +137,69 @@ async function safeFetch(url, opts={}, retry=true){
     return safeFetch(url, newOpts, false);
   }
   return res;
+}
+
+function formatAttributeLabel(key){
+  return key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function loadColumnPreferences(){
+  try {
+    const raw = window.localStorage.getItem(COLUMN_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object') return null;
+    return parsed;
+  } catch (err) {
+    console.warn('Failed to load column preferences', err);
+    return null;
+  }
+}
+
+function saveColumnPreferences(selectedKeys, availableKeys){
+  try {
+    const payload = {
+      selected: Array.isArray(selectedKeys) ? selectedKeys.slice() : [],
+      known: Array.isArray(availableKeys) ? availableKeys.slice() : []
+    };
+    window.localStorage.setItem(COLUMN_STORAGE_KEY, JSON.stringify(payload));
+  } catch (err) {
+    console.warn('Failed to save column preferences', err);
+  }
+}
+
+function applyColumnPreferences(availableOptions){
+  const availableKeys = availableOptions.map((col) => col.key);
+  let selectedKeys = availableKeys.slice();
+  const prefs = loadColumnPreferences();
+  if (prefs){
+    const storedSelected = Array.isArray(prefs.selected) ? prefs.selected.filter((key) => availableKeys.includes(key)) : [];
+    const knownKeys = Array.isArray(prefs.known) ? prefs.known : [];
+    selectedKeys = storedSelected.length ? storedSelected.slice() : availableKeys.slice();
+    const newKeys = availableKeys.filter((key) => !knownKeys.includes(key));
+    newKeys.forEach((key) => {
+      if (!selectedKeys.includes(key)) selectedKeys.push(key);
+    });
+    if (!selectedKeys.length){
+      selectedKeys = availableKeys.slice();
+    }
+  }
+  visibleColumnKeys = new Set(selectedKeys);
+  saveColumnPreferences(Array.from(visibleColumnKeys), availableKeys);
+  return availableOptions.filter((col) => visibleColumnKeys.has(col.key));
+}
+
+function formatCellValue(value){
+  if (value === undefined || value === null) return '';
+  if (Array.isArray(value)) return value.join(', ');
+  if (typeof value === 'object'){
+    try {
+      return JSON.stringify(value);
+    } catch (err) {
+      return String(value);
+    }
+  }
+  return String(value);
 }
 
 function normalizeTel(value){
@@ -423,6 +511,7 @@ function setupAddressAutocomplete({ modal, container }){
 }
 
 function renderTable(data){
+  latestTablePayload = data;
   const tableData = data.clients || {};
   const head = document.getElementById('clients-head');
   const body = document.getElementById('clients-body');
@@ -439,35 +528,40 @@ function renderTable(data){
   const sortedAttributes = Array.from(attributeKeys).sort();
   currentAttributeKeys = sortedAttributes.slice();
 
+  availableTableColumns = BASE_TABLE_COLUMNS.concat(sortedAttributes.map((key) => ({
+    key,
+    label: formatAttributeLabel(key)
+  })));
+  const columnsToRender = applyColumnPreferences(availableTableColumns);
+
   const trh = document.createElement('tr');
-  ['Client Key', 'Name', ...sortedAttributes, 'Actions'].forEach((label) => {
+  columnsToRender.forEach((col) => {
     const th = document.createElement('th');
-    th.textContent = label;
+    th.textContent = col.label;
     trh.appendChild(th);
   });
+  const actionsTh = document.createElement('th');
+  actionsTh.textContent = 'Actions';
+  trh.appendChild(actionsTh);
   head.appendChild(trh);
 
   Object.keys(tableData).sort((a, b) => a.localeCompare(b)).forEach((clientKey) => {
     const entry = tableData[clientKey] || {};
     const tr = document.createElement('tr');
     tr.classList.add('row');
-    const tdKey = document.createElement('td');
-    tdKey.textContent = clientKey;
-    tdKey.className = 'mono';
-    tdKey.dataset.label = 'Client Key';
-    tr.appendChild(tdKey);
 
-    const tdName = document.createElement('td');
-    tdName.textContent = entry.name || '';
-    tdName.style.fontWeight = '600';
-    tdName.dataset.label = 'Name';
-    tr.appendChild(tdName);
-
-    sortedAttributes.forEach((attr) => {
+    columnsToRender.forEach((col) => {
       const td = document.createElement('td');
-      const value = entry[attr];
-      td.textContent = value === undefined ? '' : String(value);
-      td.dataset.label = attr.replace(/_/g, ' ');
+      td.dataset.label = col.label;
+      if (col.key === '__client_key__'){
+        td.textContent = clientKey;
+        td.classList.add('mono');
+      } else if (col.key === 'name'){
+        td.textContent = entry.name || '';
+        td.style.fontWeight = '600';
+      } else {
+        td.textContent = formatCellValue(entry[col.key]);
+      }
       tr.appendChild(td);
     });
 
@@ -491,6 +585,8 @@ function renderTable(data){
     tr.addEventListener('click', () => openEditor(clientKey, entry, sortedAttributes));
     body.appendChild(tr);
   });
+
+  renderColumnsOptions();
 }
 
 function loadTable(){
@@ -665,9 +761,46 @@ const manageAttributesBtn = document.getElementById('manage-attributes');
 const attributesCloseBtn = document.getElementById('attributes-close');
 const attributeAddForm = document.getElementById('attribute-add-form');
 const attributeNewKeyInput = document.getElementById('attribute-new-key');
+const columnsModal = document.getElementById('columns-modal');
+const columnsCloseBtn = document.getElementById('columns-close');
+const customizeColumnsBtn = document.getElementById('customize-columns');
+const columnsForm = document.getElementById('columns-form');
+const columnsOptions = document.getElementById('columns-options');
 
 function closeAttributesModal(){
   if (attributesModal) attributesModal.style.display = 'none';
+}
+
+function closeColumnsModal(){
+  if (columnsModal) columnsModal.style.display = 'none';
+}
+
+function renderColumnsOptions(){
+  if (!columnsOptions) return;
+  columnsOptions.innerHTML = '';
+  if (!availableTableColumns.length){
+    const empty = document.createElement('p');
+    empty.textContent = 'No columns available yet.';
+    empty.style.margin = '8px 0';
+    columnsOptions.appendChild(empty);
+    return;
+  }
+  availableTableColumns.forEach((col) => {
+    const checkboxId = `column-option-${col.key.replace(/[^a-zA-Z0-9_-]/g, '-')}`;
+    const label = document.createElement('label');
+    label.className = 'column-option';
+    label.htmlFor = checkboxId;
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.id = checkboxId;
+    checkbox.value = col.key;
+    checkbox.checked = visibleColumnKeys.has(col.key);
+    const span = document.createElement('span');
+    span.textContent = col.label;
+    label.appendChild(checkbox);
+    label.appendChild(span);
+    columnsOptions.appendChild(label);
+  });
 }
 
 function renderAttributesManager(){
@@ -734,6 +867,35 @@ async function refreshAttributeKeysFromServer(){
 
 if (attributesCloseBtn){
   attributesCloseBtn.addEventListener('click', closeAttributesModal);
+}
+
+if (columnsCloseBtn){
+  columnsCloseBtn.addEventListener('click', closeColumnsModal);
+}
+
+if (customizeColumnsBtn){
+  customizeColumnsBtn.addEventListener('click', () => {
+    renderColumnsOptions();
+    if (columnsModal) columnsModal.style.display = 'block';
+  });
+}
+
+if (columnsForm){
+  columnsForm.addEventListener('submit', (ev) => {
+    ev.preventDefault();
+    if (!columnsOptions) return;
+    const selected = Array.from(columnsOptions.querySelectorAll('input[type="checkbox"]'))
+      .filter((input) => input.checked)
+      .map((input) => input.value);
+    if (!selected.length){
+      alert('Select at least one column to display');
+      return;
+    }
+    visibleColumnKeys = new Set(selected);
+    saveColumnPreferences(selected, availableTableColumns.map((col) => col.key));
+    closeColumnsModal();
+    if (latestTablePayload) renderTable(latestTablePayload);
+  });
 }
 
 if (manageAttributesBtn){
