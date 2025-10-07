@@ -236,14 +236,58 @@
       detect();
     }
 
-    async function startZXingDetection(){
+    async function startNativeScanner(){
+      scannerStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: 'environment' } }
+      });
+      if (!scannerVideo) throw new Error('Missing video element');
+      scannerVideo.srcObject = scannerStream;
+      scannerVideo.playsInline = true;
+      scannerVideo.muted = true;
+      await scannerVideo.play();
+
+      let detector = null;
+      try {
+        detector = barcodeDetector || new window.BarcodeDetector({
+          formats: ['ean_13','ean_8','code_128','code_39','upc_a','upc_e','itf','qr_code']
+        });
+      } catch (err) {
+        console.warn('BarcodeDetector init failed', err);
+        detector = null;
+      }
+
+      if (!detector){
+        if (scannerVideo){
+          try { scannerVideo.pause(); } catch (err) { /* ignore */ }
+          scannerVideo.srcObject = null;
+        }
+        if (scannerStream){
+          scannerStream.getTracks().forEach(function(track){ track.stop(); });
+          scannerStream = null;
+        }
+        return false;
+      }
+
+      barcodeDetector = detector;
+      scannerActive = true;
+      startNativeDetection();
+      return true;
+    }
+
+    async function startZXingScanner(){
       const ZXingBrowser = await ensureZXing();
       if (!ZXingBrowser) throw new Error('ZXing unavailable');
+      if (!scannerVideo) throw new Error('Missing video element');
       if (!zxingReader){
         zxingReader = new ZXingBrowser.BrowserMultiFormatReader();
       }
-      if (!scannerActive) return;
+      scannerVideo.playsInline = true;
+      scannerVideo.muted = true;
+      scannerActive = true;
       await zxingReader.decodeFromVideoDevice(null, scannerVideo, function(result, err){
+        if (!scannerStream && scannerVideo && scannerVideo.srcObject){
+          scannerStream = scannerVideo.srcObject;
+        }
         if (result && scannerActive){
           handleDecoded(result.getText());
         }
@@ -264,31 +308,12 @@
         scannerOverlay.setAttribute('aria-hidden', 'false');
       }
       try {
-        scannerStream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { ideal: 'environment' } }
-        });
-        if (!scannerVideo) throw new Error('Missing video element');
-        scannerVideo.srcObject = scannerStream;
-        scannerVideo.playsInline = true;
-        scannerVideo.muted = true;
-        await scannerVideo.play();
-        scannerActive = true;
-
+        let started = false;
         if ('BarcodeDetector' in window){
-          try {
-            barcodeDetector = barcodeDetector || new window.BarcodeDetector({
-              formats: ['ean_13','ean_8','code_128','code_39','upc_a','upc_e','itf','qr_code']
-            });
-          } catch (err) {
-            console.warn('BarcodeDetector init failed', err);
-            barcodeDetector = null;
-          }
+          started = await startNativeScanner();
         }
-
-        if (barcodeDetector){
-          startNativeDetection();
-        } else {
-          await startZXingDetection();
+        if (!started){
+          await startZXingScanner();
         }
       } catch (err) {
         console.error('Unable to start scanner', err);
