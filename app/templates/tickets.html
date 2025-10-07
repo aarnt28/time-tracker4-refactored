@@ -26,9 +26,17 @@
 
       text-align: left;
 
+      appearance: none;
+
+      -webkit-appearance: none;
+
       background: none;
 
+      background-color: transparent;
+
       border: none;
+
+      border-radius: 0;
 
       padding: 0;
 
@@ -43,6 +51,14 @@
       overflow: hidden;
 
       text-overflow: ellipsis;
+
+    }
+
+    .note-preview-btn:focus-visible {
+
+      outline: 2px solid var(--brand);
+
+      outline-offset: 2px;
 
     }
 
