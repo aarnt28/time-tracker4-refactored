@@ -124,6 +124,7 @@
     let barcodeDetector = null;
     let scanAnimation = null;
     let scannerActive = false;
+    let nativeScannerActive = false;
     let zxingReader = null;
     let zxingLoader = null;
     let statusTimer = null;
@@ -147,8 +148,33 @@
       }
     }
 
+    function ensureGetUserMedia(){
+      if (!('mediaDevices' in navigator)){
+        navigator.mediaDevices = {};
+      }
+      if (typeof navigator.mediaDevices.getUserMedia === 'function'){
+        return true;
+      }
+
+      const legacy = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia || navigator.msGetUserMedia;
+      if (legacy){
+        navigator.mediaDevices.getUserMedia = function(constraints){
+          return new Promise(function(resolve, reject){
+            legacy.call(navigator, constraints, resolve, reject);
+          });
+        };
+        return true;
+      }
+
+      return false;
+    }
+
+    function hasNativeBridge(){
+      return Boolean(window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.barcodeScanner);
+    }
+
     function hasCameraSupport(){
-      return !!(navigator.mediaDevices && typeof navigator.mediaDevices.getUserMedia === 'function');
+      return ensureGetUserMedia() || hasNativeBridge();
     }
 
     async function ensureZXing(){
@@ -177,6 +203,16 @@
       }
     }
 
+    function stopNativeBridge(){
+      if (!nativeScannerActive || !hasNativeBridge()) return;
+      nativeScannerActive = false;
+      try {
+        window.webkit.messageHandlers.barcodeScanner.postMessage({ action: 'stop' });
+      } catch (err) {
+        console.warn('Failed to stop native barcode scanner', err);
+      }
+    }
+
     function stopScanner(){
       scannerActive = false;
       if (scanAnimation){
@@ -198,6 +234,7 @@
         scannerOverlay.hidden = true;
         scannerOverlay.setAttribute('aria-hidden', 'true');
       }
+      stopNativeBridge();
       if (scanBtn && hasCameraSupport()){
         scanBtn.disabled = false;
       }
@@ -253,12 +290,36 @@
       });
     }
 
+    function startNativeBridge(){
+      if (!hasNativeBridge()) return false;
+      try {
+        nativeScannerActive = true;
+        scannerActive = true;
+        setScanStatus('Opening camera scanner…');
+        window.webkit.messageHandlers.barcodeScanner.postMessage({ action: 'start', source: 'hardware-form' });
+        return true;
+      } catch (err) {
+        nativeScannerActive = false;
+        scannerActive = false;
+        console.error('Failed to invoke native barcode scanner', err);
+        setScanStatus('Unable to open the camera scanner. Enter the barcode manually.', true);
+        return false;
+      }
+    }
+
     async function openScanner(){
       if (!hasCameraSupport() || scannerActive) return;
       setScanStatus('');
       if (scanBtn){
         scanBtn.disabled = true;
       }
+
+      if (hasNativeBridge()){
+        if (startNativeBridge()){
+          return;
+        }
+      }
+
       if (scannerOverlay){
         scannerOverlay.hidden = false;
         scannerOverlay.setAttribute('aria-hidden', 'false');
@@ -292,6 +353,9 @@
         }
       } catch (err) {
         console.error('Unable to start scanner', err);
+        if (hasNativeBridge() && startNativeBridge()){
+          return;
+        }
         setScanStatus('Unable to access the camera. Enter the barcode manually.', true);
         stopScanner();
       }
@@ -378,6 +442,27 @@
         }
       });
     }
+
+    window.appNativeBarcodeScanned = function(payload){
+      const value = (payload && typeof payload === 'object') ? (payload.barcode || payload.code || payload.value || '') : payload;
+      if (!value){
+        setScanStatus('Unable to read barcode from native scanner.', true);
+        stopScanner();
+        return;
+      }
+      handleDecoded(value);
+    };
+
+    window.appNativeBarcodeScanCancelled = function(){
+      stopScanner();
+      setScanStatus('Scanning cancelled. You can enter the barcode manually.');
+    };
+
+    window.appNativeBarcodeScanFailed = function(payload){
+      const message = (payload && typeof payload === 'object' && payload.message) ? payload.message : 'Unable to access the camera. Enter the barcode manually.';
+      stopScanner();
+      setScanStatus(message, true);
+    };
 
     if (hardwareRows){
       hardwareRows.addEventListener('click', function(e){
