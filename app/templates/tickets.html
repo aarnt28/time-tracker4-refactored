@@ -104,7 +104,7 @@
 
 </head>
 
-<body class="dashboard">
+<body class="dashboard hide-sent">
 
   <header class="app-header">
 
@@ -118,12 +118,18 @@
 
       </div>
 
-      <nav class="links">
-        <a href="/" class="pill">Dashboard</a>
-        <a href="/tickets" class="pill active" aria-current="page">Tickets</a>
-        <a href="/hardware" class="pill">Hardware</a>
-        <a href="/clients" class="pill">Clients</a>
-      </nav>
+      <div class="nav-controls">
+        <nav class="links">
+          <a href="/" class="pill">Dashboard</a>
+          <a href="/tickets" class="pill active" aria-current="page">Tickets</a>
+          <a href="/hardware" class="pill">Hardware</a>
+          <a href="/clients" class="pill">Clients</a>
+        </nav>
+        <label class="pill pill-checkbox show-sent-toggle">
+          <input type="checkbox" id="show-sent-toggle" />
+          <span>Show Sent Items</span>
+        </label>
+      </div>
 
     </div>
 
@@ -163,7 +169,7 @@
 
               <th class="mono">Invoice</th>
 
-              <th class="th-action">Actions</th>
+              <th class="th-action">Status / Actions</th>
 
             </tr>
 
@@ -257,13 +263,25 @@
 
           <label>Invoice #<input name="invoice_number" class="mono" /></label>
 
-          <label>Completed
+          <label>Added to QB
 
             <select name="completed">
 
               <option value="0">Open</option>
 
-              <option value="1">Done</option>
+              <option value="1">Added to QB</option>
+
+            </select>
+
+          </label>
+
+          <label>Sent
+
+            <select name="sent">
+
+              <option value="0">Not Sent</option>
+
+              <option value="1">Sent</option>
 
             </select>
 
@@ -287,7 +305,7 @@
 
           <button class="btn" type="submit">Save</button>
 
-          <button class="btn" type="button" id="ticket-mark-done">Toggle Done</button>
+          <button class="btn" type="button" id="ticket-mark-done">Toggle Added to QB</button>
 
         </div>
 
@@ -349,6 +367,8 @@
 
     const ticketRows = document.getElementById('ticket-rows');
 
+    const body = document.body;
+
     const modal = document.getElementById('ticket-modal');
 
     const title = document.getElementById('ticket-modal-title');
@@ -376,6 +396,42 @@
     const clientForm = document.getElementById('client-form');
 
     const clientFields = document.getElementById('client-fields');
+
+    const showSentToggle = document.getElementById('show-sent-toggle');
+
+    const SENT_FILTER_KEY = 'tickets_show_sent';
+
+    if (showSentToggle){
+
+      const storedPreference = window.localStorage.getItem(SENT_FILTER_KEY);
+
+      if (storedPreference === '1'){
+
+        showSentToggle.checked = true;
+
+        body.classList.remove('hide-sent');
+
+      }
+
+      showSentToggle.addEventListener('change', ()=>{
+
+        if (showSentToggle.checked){
+
+          body.classList.remove('hide-sent');
+
+          window.localStorage.setItem(SENT_FILTER_KEY, '1');
+
+        } else {
+
+          body.classList.add('hide-sent');
+
+          window.localStorage.setItem(SENT_FILTER_KEY, '0');
+
+        }
+
+      });
+
+    }
 
 
 
@@ -559,6 +615,12 @@
 
       elements.completed.value = String(data.completed || 0);
 
+      if (elements.sent){
+
+        elements.sent.value = String(data.sent ?? 0);
+
+      }
+
       elements.elapsed_minutes.value = data.elapsed_minutes ?? '';
 
       elements.rounded_minutes.value = data.rounded_minutes ?? '';
@@ -630,6 +692,8 @@
           end_iso: '',
 
           completed: 0,
+
+          sent: 0,
 
           created_at: now.toISOString(),
 
@@ -807,7 +871,9 @@
 
         hardware_barcode: elements.hardware_barcode.value.trim() || null,
 
-        completed: Number(elements.completed.value)
+        completed: Number(elements.completed.value),
+
+        sent: elements.sent ? Number(elements.sent.value) : 0
 
       };
 
@@ -875,7 +941,7 @@
 
       } else {
 
-        window.alert('Toggle failed');
+        window.alert('Toggle Added to QB failed');
 
       }
 
@@ -1018,7 +1084,33 @@
 
         });
 
-        if (!res.ok) window.alert('Status update failed');
+        if (!res.ok) window.alert('Added to QB update failed');
+
+        await refreshTable();
+
+        return;
+
+      }
+
+      const sentCheckbox = e.target.closest('.js-sent-checkbox');
+
+      if (sentCheckbox){
+
+        const id = sentCheckbox.dataset.id;
+
+        const next = sentCheckbox.checked ? 1 : 0;
+
+        const res = await safeFetch(`/api/v1/tickets/${id}`, {
+
+          method: 'PATCH',
+
+          headers: apiHeaders(true),
+
+          body: JSON.stringify({ sent: next })
+
+        });
+
+        if (!res.ok) window.alert('Sent status update failed');
 
         await refreshTable();
 

@@ -41,6 +41,32 @@ body.dashboard{ background:#f4f6fb; color:var(--ink); font: 14px/1.45 system-ui,
   gap:12px;
   margin-top:16px;
 }
+.app-header .nav-controls{
+  display:flex;
+  flex-wrap:wrap;
+  gap:12px;
+  margin-top:16px;
+  align-items:center;
+}
+.app-header .nav-controls .links{
+  margin-top:0;
+  flex:1 1 auto;
+}
+.app-header .show-sent-toggle{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  flex:0 0 auto;
+  border-color:var(--line);
+  background:#fff;
+  color:var(--ink);
+}
+.app-header .show-sent-toggle span{
+  white-space:nowrap;
+}
+.app-header .show-sent-toggle input{
+  accent-color:var(--brand);
+}
 .app-header .links .pill{
   border-color:var(--line);
   background:#fff;
@@ -151,6 +177,9 @@ details[open] .note-toggle{ transform:rotate(90deg); }
 /* Row state */
 .row.is-done td{ opacity:.88; }
 .row.is-open td{ background:#fff; }
+body.hide-sent #ticket-rows tr[data-sent="1"]{
+  display:none;
+}
 
 /* Hint */
 .table-hint{ color:var(--muted); text-align:center; font-size:12px; margin:8px 0 0; }
@@ -493,8 +522,24 @@ details[open] .note-toggle {
   height:36px; padding:0 10px; border:1px solid var(--line); border-radius:10px; background:#fff; color:#0b1220;
 }
 
-/* === additions: align Open/Done pill and Delete button horizontally in action cell === */
-.td-action { display:flex; gap:10px; align-items:center; justify-content:center; }
+/* Status + action cell layout */
+.td-action {
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+  align-items:center;
+  justify-content:flex-start;
+}
+.td-action .status-group{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  flex:1 1 220px;
+}
+.td-action .status-pill{
+  flex:1 1 140px;
+  justify-content:center;
+}
 .td-action form { display:inline-flex; margin:0; }
 .td-action .btn-danger { height:30px; width:30px; padding:0; display:inline-flex; align-items:center; justify-content:center; }
 
@@ -513,6 +558,9 @@ details[open] .note-toggle {
   :root{ --container: min(960px, 94vw); }
   .app-header .container{ padding-block:20px; }
   .app-header .actions{ margin-top:12px; }
+  .app-header .nav-controls{ flex-direction:column; align-items:stretch; }
+  .app-header .nav-controls .links{ width:100%; }
+  .app-header .show-sent-toggle{ width:100%; justify-content:center; }
   .filters-grid{ grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
   .field,
   .field--wide,
@@ -570,6 +618,13 @@ details[open] .note-toggle {
     justify-content:flex-start;
     flex-wrap:wrap;
     gap:10px;
+  }
+  .td-action .status-group{
+    width:100%;
+  }
+  .td-action .status-pill{
+    flex:1 1 auto;
+    width:100%;
   }
   .td-action .pill{ width:100%; justify-content:center; }
   .td-action .btn-icon{ flex:0 0 auto; }

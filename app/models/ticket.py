@@ -17,6 +17,7 @@ class Ticket(Base):
     rounded_hours = Column(Text, nullable=False)
     note = Column(Text, nullable=True)
     completed = Column(Integer, nullable=False)
+    sent = Column(Integer, nullable=False, default=0)
     invoice_number = Column(Text, nullable=True)
     created_at = Column(Text, nullable=False)
     minutes = Column(Integer, nullable=False, default=0)
