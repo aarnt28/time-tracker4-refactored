@@ -97,6 +97,7 @@ def create_entry(db: Session, payload: dict) -> Ticket:
         end_iso=payload.get("end_iso"),
         note=payload.get("note"),
         completed=0,
+        sent=payload.get("sent", 0) or 0,
         invoice_number=payload.get("invoice_number"),
         created_at=payload.get("created_at") or datetime.utcnow().isoformat(timespec="seconds") + "Z",
         entry_type=payload.get("entry_type", "time"),

@@ -16,6 +16,7 @@ class EntryCreate(EntryBase):
     start_iso: str
     end_iso: Optional[str] = None
     invoice_number: Optional[str] = None
+    sent: Optional[int] = 0
 
 
 class EntryUpdate(BaseModel):
@@ -25,6 +26,7 @@ class EntryUpdate(BaseModel):
     end_iso: Optional[str] = None
     note: Optional[str] = None
     completed: Optional[int] = None
+    sent: Optional[int] = None
     invoice_number: Optional[str] = None
     entry_type: Optional[str] = Field(default=None, pattern="^(time|hardware)$")
     hardware_id: Optional[int] = None
@@ -42,6 +44,7 @@ class EntryOut(BaseModel):
     rounded_hours: str
     note: Optional[str]
     completed: int
+    sent: int
     invoice_number: Optional[str]
     created_at: str
     minutes: int

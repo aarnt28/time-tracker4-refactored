@@ -438,7 +438,7 @@
                 <strong>{{ ticket.client }}</strong>
                 <span class="meta">Ticket #{{ ticket.id }} · {{ ticket.entry_type }}</span>
               </div>
-              <span class="badge">{{ 'Done' if ticket.completed else 'Open' }}</span>
+              <span class="badge">{{ 'Added to QB' if ticket.completed else 'Open' }}</span>
               <div style="grid-column: 1 / span 2; color: var(--txt-muted); font-size:0.9rem;">
                 {{ ticket.note or ticket.hardware_description or 'No details captured yet.' }}
               </div>
