@@ -7,10 +7,12 @@
   <td class="mono">{{ r.rounded_minutes }}</td>
   <td class="mono">{{ r.rounded_hours|hours2d }}</td>
 
+  <td class="mono">{{ r.hardware_sales_price or '' }}</td>
+
   <td class="note">
     {% if r.entry_type == 'hardware' %}
       <div class="note-cell">
-        <div class="note-preview"><strong>{{ r.hardware_description or '(no description)' }}</strong>{% if r.hardware_sales_price %} — {{ r.hardware_sales_price }}{% endif %}</div>
+        <div class="note-preview"><strong>{{ r.hardware_description or '(no description)' }}</strong></div>
       </div>
     {% else %}
       <div class="note-cell {% if r.note %}collapsed{% endif %}">

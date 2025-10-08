@@ -12,10 +12,11 @@
   <td class="mono" data-label="Minutes">{{ r.minutes }}</td>
   <td class="mono" data-label="Rounded Hrs">{{ r.rounded_hours }}</td>
   <td class="mono" data-label="Type">{{ r.entry_type }}</td>
+  <td class="mono" data-label="Hardware Price">{{ r.hardware_sales_price or '' }}</td>
   <td class="note" data-label="Notes / Hardware" data-full-note="{{ (r.note or '')|escape }}" data-is-hardware="{{ 1 if r.entry_type == 'hardware' else 0 }}">
     <button class="note-preview-btn" type="button">
       {% if r.entry_type == 'hardware' %}
-        <strong>{{ r.hardware_description or '(no description)' }}</strong>{% if r.hardware_sales_price %} - {{ r.hardware_sales_price }}{% endif %}
+        <strong>{{ r.hardware_description or '(no description)' }}</strong>
       {% else %}
         {{ r.note or '' }}
       {% endif %}
