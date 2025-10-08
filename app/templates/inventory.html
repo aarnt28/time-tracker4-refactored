@@ -36,21 +36,8 @@
               <th class="mono">Last Activity</th>
             </tr>
           </thead>
-          <tbody>
-            {% if summary %}
-              {% for item in summary %}
-              <tr>
-                <td class="mono">{{ item.barcode }}</td>
-                <td>{{ item.description }}</td>
-                <td class="mono">{{ item.quantity }}</td>
-                <td class="mono">{{ item.last_activity | fmt_dt }}</td>
-              </tr>
-              {% endfor %}
-            {% else %}
-              <tr>
-                <td colspan="4" class="empty">No inventory activity yet.</td>
-              </tr>
-            {% endif %}
+          <tbody id="inventory-summary-rows">
+            {% include "_inventory_summary_rows.html" with context %}
           </tbody>
         </table>
       </div>
@@ -122,53 +109,154 @@
               <th class="th-action">Actions</th>
             </tr>
           </thead>
-          <tbody>
-            {% if events %}
-              {% for event in events %}
-              <tr>
-                <td class="mono">{{ event.created_at | fmt_dt_compact }}</td>
-                <td>{{ event.hardware_description or 'Unknown' }}<br /><small class="mono">{{ event.hardware_barcode }}</small></td>
-                <td class="mono">{{ event.change }}</td>
-                <td>{{ event.source }}</td>
-                <td>{{ event.note }}</td>
-                <td>
-                  {% if event.counterparty_name %}
-                    {{ event.counterparty_name }}
-                    {% if event.counterparty_type %}
-                      <br /><small class="tag">{{ event.counterparty_type }}</small>
-                    {% endif %}
-                  {% endif %}
-                </td>
-                <td class="mono">
-                  {% if event.actual_cost is not none %}
-                    {{ event.actual_cost | fmt_currency }}
-                  {% endif %}
-                </td>
-                <td class="mono">
-                  {% if event.unit_cost is not none %}
-                    {{ event.unit_cost | fmt_currency }}
-                  {% endif %}
-                </td>
-                <td class="td-action">
-                  <form action="/inventory/events/{{ event.id }}/delete" method="post" class="inline">
-                    <button class="btn btn-danger btn-icon" type="submit" aria-label="Delete inventory event {{ event.id }}">
-                      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                        <path fill="currentColor" d="M9 3a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1h5v2H4V3h5zm1 0h4v1h-4V3zM8 9h2v10H8V9zm4 0h2v10h-2V9zm4 0h2v10h-2V9z"/>
-                      </svg>
-                    </button>
-                  </form>
-                </td>
-              </tr>
-              {% endfor %}
-            {% else %}
-              <tr>
-                <td colspan="9" class="empty">No activity yet.</td>
-              </tr>
-            {% endif %}
+          <tbody id="inventory-event-rows">
+            {% include "_inventory_event_rows.html" with context %}
           </tbody>
         </table>
       </div>
     </section>
   </main>
+  <script>
+  (function(){
+    const REFRESH_INTERVAL = 30000;
+    const summaryRows = document.getElementById('inventory-summary-rows');
+    const eventRows = document.getElementById('inventory-event-rows');
+    const inventoryForm = document.querySelector('.inventory-form');
+
+    async function fetchPartial(url){
+      const res = await fetch(url, { credentials: 'same-origin', headers: { 'X-Requested-With': 'fetch' } });
+      if (!res.ok) throw new Error('Failed request');
+      return res.text();
+    }
+
+    async function refreshSummary(){
+      if (!summaryRows) return;
+      try {
+        const html = await fetchPartial('/ui/inventory_summary');
+        summaryRows.innerHTML = html;
+      } catch (err) {
+        console.warn('inventory summary refresh failed', err);
+      }
+    }
+
+    async function refreshEvents(){
+      if (!eventRows) return;
+      try {
+        const html = await fetchPartial('/ui/inventory_events');
+        eventRows.innerHTML = html;
+      } catch (err) {
+        console.warn('inventory events refresh failed', err);
+      }
+    }
+
+    async function refreshAll(){
+      await Promise.all([refreshSummary(), refreshEvents()]);
+    }
+
+    if (inventoryForm){
+      const actionField = inventoryForm.querySelector('select[name="action"]');
+      const quantityField = inventoryForm.querySelector('input[name="quantity"]');
+
+      inventoryForm.addEventListener('submit', async function(e){
+        e.preventDefault();
+        const form = e.currentTarget;
+        const data = new FormData(form);
+        const hardwareId = data.get('hardware_id');
+        const action = (data.get('action') || 'receive').toLowerCase();
+        const quantityRaw = data.get('quantity') || '0';
+        const note = (data.get('note') || '').trim();
+        const vendorName = (data.get('vendor_name') || '').trim();
+        const clientName = (data.get('client_name') || '').trim();
+        const actualCostRaw = (data.get('actual_cost') || '').trim();
+
+        if (!hardwareId){
+          window.alert('Select a hardware item before saving.');
+          return;
+        }
+
+        const quantity = Number.parseInt(quantityRaw, 10);
+        if (!Number.isFinite(quantity) || quantity <= 0){
+          window.alert('Quantity must be a positive integer.');
+          return;
+        }
+
+        const payload = {
+          hardware_id: Number.parseInt(hardwareId, 10),
+          quantity,
+          note: note || null,
+          vendor_name: vendorName || null,
+          client_name: clientName || null,
+        };
+
+        if (actualCostRaw){
+          const costValue = Number.parseFloat(actualCostRaw);
+          if (!Number.isFinite(costValue) || costValue < 0){
+            window.alert('Actual cost must be a non-negative number.');
+            return;
+          }
+          payload.actual_cost = costValue;
+        }
+
+        const endpoint = action === 'use' ? '/api/v1/inventory/use' : '/api/v1/inventory/receive';
+
+        try {
+          const res = await fetch(endpoint, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Requested-With': 'fetch',
+            },
+            body: JSON.stringify(payload),
+          });
+
+          if (!res.ok){
+            let message = 'Save failed';
+            try {
+              const body = await res.json();
+              if (body && body.detail) message = Array.isArray(body.detail) ? body.detail.map(entry => entry.msg).join(', ') : body.detail;
+            } catch (parseErr) {
+              /* ignore parse errors */
+            }
+            window.alert(message);
+            return;
+          }
+
+          form.reset();
+          if (actionField) actionField.value = 'receive';
+          if (quantityField) quantityField.value = '1';
+          await refreshAll();
+        } catch (err) {
+          console.error('inventory adjustment failed', err);
+          window.alert('Save failed');
+        }
+      });
+    }
+
+    if (eventRows){
+      eventRows.addEventListener('submit', async function(e){
+        const form = e.target.closest('form.inline');
+        if (!form) return;
+        e.preventDefault();
+        try {
+          const res = await fetch(form.action || form.getAttribute('action'), {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'X-Requested-With': 'fetch' },
+          });
+          if (!res.ok) throw new Error('delete failed');
+          await refreshAll();
+        } catch (err) {
+          console.error('inventory delete failed', err);
+          window.alert('Delete failed');
+        }
+      });
+    }
+
+    refreshAll();
+    window.setInterval(refreshAll, REFRESH_INTERVAL);
+    window.addEventListener('focus', refreshAll);
+  })();
+  </script>
 </body>
 </html>
