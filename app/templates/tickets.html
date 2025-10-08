@@ -264,7 +264,15 @@
 
           <label>Client<input name="client" class="mono" readonly /></label>
 
-          <label>Client Key<input name="client_key" required class="mono" /></label>
+          <label>Client Key
+
+            <select name="client_key" required class="mono">
+
+              <option value="">Select a client…</option>
+
+            </select>
+
+          </label>
 
           <label>Entry Type
 
@@ -278,7 +286,21 @@
 
           </label>
 
-          <label>Hardware Barcode<input name="hardware_barcode" class="mono" placeholder="Scan or enter barcode" /></label>
+          <label id="hardware-barcode-wrap" style="display:none;">Hardware Item
+
+            <select name="hardware_barcode" class="mono">
+
+              <option value="">Select hardware…</option>
+
+            </select>
+
+          </label>
+
+          <input type="hidden" name="hardware_id" />
+
+          <label id="hardware-description-wrap" style="display:none;">Hardware Description<input name="hardware_description" /></label>
+
+          <label id="hardware-sales-price-wrap" style="display:none;">Hardware Sales Price<input name="hardware_sales_price" class="mono" /></label>
 
           <label>Start<input name="start_iso" type="datetime-local" class="mono" required /></label>
 
@@ -410,6 +432,22 @@
 
     const clientKeyField = form.elements.client_key;
 
+    const entryTypeField = form.elements.entry_type;
+
+    const hardwareBarcodeField = form.elements.hardware_barcode;
+
+    const hardwareIdField = form.elements.hardware_id;
+
+    const hardwareDescriptionField = form.elements.hardware_description;
+
+    const hardwareSalesPriceField = form.elements.hardware_sales_price;
+
+    const hardwareBarcodeWrap = document.getElementById('hardware-barcode-wrap');
+
+    const hardwareDescriptionWrap = document.getElementById('hardware-description-wrap');
+
+    const hardwareSalesPriceWrap = document.getElementById('hardware-sales-price-wrap');
+
     const clientModal = document.getElementById('client-modal');
 
     const clientModalClose = document.getElementById('client-modal-close');
@@ -419,6 +457,14 @@
     const clientForm = document.getElementById('client-form');
 
     const clientFields = document.getElementById('client-fields');
+
+    const clientOptionLookup = new Map();
+
+    const hardwareOptionLookup = new Map();
+
+    let clientOptionsLoaded = false;
+
+    let hardwareOptionsLoaded = false;
 
     const showSentToggle = document.getElementById('show-sent-toggle');
 
@@ -453,6 +499,342 @@
         }
 
       });
+
+    }
+
+    function ensureClientOption(key, name){
+
+      if (!key) return null;
+
+      const displayName = name && name.trim() ? name.trim() : key;
+
+      const existing = clientOptionLookup.get(key);
+
+      if (existing){
+
+        existing.name = displayName;
+
+        if (existing.option){
+
+          existing.option.textContent = displayName;
+
+          existing.option.dataset.clientName = displayName;
+
+        }
+
+        return existing;
+
+      }
+
+      const opt = document.createElement('option');
+
+      opt.value = key;
+
+      opt.textContent = displayName;
+
+      opt.dataset.clientName = displayName;
+
+      clientOptionLookup.set(key, { name: displayName, option: opt });
+
+      clientKeyField.appendChild(opt);
+
+      return clientOptionLookup.get(key);
+
+    }
+
+    async function loadClientOptions(){
+
+      if (clientOptionsLoaded) return clientOptionLookup;
+
+      try {
+
+        const res = await safeFetch('/api/v1/clients');
+
+        if (!res.ok) throw new Error('Client load failed');
+
+        const data = await res.json();
+
+        const entries = Object.entries(data.clients || {});
+
+        entries.sort((a, b) => {
+
+          const nameA = (a[1] && a[1].name) || a[0];
+
+          const nameB = (b[1] && b[1].name) || b[0];
+
+          return nameA.localeCompare(nameB);
+
+        });
+
+        const currentValue = clientKeyField.value;
+
+        clientOptionLookup.clear();
+
+        clientKeyField.innerHTML = '';
+
+        const placeholder = document.createElement('option');
+
+        placeholder.value = '';
+
+        placeholder.textContent = 'Select a client…';
+
+        clientKeyField.appendChild(placeholder);
+
+        entries.forEach(([key, entry]) => {
+
+          ensureClientOption(key, entry && entry.name ? entry.name : key);
+
+        });
+
+        if (currentValue){
+
+          clientKeyField.value = currentValue;
+
+        }
+
+        clientOptionsLoaded = true;
+
+      } catch (err){
+
+        console.error(err);
+
+        clientOptionsLoaded = false;
+
+      }
+
+      return clientOptionLookup;
+
+    }
+
+    function formatHardwareOptionLabel(description, barcode){
+
+      const desc = (description || '').trim() || '(no description)';
+
+      return barcode ? `${desc} — ${barcode}` : desc;
+
+    }
+
+    function ensureHardwareOption(barcode, description, salesPrice, hardwareId){
+
+      const value = (barcode || '').trim();
+
+      if (!value) return null;
+
+      const descText = (description || '').trim();
+
+      const priceText = (salesPrice || '').trim();
+
+      const idValue = hardwareId ? String(hardwareId) : '';
+
+      const label = formatHardwareOptionLabel(descText, value);
+
+      const existing = hardwareOptionLookup.get(value);
+
+      if (existing){
+
+        const opt = existing.option;
+
+        opt.textContent = label;
+
+        opt.dataset.description = descText;
+
+        opt.dataset.salesPrice = priceText;
+
+        opt.dataset.hardwareId = idValue;
+
+        existing.description = descText;
+
+        existing.salesPrice = priceText;
+
+        existing.hardwareId = idValue;
+
+        return existing;
+
+      }
+
+      const opt = document.createElement('option');
+
+      opt.value = value;
+
+      opt.textContent = label;
+
+      opt.dataset.description = descText;
+
+      opt.dataset.salesPrice = priceText;
+
+      opt.dataset.hardwareId = idValue;
+
+      hardwareOptionLookup.set(value, { option: opt, description: descText, salesPrice: priceText, hardwareId: idValue });
+
+      hardwareBarcodeField.appendChild(opt);
+
+      return hardwareOptionLookup.get(value);
+
+    }
+
+    async function loadHardwareOptions(){
+
+      if (hardwareOptionsLoaded) return hardwareOptionLookup;
+
+      try {
+
+        const res = await safeFetch('/api/v1/hardware?limit=500', { headers: apiHeaders(false) });
+
+        if (!res.ok) throw new Error('Hardware load failed');
+
+        const data = await res.json();
+
+        const currentValue = hardwareBarcodeField.value;
+
+        hardwareOptionLookup.clear();
+
+        hardwareBarcodeField.innerHTML = '';
+
+        const placeholder = document.createElement('option');
+
+        placeholder.value = '';
+
+        placeholder.textContent = 'Select hardware…';
+
+        hardwareBarcodeField.appendChild(placeholder);
+
+        data.sort((a, b) => {
+
+          const nameA = (a.description || '').toLowerCase();
+
+          const nameB = (b.description || '').toLowerCase();
+
+          return nameA.localeCompare(nameB);
+
+        });
+
+        data.forEach(item => {
+
+          ensureHardwareOption(item.barcode, item.description, item.sales_price, item.id);
+
+        });
+
+        if (currentValue){
+
+          hardwareBarcodeField.value = currentValue;
+
+        }
+
+        hardwareOptionsLoaded = true;
+
+      } catch (err){
+
+        console.error(err);
+
+        if (!hardwareBarcodeField.querySelector('option')){
+
+          const placeholder = document.createElement('option');
+
+          placeholder.value = '';
+
+          placeholder.textContent = 'Select hardware…';
+
+          hardwareBarcodeField.appendChild(placeholder);
+
+        }
+
+        hardwareOptionsLoaded = false;
+
+      }
+
+      return hardwareOptionLookup;
+
+    }
+
+    function updateHardwareFieldVisibility(){
+
+      const isHardware = entryTypeField.value === 'hardware';
+
+      const display = isHardware ? '' : 'none';
+
+      hardwareBarcodeWrap.style.display = display;
+
+      hardwareDescriptionWrap.style.display = display;
+
+      hardwareSalesPriceWrap.style.display = display;
+
+      hardwareBarcodeField.disabled = !isHardware;
+
+      hardwareDescriptionField.disabled = !isHardware;
+
+      hardwareSalesPriceField.disabled = !isHardware;
+
+      if (!isHardware){
+
+        hardwareBarcodeField.value = '';
+
+        hardwareIdField.value = '';
+
+      }
+
+    }
+
+    function applyHardwareSelection({ preserveDetails = false } = {}){
+
+      const selected = hardwareBarcodeField.selectedOptions[0];
+
+      if (!selected || !selected.value){
+
+        hardwareIdField.value = '';
+
+        if (!preserveDetails){
+
+          hardwareDescriptionField.value = '';
+
+          hardwareSalesPriceField.value = '';
+
+        }
+
+        return;
+
+      }
+
+      hardwareIdField.value = selected.dataset.hardwareId || '';
+
+      if (!preserveDetails){
+
+        const desc = selected.dataset.description || '';
+
+        const price = selected.dataset.salesPrice || '';
+
+        hardwareDescriptionField.value = desc;
+
+        hardwareSalesPriceField.value = price;
+
+      }
+
+    }
+
+    function updateHardwareSnapshot(){
+
+      if (entryTypeField.value !== 'hardware'){
+
+        hardwareSnapshot.style.display = 'none';
+
+        hardwareSnapshot.textContent = '';
+
+        return;
+
+      }
+
+      const desc = (hardwareDescriptionField.value || '').trim() || '(no description)';
+
+      const price = (hardwareSalesPriceField.value || '').trim();
+
+      const barcode = (hardwareBarcodeField.value || '').trim();
+
+      const pricePart = price ? ` — ${price}` : '';
+
+      const barcodePart = barcode ? ` (barcode: ${barcode})` : '';
+
+      hardwareSnapshot.style.display = 'block';
+
+      hardwareSnapshot.textContent = `Hardware Snapshot: ${desc}${pricePart}${barcodePart}`;
 
     }
 
@@ -600,6 +982,18 @@
 
       }
 
+      await loadClientOptions();
+
+      const cached = clientOptionLookup.get(key);
+
+      if (cached){
+
+        clientField.value = cached.name;
+
+        return;
+
+      }
+
       const res = await safeFetch(`/api/v1/clients/${encodeURIComponent(key)}`);
 
       if (res.ok){
@@ -608,7 +1002,11 @@
 
         const entry = data.client || {};
 
-        clientField.value = entry.name || key;
+        const name = entry.name || key;
+
+        clientField.value = name;
+
+        ensureClientOption(key, name);
 
       } else {
 
@@ -629,6 +1027,12 @@
       elements.entry_type.value = data.entry_type || 'time';
 
       elements.hardware_barcode.value = data.hardware_barcode || '';
+
+      elements.hardware_id.value = data.hardware_id ? String(data.hardware_id) : '';
+
+      elements.hardware_description.value = data.hardware_description || '';
+
+      elements.hardware_sales_price.value = data.hardware_sales_price || '';
 
       elements.start_iso.value = toLocalInput(data.start_iso) || '';
 
@@ -654,29 +1058,31 @@
 
       elements.note.value = data.note || '';
 
+      if (data.client_key){
+
+        ensureClientOption(data.client_key, data.client || data.client_key);
+
+      }
+
       clientKeyField.value = data.client_key || '';
 
       clientField.value = data.client || '';
 
-      if (data.entry_type === 'hardware'){
+      if (data.hardware_barcode){
 
-        hardwareSnapshot.style.display = 'block';
-
-        const desc = data.hardware_description || '(no description)';
-
-        const price = data.hardware_sales_price ? ` — ${data.hardware_sales_price}` : '';
-
-        const barcode = data.hardware_barcode ? ` (barcode: ${data.hardware_barcode})` : '';
-
-        hardwareSnapshot.textContent = `Hardware Snapshot: ${desc}${price}${barcode}`;
-
-      } else {
-
-        hardwareSnapshot.style.display = 'none';
-
-        hardwareSnapshot.textContent = '';
+        ensureHardwareOption(data.hardware_barcode, data.hardware_description, data.hardware_sales_price, data.hardware_id);
 
       }
+
+      hardwareBarcodeField.value = data.hardware_barcode || '';
+
+      hardwareIdField.value = data.hardware_id ? String(data.hardware_id) : '';
+
+      updateHardwareFieldVisibility();
+
+      applyHardwareSelection({ preserveDetails: true });
+
+      updateHardwareSnapshot();
 
       btnToggleDone.disabled = !data.id;
 
@@ -686,7 +1092,15 @@
 
     }
 
-    function openModal(data){
+    async function openModal(data){
+
+      await loadClientOptions();
+
+      if ((data && data.entry_type === 'hardware') || hardwareOptionsLoaded){
+
+        await loadHardwareOptions();
+
+      }
 
       modal.style.display = 'block';
 
@@ -726,6 +1140,10 @@
 
         });
 
+        updateHardwareFieldVisibility();
+
+        updateHardwareSnapshot();
+
       }
 
     }
@@ -736,7 +1154,7 @@
 
       if (res.ok){
 
-        openModal(await res.json());
+        await openModal(await res.json());
 
       } else {
 
@@ -868,9 +1286,53 @@
 
     btnClose.addEventListener('click', closeModal);
 
-    btnNew.addEventListener('click', ()=> openModal(null));
+    btnNew.addEventListener('click', ()=> { openModal(null); });
 
-    clientKeyField.addEventListener('change', ()=> populateClientFromKey(clientKeyField.value));
+    clientKeyField.addEventListener('change', ()=>{
+
+      const option = clientKeyField.selectedOptions[0];
+
+      if (option){
+
+        clientField.value = option.dataset.clientName || option.textContent || '';
+
+      } else {
+
+        clientField.value = '';
+
+      }
+
+      populateClientFromKey(clientKeyField.value, { silent: true });
+
+    });
+
+    entryTypeField.addEventListener('change', async ()=>{
+
+      updateHardwareFieldVisibility();
+
+      if (entryTypeField.value === 'hardware'){
+
+        await loadHardwareOptions();
+
+      }
+
+      applyHardwareSelection();
+
+      updateHardwareSnapshot();
+
+    });
+
+    hardwareBarcodeField.addEventListener('change', ()=>{
+
+      applyHardwareSelection();
+
+      updateHardwareSnapshot();
+
+    });
+
+    hardwareDescriptionField.addEventListener('input', updateHardwareSnapshot);
+
+    hardwareSalesPriceField.addEventListener('input', updateHardwareSnapshot);
 
     form.addEventListener('submit', async (e)=>{
 
@@ -880,25 +1342,69 @@
 
       const id = elements.id.value;
 
+      const clientKey = clientKeyField.value.trim();
+
+      const clientName = (clientField.value || '').trim();
+
+      const entryType = entryTypeField.value;
+
+      const noteValue = (elements.note.value || '').trim();
+
+      const invoiceValue = (elements.invoice_number.value || '').trim();
+
       const payload = {
 
-        client_key: elements.client_key.value.trim(),
+        client_key: clientKey,
 
-        client: elements.client.value || null,
+        client: clientName || null,
 
-        note: elements.note.value,
+        note: noteValue || null,
 
-        invoice_number: elements.invoice_number.value,
+        invoice_number: invoiceValue || null,
 
-        entry_type: elements.entry_type.value,
-
-        hardware_barcode: elements.hardware_barcode.value.trim() || null,
+        entry_type: entryType,
 
         completed: Number(elements.completed.value),
 
         sent: elements.sent ? Number(elements.sent.value) : 0
 
       };
+
+      if (entryType === 'hardware'){
+
+        const barcodeValue = (hardwareBarcodeField.value || '').trim();
+
+        const hardwareIdValue = (hardwareIdField.value || '').trim();
+
+        const descriptionValue = (hardwareDescriptionField.value || '').trim();
+
+        const salesPriceValue = (hardwareSalesPriceField.value || '').trim();
+
+        payload.hardware_barcode = barcodeValue || null;
+
+        if (hardwareIdValue){
+
+          const parsedId = Number.parseInt(hardwareIdValue, 10);
+
+          if (!Number.isNaN(parsedId)) payload.hardware_id = parsedId;
+
+        }
+
+        payload.hardware_description = descriptionValue || null;
+
+        payload.hardware_sales_price = salesPriceValue || null;
+
+      } else {
+
+        payload.hardware_barcode = null;
+
+        payload.hardware_id = null;
+
+        payload.hardware_description = null;
+
+        payload.hardware_sales_price = null;
+
+      }
 
       const startIso = fromLocalInput(elements.start_iso.value);
 

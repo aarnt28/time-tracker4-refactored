@@ -66,16 +66,24 @@ def _apply_hardware_link(db: Session, t: Ticket, payload: dict) -> None:
         return
 
     hw = _resolve_hardware(db, payload, t.hardware_id)
+    desc_override = payload.get("hardware_description")
+    if isinstance(desc_override, str):
+        desc_override = desc_override.strip() or None
+    price_override = payload.get("hardware_sales_price")
+    if isinstance(price_override, str):
+        price_override = price_override.strip() or None
+    barcode_override = (payload.get("hardware_barcode") or "").strip()
+
     if hw:
         t.hardware_id = hw.id
-        t.hardware_description = hw.description
-        t.hardware_sales_price = hw.sales_price
         t.hardware_barcode = hw.barcode
+        t.hardware_description = desc_override if desc_override is not None else hw.description
+        t.hardware_sales_price = price_override if price_override is not None else hw.sales_price
     else:
         t.hardware_id = None
-        t.hardware_description = None
-        t.hardware_sales_price = None
-        t.hardware_barcode = None
+        t.hardware_barcode = barcode_override or None
+        t.hardware_description = desc_override
+        t.hardware_sales_price = price_override
 
     qty_value = payload.get("hardware_quantity")
     if qty_value is None:

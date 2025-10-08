@@ -11,6 +11,8 @@ class EntryBase(BaseModel):
     hardware_id: Optional[int] = None  # when entry_type == 'hardware'
     hardware_barcode: Optional[str] = None
     hardware_quantity: Optional[int] = Field(default=None, ge=1)
+    hardware_description: Optional[str] = None
+    hardware_sales_price: Optional[str] = None
 
 
 class EntryCreate(EntryBase):
@@ -33,6 +35,8 @@ class EntryUpdate(BaseModel):
     hardware_id: Optional[int] = None
     hardware_barcode: Optional[str] = None
     hardware_quantity: Optional[int] = Field(default=None, ge=1)
+    hardware_description: Optional[str] = None
+    hardware_sales_price: Optional[str] = None
 
 
 class EntryOut(BaseModel):
