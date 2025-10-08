@@ -76,6 +76,7 @@ def run_migrations(engine: Engine) -> None:
         "hardware_id": "INTEGER",
         "hardware_description": "TEXT",
         "hardware_sales_price": "TEXT",
+        "hardware_quantity": "INTEGER",
         "sent": "INTEGER DEFAULT 0 NOT NULL",
     }
 

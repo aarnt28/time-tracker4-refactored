@@ -16,6 +16,11 @@ from .core.config import settings
 from .db.session import Base, engine
 from .db.migrate import run_migrations
 
+# Ensure models are registered with SQLAlchemy metadata before create_all.
+from .models import hardware as _hardware  # noqa: F401
+from .models import ticket as _ticket  # noqa: F401
+from .models import inventory as _inventory  # noqa: F401
+
 # ---------- App init ----------
 app = FastAPI(title="Time Tracker")
 
@@ -96,6 +101,9 @@ app.include_router(clients_router.router, prefix="")
 
 from .routers import api_hardware as api_hardware_router  # type: ignore
 app.include_router(api_hardware_router.router, prefix="")
+
+from .routers import api_inventory as api_inventory_router  # type: ignore
+app.include_router(api_inventory_router.router, prefix="")
 
 from .routers import address as address_router  # type: ignore
 app.include_router(address_router.router, prefix="")
