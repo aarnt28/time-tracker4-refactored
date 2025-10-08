@@ -48,6 +48,14 @@ def _fmt_time(value: Any, fmt: str = "%I:%M %p") -> str:
     dt = _to_dt(value)
     return dt.strftime(fmt) if dt else ""
 
+
+def _fmt_currency(value: Any) -> str:
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return ""
+    return f"${number:,.2f}"
+
 def get_templates() -> Jinja2Templates:
     """Create a Jinja2Templates instance with our standard filters registered."""
     templates = Jinja2Templates(directory=str(settings.TEMPLATES_DIR))
@@ -56,5 +64,6 @@ def get_templates() -> Jinja2Templates:
     env.filters["fmt_dt_compact"] = _fmt_dt_compact
     env.filters["fmt_date"] = _fmt_date
     env.filters["fmt_time"] = _fmt_time
+    env.filters["fmt_currency"] = _fmt_currency
     return templates
 

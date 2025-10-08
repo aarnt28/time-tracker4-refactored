@@ -1,5 +1,5 @@
 from __future__ import annotations
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional
 
 
@@ -28,6 +28,8 @@ class HardwareOut(BaseModel):
     acquisition_cost: Optional[str]
     sales_price: Optional[str]
     created_at: str
+    common_vendors: list[str] = Field(default_factory=list)
+    average_unit_cost: Optional[float] = None
 
     class Config:
         from_attributes = True

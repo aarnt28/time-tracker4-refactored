@@ -81,6 +81,18 @@
           <span>Quantity</span>
           <input name="quantity" type="number" min="1" value="1" required />
         </label>
+        <label class="inventory-form__field">
+          <span>Vendor (receive)</span>
+          <input name="vendor_name" placeholder="Supplier name" />
+        </label>
+        <label class="inventory-form__field">
+          <span>Client (use)</span>
+          <input name="client_name" placeholder="Destination or client" />
+        </label>
+        <label class="inventory-form__field">
+          <span>Actual cost (total)</span>
+          <input name="actual_cost" type="number" step="0.01" min="0" placeholder="0.00" />
+        </label>
         <label class="inventory-form__field inventory-form__field--wide">
           <span>Note</span>
           <input name="note" />
@@ -104,6 +116,10 @@
               <th class="mono">Change</th>
               <th>Source</th>
               <th>Note</th>
+              <th>Counterparty</th>
+              <th class="mono">Actual cost</th>
+              <th class="mono">Unit cost</th>
+              <th class="th-action">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -115,11 +131,38 @@
                 <td class="mono">{{ event.change }}</td>
                 <td>{{ event.source }}</td>
                 <td>{{ event.note }}</td>
+                <td>
+                  {% if event.counterparty_name %}
+                    {{ event.counterparty_name }}
+                    {% if event.counterparty_type %}
+                      <br /><small class="tag">{{ event.counterparty_type }}</small>
+                    {% endif %}
+                  {% endif %}
+                </td>
+                <td class="mono">
+                  {% if event.actual_cost is not none %}
+                    {{ event.actual_cost | fmt_currency }}
+                  {% endif %}
+                </td>
+                <td class="mono">
+                  {% if event.unit_cost is not none %}
+                    {{ event.unit_cost | fmt_currency }}
+                  {% endif %}
+                </td>
+                <td class="td-action">
+                  <form action="/inventory/events/{{ event.id }}/delete" method="post" class="inline">
+                    <button class="btn btn-danger btn-icon" type="submit" aria-label="Delete inventory event {{ event.id }}">
+                      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                        <path fill="currentColor" d="M9 3a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1h5v2H4V3h5zm1 0h4v1h-4V3zM8 9h2v10H8V9zm4 0h2v10h-2V9zm4 0h2v10h-2V9z"/>
+                      </svg>
+                    </button>
+                  </form>
+                </td>
               </tr>
               {% endfor %}
             {% else %}
               <tr>
-                <td colspan="5" class="empty">No activity yet.</td>
+                <td colspan="9" class="empty">No activity yet.</td>
               </tr>
             {% endif %}
           </tbody>
