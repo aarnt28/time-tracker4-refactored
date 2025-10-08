@@ -109,12 +109,17 @@ const ADDRESS_AUTOCOMPLETE_LIMIT = 20;
 let ADDRESS_AUTOCOMPLETE_DISABLED = false;
 let currentAttributeKeys = [];
 const BASE_TABLE_COLUMNS = [
-  { key: '__client_key__', label: 'Client Key' },
-  { key: 'name', label: 'Name' }
+  { key: '__client_key__', label: 'Client Key', defaultVisible: true },
+  { key: 'name', label: 'Name', defaultVisible: true }
 ];
+const DEMOGRAPHIC_TABLE_COLUMNS = DEMOGRAPHIC_FIELDS.map((field) => ({
+  key: field.key,
+  label: field.label,
+  defaultVisible: false
+}));
 const COLUMN_STORAGE_KEY = 'clients_table_columns_v1';
 let availableTableColumns = BASE_TABLE_COLUMNS.slice();
-let visibleColumnKeys = new Set(BASE_TABLE_COLUMNS.map((col) => col.key));
+let visibleColumnKeys = new Set(BASE_TABLE_COLUMNS.filter((col) => col.defaultVisible !== false).map((col) => col.key));
 let latestTablePayload = null;
 
 function getApiToken(){ return window.localStorage.getItem('api_token') || ''; }
@@ -170,18 +175,24 @@ function saveColumnPreferences(selectedKeys, availableKeys){
 
 function applyColumnPreferences(availableOptions){
   const availableKeys = availableOptions.map((col) => col.key);
-  let selectedKeys = availableKeys.slice();
+  const defaultVisibleKeys = availableOptions
+    .filter((col) => col.defaultVisible !== false)
+    .map((col) => col.key);
+  let selectedKeys = defaultVisibleKeys.slice();
   const prefs = loadColumnPreferences();
   if (prefs){
     const storedSelected = Array.isArray(prefs.selected) ? prefs.selected.filter((key) => availableKeys.includes(key)) : [];
     const knownKeys = Array.isArray(prefs.known) ? prefs.known : [];
-    selectedKeys = storedSelected.length ? storedSelected.slice() : availableKeys.slice();
+    selectedKeys = storedSelected.length ? storedSelected.slice() : defaultVisibleKeys.slice();
     const newKeys = availableKeys.filter((key) => !knownKeys.includes(key));
     newKeys.forEach((key) => {
-      if (!selectedKeys.includes(key)) selectedKeys.push(key);
+      const def = availableOptions.find((col) => col.key === key);
+      if (def && def.defaultVisible !== false && !selectedKeys.includes(key)){
+        selectedKeys.push(key);
+      }
     });
     if (!selectedKeys.length){
-      selectedKeys = availableKeys.slice();
+      selectedKeys = defaultVisibleKeys.slice();
     }
   }
   visibleColumnKeys = new Set(selectedKeys);
@@ -528,10 +539,27 @@ function renderTable(data){
   const sortedAttributes = Array.from(attributeKeys).sort();
   currentAttributeKeys = sortedAttributes.slice();
 
-  availableTableColumns = BASE_TABLE_COLUMNS.concat(sortedAttributes.map((key) => ({
+  const attributeColumns = sortedAttributes.map((key) => ({
     key,
-    label: formatAttributeLabel(key)
-  })));
+    label: formatAttributeLabel(key),
+    defaultVisible: true
+  }));
+  const seenKeys = new Set();
+  const combinedColumns = [];
+  const registerColumn = (col) => {
+    if (!col || !col.key || seenKeys.has(col.key)) return;
+    seenKeys.add(col.key);
+    combinedColumns.push({
+      key: col.key,
+      label: col.label,
+      defaultVisible: col.defaultVisible !== false
+    });
+  };
+
+  BASE_TABLE_COLUMNS.forEach(registerColumn);
+  DEMOGRAPHIC_TABLE_COLUMNS.forEach(registerColumn);
+  attributeColumns.forEach(registerColumn);
+  availableTableColumns = combinedColumns;
   const columnsToRender = applyColumnPreferences(availableTableColumns);
 
   const trh = document.createElement('tr');
