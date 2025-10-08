@@ -6,6 +6,8 @@ from datetime import datetime
 from sqlalchemy.orm import Session
 from sqlalchemy import select, desc
 
+from ..models.inventory import InventoryEvent
+
 from ..models.hardware import Hardware
 
 
@@ -19,14 +21,20 @@ def list_hardware(db: Session, limit: int = 100, offset: int = 0):
         .limit(limit)
         .offset(offset)
     )
-    return db.execute(stmt).scalars().all()
+    items = db.execute(stmt).scalars().all()
+    _attach_inventory_metrics(db, items)
+    return items
 
 
 def get_hardware(db: Session, item_id: int) -> Hardware | None:
     """
     Fetch a single hardware record by primary key.
     """
-    return db.get(Hardware, item_id)
+    item = db.get(Hardware, item_id)
+    if not item:
+        return None
+    _attach_inventory_metrics(db, [item])
+    return item
 
 
 def create_hardware(db: Session, payload: dict) -> Hardware:
@@ -83,3 +91,48 @@ def delete_hardware(db: Session, item: Hardware) -> None:
     """
     db.delete(item)
     db.commit()
+
+
+def _attach_inventory_metrics(db: Session, items: list[Hardware]) -> None:
+    if not items:
+        return
+    hardware_map = {item.id: item for item in items}
+    if not hardware_map:
+        return
+    for item in hardware_map.values():
+        setattr(item, "common_vendors", [])
+        setattr(item, "average_unit_cost", None)
+
+    hardware_ids = tuple(hardware_map.keys())
+    stmt = (
+        select(
+            InventoryEvent.hardware_id,
+            InventoryEvent.counterparty_name,
+            InventoryEvent.unit_cost,
+        )
+        .where(
+            InventoryEvent.hardware_id.in_(hardware_ids),
+            InventoryEvent.counterparty_type == "vendor",
+            InventoryEvent.change > 0,
+        )
+    )
+
+    vendor_info: dict[int, dict[str, list]] = {}
+    rows = db.execute(stmt).all()
+    for hardware_id, counterparty_name, unit_cost in rows:
+        info = vendor_info.setdefault(hardware_id, {"vendors": [], "unit_costs": []})
+        name = (counterparty_name or "").strip()
+        if name and name not in info["vendors"]:
+            info["vendors"].append(name)
+        if unit_cost is not None:
+            info["unit_costs"].append(unit_cost)
+
+    for hardware_id, info in vendor_info.items():
+        item = hardware_map.get(hardware_id)
+        if not item:
+            continue
+        if info["vendors"]:
+            setattr(item, "common_vendors", info["vendors"])
+        if info["unit_costs"]:
+            avg = sum(info["unit_costs"]) / len(info["unit_costs"])
+            setattr(item, "average_unit_cost", avg)

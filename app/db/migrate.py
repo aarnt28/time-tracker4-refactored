@@ -107,3 +107,17 @@ def run_migrations(engine: Engine) -> None:
         )
 
     _create_index_if_not_exists(engine, "hardware", "ix_hardware_barcode_unique", ["barcode"], unique=True)
+
+    # Inventory event enrichments (vendor/client + costing)
+    inventory_table = _table_columns(engine, "inventory_events")
+    if inventory_table:
+        inventory_cols = {row["name"] for row in inventory_table}
+        new_cols = {
+            "counterparty_name": "TEXT",
+            "counterparty_type": "TEXT",
+            "actual_cost": "REAL",
+            "unit_cost": "REAL",
+        }
+        for name, dtype in new_cols.items():
+            if name not in inventory_cols:
+                _add_column_sqlite(engine, "inventory_events", f"{name} {dtype}")

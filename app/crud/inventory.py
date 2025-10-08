@@ -53,9 +53,20 @@ def record_inventory_event(
     source: str = "manual",
     note: str | None = None,
     ticket_id: int | None = None,
+    counterparty_name: str | None = None,
+    counterparty_type: str | None = None,
+    actual_cost: float | None = None,
 ) -> InventoryEvent:
     if not change:
         raise ValueError("change must be non-zero")
+    name = (counterparty_name or "").strip() or None
+    ctype = (counterparty_type or "").strip() or None
+    cost_total = float(actual_cost) if actual_cost is not None else None
+    unit_cost = None
+    if cost_total is not None:
+        quantity = abs(change)
+        if quantity:
+            unit_cost = cost_total / quantity
     event = InventoryEvent(
         hardware_id=hardware_id,
         change=change,
@@ -63,6 +74,10 @@ def record_inventory_event(
         note=note,
         ticket_id=ticket_id,
         created_at=datetime.utcnow().isoformat(timespec="seconds") + "Z",
+        counterparty_name=name,
+        counterparty_type=ctype,
+        actual_cost=cost_total,
+        unit_cost=unit_cost,
     )
     db.add(event)
     db.commit()
@@ -107,6 +122,10 @@ def ensure_ticket_usage_event(
         existing.change = change
         existing.source = "ticket"
         existing.note = note
+        existing.counterparty_name = None
+        existing.counterparty_type = None
+        existing.actual_cost = None
+        existing.unit_cost = None
         db.commit()
         db.refresh(existing)
         return existing
@@ -118,4 +137,7 @@ def ensure_ticket_usage_event(
         source="ticket",
         note=note,
         ticket_id=ticket_id,
+        counterparty_name=None,
+        counterparty_type=None,
+        actual_cost=None,
     )
