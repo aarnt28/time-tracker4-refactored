@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import select, desc
 from ..models.ticket import Ticket
 from ..models.hardware import Hardware
+from .inventory import ensure_ticket_usage_event, delete_ticket_event
 from ..services.timecalc import compute_minutes, round_minutes
 from ..services.clientsync import resolve_client_name
 from ..core.config import settings
@@ -61,6 +62,7 @@ def _apply_hardware_link(db: Session, t: Ticket, payload: dict) -> None:
         t.hardware_description = None
         t.hardware_sales_price = None
         t.hardware_barcode = None
+        t.hardware_quantity = None
         return
 
     hw = _resolve_hardware(db, payload, t.hardware_id)
@@ -74,6 +76,17 @@ def _apply_hardware_link(db: Session, t: Ticket, payload: dict) -> None:
         t.hardware_description = None
         t.hardware_sales_price = None
         t.hardware_barcode = None
+
+    qty_value = payload.get("hardware_quantity")
+    if qty_value is None:
+        qty_value = t.hardware_quantity if t.hardware_quantity else 1
+    try:
+        qty_int = int(qty_value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("hardware_quantity must be a positive integer") from exc
+    if qty_int <= 0:
+        raise ValueError("hardware_quantity must be a positive integer")
+    t.hardware_quantity = qty_int
 
 
 def _apply_client_link(t: Ticket, payload: dict) -> None:
@@ -109,6 +122,14 @@ def create_entry(db: Session, payload: dict) -> Ticket:
     db.add(t)
     db.commit()
     db.refresh(t)
+    if t.entry_type == "hardware" and t.hardware_id:
+        ensure_ticket_usage_event(
+            db,
+            ticket_id=t.id,
+            hardware_id=t.hardware_id,
+            quantity=t.hardware_quantity or 1,
+            note=t.note,
+        )
     return t
 
 
@@ -123,13 +144,24 @@ def update_ticket(db: Session, t: Ticket, payload: dict) -> Ticket:
         setattr(t, k, v)
     if any(k in payload for k in ("start_iso", "end_iso")):
         _apply_time_math(t, payload)
-    if any(k in payload for k in ("entry_type", "hardware_id", "hardware_barcode")):
+    if any(k in payload for k in ("entry_type", "hardware_id", "hardware_barcode", "hardware_quantity")):
         _apply_hardware_link(db, t, payload)
     db.commit()
     db.refresh(t)
+    if t.entry_type == "hardware" and t.hardware_id:
+        ensure_ticket_usage_event(
+            db,
+            ticket_id=t.id,
+            hardware_id=t.hardware_id,
+            quantity=t.hardware_quantity or 1,
+            note=t.note,
+        )
+    else:
+        delete_ticket_event(db, t.id)
     return t
 
 
 def delete_ticket(db: Session, ticket: Ticket) -> None:
+    delete_ticket_event(db, ticket.id)
     db.delete(ticket)
     db.commit()

@@ -27,6 +27,7 @@ class Ticket(Base):
     hardware_id = Column(Integer, nullable=True, index=True)
     hardware_description = Column(Text, nullable=True)
     hardware_sales_price = Column(Text, nullable=True)
+    hardware_quantity = Column(Integer, nullable=True, default=1)
 
     @property
     def hardware_barcode(self) -> str | None:

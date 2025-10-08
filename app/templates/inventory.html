@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Inventory</title>
+  <link rel="stylesheet" href="/static/app.css" />
+  <link rel="icon" href="/static/favicon.ico" />
+</head>
+<body class="dashboard">
+  <header class="app-header">
+    <div class="container">
+      <h1>Inventory</h1>
+      <nav class="links">
+        <a href="/" class="pill">Dashboard</a>
+        <a href="/tickets" class="pill">Tickets</a>
+        <a href="/hardware" class="pill">Hardware</a>
+        <a href="/inventory" class="pill active" aria-current="page">Inventory</a>
+        <a href="/clients" class="pill">Clients</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container inventory-layout">
+    <section class="card">
+      <header class="card__header">
+        <h2 class="card__title">Current stock</h2>
+      </header>
+      <div class="table-scroll">
+        <table class="table">
+          <thead>
+            <tr>
+              <th class="mono">Barcode</th>
+              <th>Description</th>
+              <th class="mono">On Hand</th>
+              <th class="mono">Last Activity</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% if summary %}
+              {% for item in summary %}
+              <tr>
+                <td class="mono">{{ item.barcode }}</td>
+                <td>{{ item.description }}</td>
+                <td class="mono">{{ item.quantity }}</td>
+                <td class="mono">{{ item.last_activity | fmt_dt }}</td>
+              </tr>
+              {% endfor %}
+            {% else %}
+              <tr>
+                <td colspan="4" class="empty">No inventory activity yet.</td>
+              </tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card">
+      <header class="card__header">
+        <h2 class="card__title">Adjust inventory</h2>
+      </header>
+      <form method="post" action="/inventory/adjust" class="inventory-form">
+        <label class="inventory-form__field">
+          <span>Hardware item</span>
+          <select name="hardware_id" required>
+            <option value="" disabled selected>Select hardware</option>
+            {% for hardware in hardware_options %}
+              <option value="{{ hardware.id }}">{{ hardware.description }} ({{ hardware.barcode }})</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label class="inventory-form__field">
+          <span>Action</span>
+          <select name="action">
+            <option value="receive">Receive stock</option>
+            <option value="use">Use stock</option>
+          </select>
+        </label>
+        <label class="inventory-form__field">
+          <span>Quantity</span>
+          <input name="quantity" type="number" min="1" value="1" required />
+        </label>
+        <label class="inventory-form__field inventory-form__field--wide">
+          <span>Note</span>
+          <input name="note" />
+        </label>
+        <div class="inventory-form__actions">
+          <button class="btn" type="submit">Save adjustment</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="card">
+      <header class="card__header">
+        <h2 class="card__title">Recent activity</h2>
+      </header>
+      <div class="table-scroll">
+        <table class="table">
+          <thead>
+            <tr>
+              <th class="mono">When</th>
+              <th>Item</th>
+              <th class="mono">Change</th>
+              <th>Source</th>
+              <th>Note</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% if events %}
+              {% for event in events %}
+              <tr>
+                <td class="mono">{{ event.created_at | fmt_dt_compact }}</td>
+                <td>{{ event.hardware_description or 'Unknown' }}<br /><small class="mono">{{ event.hardware_barcode }}</small></td>
+                <td class="mono">{{ event.change }}</td>
+                <td>{{ event.source }}</td>
+                <td>{{ event.note }}</td>
+              </tr>
+              {% endfor %}
+            {% else %}
+              <tr>
+                <td colspan="5" class="empty">No activity yet.</td>
+              </tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</body>
+</html>
