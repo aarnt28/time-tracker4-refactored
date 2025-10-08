@@ -96,6 +96,23 @@ def hardware_table_partial(request: Request, db: Session = Depends(get_db)):
     rows = list_hardware(db, limit=200)
     return templates.TemplateResponse("_hardware_rows.html", {"request": request, "rows": rows})
 
+
+@router.get("/ui/inventory_summary", response_class=HTMLResponse)
+def inventory_summary_partial(request: Request, db: Session = Depends(get_db)):
+    summary = get_inventory_summary(db)
+    return templates.TemplateResponse(
+        "_inventory_summary_rows.html", {"request": request, "summary": summary}
+    )
+
+
+@router.get("/ui/inventory_events", response_class=HTMLResponse)
+def inventory_events_partial(request: Request, db: Session = Depends(get_db)):
+    events = list_inventory_events(db, limit=200)
+    return templates.TemplateResponse(
+        "_inventory_event_rows.html", {"request": request, "events": events}
+    )
+
+
 @router.get("/ui/ticket_table", response_class=HTMLResponse)
 def ticket_table_partial(request: Request, db: Session = Depends(get_db)):
     rows = list_tickets(db, limit=200)
