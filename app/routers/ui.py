@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from ..db.session import get_db
 from ..crud.tickets import list_tickets, get_ticket, update_ticket, delete_ticket
 from ..crud.hardware import list_hardware, get_hardware, update_hardware, delete_hardware
+from ..crud.inventory import get_inventory_summary, list_inventory_events, record_inventory_event
 from ..core.config import settings
 from ..services.clientsync import load_client_table
 from ..models.hardware import Hardware
@@ -70,6 +71,20 @@ def hardware_page(request: Request, db: Session = Depends(get_db)):
     rows = list_hardware(db, limit=200)
     return templates.TemplateResponse("hardware.html", {"request": request, "rows": rows})
 
+
+@router.get("/inventory", response_class=HTMLResponse)
+def inventory_page(request: Request, db: Session = Depends(get_db)):
+    summary = get_inventory_summary(db)
+    events = list_inventory_events(db, limit=200)
+    hardware_options = list_hardware(db, limit=500)
+    context = {
+        "request": request,
+        "summary": summary,
+        "events": events,
+        "hardware_options": hardware_options,
+    }
+    return templates.TemplateResponse("inventory.html", context)
+
 @router.get("/ui/hardware_table", response_class=HTMLResponse)
 def hardware_table_partial(request: Request, db: Session = Depends(get_db)):
     rows = list_hardware(db, limit=200)
@@ -115,3 +130,37 @@ def ui_set_invoice_hardware(item_id: int, invoice_number: str = Form(""), db: Se
     r.invoice_number = (invoice_number or "").strip() or None
     update_hardware(db, r, {"invoice_number": r.invoice_number})
     return templates.TemplateResponse("_hardware_rows.html", {"request": {}, "rows": [r]})
+
+
+@router.post("/inventory/adjust", response_class=HTMLResponse)
+def inventory_adjust(
+    hardware_id: int = Form(...),
+    action: str = Form("receive"),
+    quantity: int = Form(1),
+    note: str = Form(""),
+    db: Session = Depends(get_db),
+):
+    try:
+        qty = int(quantity)
+    except (TypeError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail="Quantity must be a positive integer") from exc
+    if qty <= 0:
+        raise HTTPException(status_code=400, detail="Quantity must be a positive integer")
+
+    action_value = (action or "").lower()
+    if action_value not in {"receive", "use"}:
+        raise HTTPException(status_code=400, detail="Invalid inventory action")
+
+    hardware = get_hardware(db, hardware_id)
+    if not hardware:
+        raise HTTPException(status_code=404, detail="Hardware not found")
+
+    change = qty if action_value == "receive" else -qty
+    record_inventory_event(
+        db,
+        hardware_id=hardware.id,
+        change=change,
+        source=f"ui:{action_value}",
+        note=note.strip() or None,
+    )
+    return RedirectResponse(url="/inventory", status_code=303)

@@ -10,6 +10,7 @@ class EntryBase(BaseModel):
     entry_type: str = Field(default="time", pattern="^(time|hardware)$")
     hardware_id: Optional[int] = None  # when entry_type == 'hardware'
     hardware_barcode: Optional[str] = None
+    hardware_quantity: Optional[int] = Field(default=None, ge=1)
 
 
 class EntryCreate(EntryBase):
@@ -31,6 +32,7 @@ class EntryUpdate(BaseModel):
     entry_type: Optional[str] = Field(default=None, pattern="^(time|hardware)$")
     hardware_id: Optional[int] = None
     hardware_barcode: Optional[str] = None
+    hardware_quantity: Optional[int] = Field(default=None, ge=1)
 
 
 class EntryOut(BaseModel):
@@ -53,6 +55,7 @@ class EntryOut(BaseModel):
     hardware_barcode: Optional[str] = None
     hardware_description: Optional[str] = None
     hardware_sales_price: Optional[str] = None
+    hardware_quantity: Optional[int] = None
 
     class Config:
         from_attributes = True
