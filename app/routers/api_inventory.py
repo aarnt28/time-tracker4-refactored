@@ -4,10 +4,16 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from ..crud.inventory import get_inventory_summary, list_inventory_events, record_inventory_event
+from ..crud.inventory import (
+    delete_event,
+    get_inventory_summary,
+    list_inventory_events,
+    record_inventory_event,
+)
 from ..db.session import get_db
 from ..deps.auth import require_ui_or_token
 from ..models.hardware import Hardware
+from ..models.inventory import InventoryEvent
 from ..schemas.inventory import (
     InventoryAdjustment,
     InventoryEventOut,
@@ -49,6 +55,9 @@ def api_receive_inventory(payload: InventoryAdjustment, db: Session = Depends(ge
         change=payload.quantity,
         source="api:receive",
         note=payload.note,
+        counterparty_name=payload.vendor_name,
+        counterparty_type="vendor" if payload.vendor_name else None,
+        actual_cost=payload.actual_cost,
     )
 
 
@@ -61,4 +70,15 @@ def api_use_inventory(payload: InventoryAdjustment, db: Session = Depends(get_db
         change=-payload.quantity,
         source="api:use",
         note=payload.note,
+        counterparty_name=payload.client_name,
+        counterparty_type="client" if payload.client_name else None,
     )
+
+
+@router.delete("/events/{event_id}")
+def api_delete_event(event_id: int, db: Session = Depends(get_db)):
+    event = db.get(InventoryEvent, event_id)
+    if not event:
+        raise HTTPException(status_code=404, detail="Not found")
+    delete_event(db, event)
+    return {"status": "deleted"}

@@ -7,10 +7,16 @@ from sqlalchemy.orm import Session
 from ..db.session import get_db
 from ..crud.tickets import list_tickets, get_ticket, update_ticket, delete_ticket
 from ..crud.hardware import list_hardware, get_hardware, update_hardware, delete_hardware
-from ..crud.inventory import get_inventory_summary, list_inventory_events, record_inventory_event
+from ..crud.inventory import (
+    delete_event,
+    get_inventory_summary,
+    list_inventory_events,
+    record_inventory_event,
+)
 from ..core.config import settings
 from ..services.clientsync import load_client_table
 from ..models.hardware import Hardware
+from ..models.inventory import InventoryEvent
 from ..models.ticket import Ticket
 from ..deps.ui_auth import require_ui_session
 from ..core.jinja import get_templates  # <<< use centralized templates with filters
@@ -138,6 +144,9 @@ def inventory_adjust(
     action: str = Form("receive"),
     quantity: int = Form(1),
     note: str = Form(""),
+    vendor_name: str = Form(""),
+    client_name: str = Form(""),
+    actual_cost: str = Form(""),
     db: Session = Depends(get_db),
 ):
     try:
@@ -156,11 +165,33 @@ def inventory_adjust(
         raise HTTPException(status_code=404, detail="Hardware not found")
 
     change = qty if action_value == "receive" else -qty
+    vendor = vendor_name.strip() or None
+    client = client_name.strip() or None
+    cost_value = None
+    if actual_cost:
+        try:
+            cost_value = float(actual_cost)
+        except (TypeError, ValueError) as exc:
+            raise HTTPException(status_code=400, detail="Actual cost must be a number") from exc
+        if cost_value < 0:
+            raise HTTPException(status_code=400, detail="Actual cost must be non-negative")
     record_inventory_event(
         db,
         hardware_id=hardware.id,
         change=change,
         source=f"ui:{action_value}",
         note=note.strip() or None,
+        counterparty_name=vendor if action_value == "receive" else client,
+        counterparty_type="vendor" if action_value == "receive" and vendor else ("client" if action_value == "use" and client else None),
+        actual_cost=cost_value if action_value == "receive" else None,
     )
     return RedirectResponse(url="/inventory", status_code=303)
+
+
+@router.post("/inventory/events/{event_id}/delete", response_class=HTMLResponse)
+def inventory_event_delete(event_id: int, db: Session = Depends(get_db)):
+    event = db.get(InventoryEvent, event_id)
+    if not event:
+        raise HTTPException(status_code=404, detail="Not found")
+    delete_event(db, event)
+    return HTMLResponse("", status_code=204)

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from sqlalchemy import Column, ForeignKey, Integer, Text
+from sqlalchemy import Column, Float, ForeignKey, Integer, Text
 from sqlalchemy.orm import relationship
 
 from ..db.session import Base
@@ -22,6 +22,10 @@ class InventoryEvent(Base):
     note = Column(Text, nullable=True)
     created_at = Column(Text, nullable=False)
     ticket_id = Column(Integer, ForeignKey("tickets.id"), nullable=True, index=True)
+    counterparty_name = Column(Text, nullable=True)
+    counterparty_type = Column(Text, nullable=True)
+    actual_cost = Column(Float, nullable=True)
+    unit_cost = Column(Float, nullable=True)
 
     hardware = relationship("Hardware", lazy="joined")
 

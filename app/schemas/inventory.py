@@ -10,6 +10,9 @@ class InventoryAdjustment(BaseModel):
     barcode: Optional[str] = None
     quantity: int = Field(gt=0)
     note: Optional[str] = None
+    vendor_name: Optional[str] = None
+    client_name: Optional[str] = None
+    actual_cost: Optional[float] = Field(default=None, ge=0)
 
     @model_validator(mode="after")
     def validate_target(self) -> "InventoryAdjustment":
@@ -28,6 +31,10 @@ class InventoryEventOut(BaseModel):
     ticket_id: Optional[int]
     hardware_barcode: Optional[str] = None
     hardware_description: Optional[str] = None
+    counterparty_name: Optional[str] = None
+    counterparty_type: Optional[str] = None
+    actual_cost: Optional[float] = None
+    unit_cost: Optional[float] = None
 
     class Config:
         from_attributes = True

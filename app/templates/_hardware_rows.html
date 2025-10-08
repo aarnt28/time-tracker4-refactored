@@ -4,6 +4,16 @@
   <td data-label="Description">{{ r.description }}</td>
   <td class="mono" data-label="Acquisition Cost">{{ r.acquisition_cost or '' }}</td>
   <td class="mono" data-label="Sales Price">{{ r.sales_price or '' }}</td>
+  <td data-label="Common Vendors">
+    {% if r.common_vendors %}
+      {{ r.common_vendors | join(', ') }}
+    {% endif %}
+  </td>
+  <td class="mono" data-label="Avg Unit Cost">
+    {% if r.average_unit_cost is not none %}
+      {{ r.average_unit_cost | fmt_currency }}
+    {% endif %}
+  </td>
   <td class="mono" data-label="Created">{{ r.created_at|fmt_dt }}</td>
   <td class="td-action" data-label="Actions">
     <form action="/ui/hardware/{{ r.id }}/delete" method="post" class="inline">
