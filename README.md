@@ -14,11 +14,20 @@ stores data, and Docker Compose makes it easy to run everything locally.
   ticket tracks description, client information, and completion status.
 * **Hardware inventory** – Maintain an inventory of hardware items with a
   unique barcode, description, acquisition cost and sales price.
+* **Inventory adjustments & history** – Use the inventory dashboard to review
+  on-hand counts, capture stock receipts/usage, and audit a chronological event
+  log across all hardware.【F:app/templates/inventory.html†L24-L128】【F:app/routers/ui.py†L75-L166】
+* **Automatic stock sync** – Hardware-linked tickets automatically create or
+  update inventory usage events so every sale or install decrements stock
+  without manual reconciliation.【F:app/crud/tickets.py†L105-L134】【F:app/crud/inventory.py†L89-L121】
 * **Built-in barcode capture** – The hardware editor can scan barcodes using
   the browser camera (with a ZXing fallback) or an optional native bridge so
   serial numbers are populated without manual typing.
 * **Client list** – Load and display a list of clients from a JSON file
   (`client_table.json`).
+* **Custom client attributes** – Extend client records with bespoke fields and
+  manage the allowed keys via the API, backed by `custom_attributes.json` on
+  disk.【F:app/routers/clients.py†L20-L140】【F:app/services/custom_attributes.py†L24-L111】
 * **Geoapify address autocomplete** – Client address fields can be
   auto-completed with Geoapify's geocoding suggestions when an API key
   is configured.
@@ -47,6 +56,22 @@ Authentication for the UI is configured via environment variables
 (`UI_USERNAME`, `UI_PASSWORD` or a bcrypt `UI_PASSWORD_HASH`).  API requests
 use an optional `API_TOKEN` specified in the environment and passed via the
 `X‑API‑Key` header.
+
+### Inventory dashboard & stock workflow
+
+The `/inventory` page surfaces three coordinated views: a stock summary grouped
+by hardware item, a form to record receipts/usage, and a recent activity log so
+you can spot anomalies at a glance.【F:app/templates/inventory.html†L24-L128】
+Each submission posts back to `/inventory/adjust`, validates the quantity, and
+persists an `inventory_events` record that captures the hardware id, signed
+change, source (e.g. `ui:receive`) and optional note for auditing.【F:app/routers/ui.py†L75-L166】【F:app/models/inventory.py†L9-L34】
+Aggregated counts are recalculated from those events every time the page loads
+to reflect live balances.【F:app/crud/inventory.py†L22-L45】
+
+Hardware tickets are kept in sync with the same event stream—creating or
+updating a `hardware` entry ensures a matching usage event exists, while
+switching back to a time entry removes it—so on-hand quantities stay accurate
+without manual reconciliation.【F:app/crud/tickets.py†L105-L134】【F:app/crud/inventory.py†L89-L121】
 
 ## Quick start with Docker Compose
 
@@ -186,14 +211,65 @@ x-acquisition-cost: 29.99
 }
 ```
 
+### Inventory tracking API – `/api/v1/inventory`
+
+Inventory movements are expressed as signed events linked to hardware rows. The
+API exposes the same projections used by the UI: a running summary, the raw
+event log, and helpers for receiving or consuming stock. All endpoints require
+an API key or logged-in session.【F:app/routers/api_inventory.py†L17-L64】
+
+| Method & path | Description | Auth required | Notes |
+|---------------|-------------|---------------|-------|
+| `GET /api/v1/inventory/summary` | Return aggregated on-hand counts per hardware item. | Yes | Mirrors the dashboard table; `quantity` is the net sum of all events. |【F:app/routers/api_inventory.py†L33-L35】【F:app/crud/inventory.py†L22-L45】|
+| `GET /api/v1/inventory/events` | List inventory events (newest first). | Yes | Supports `limit`/`offset` pagination, defaulting to 100 rows. |【F:app/routers/api_inventory.py†L38-L40】【F:app/crud/inventory.py†L12-L19】|
+| `POST /api/v1/inventory/receive` | Record stock received for a hardware item. | Yes | Request body must include a positive `quantity` and either `hardware_id` or `barcode`. |【F:app/routers/api_inventory.py†L43-L52】【F:app/schemas/inventory.py†L8-L18】|
+| `POST /api/v1/inventory/use` | Record stock consumption/usage. | Yes | Same payload as `/receive`; the service automatically stores the change as a negative quantity. |【F:app/routers/api_inventory.py†L55-L63】【F:app/schemas/inventory.py†L8-L18】|
+
+Hardware lookups accept either an internal id or a barcode and return `404`
+when no match is found. Responses include the linked hardware description and
+barcode when available, making it easy to build audit trails.【F:app/routers/api_inventory.py†L20-L40】【F:app/schemas/inventory.py†L21-L33】
+
+**Example – receive stock via barcode**
+
+```http
+POST /api/v1/inventory/receive HTTP/1.1
+Host: tracker.example.com
+X-API-Key: your-token
+Content-Type: application/json
+
+{
+  "barcode": "ROUTER-002",
+  "quantity": 5,
+  "note": "Initial stocking order"
+}
+```
+
+```json
+{
+  "id": 12,
+  "hardware_id": 43,
+  "change": 5,
+  "source": "api:receive",
+  "note": "Initial stocking order",
+  "created_at": "2023-09-05T19:45:11Z",
+  "ticket_id": null,
+  "hardware_barcode": "ROUTER-002",
+  "hardware_description": "Rack-mount router"
+}
+```
+
 ### Ticket entries API – `/api/v1/tickets`
 
 Ticket entries can represent billable time (`entry_type="time"`) or a hardware
 sale (`entry_type="hardware"`).  Hardware-linked entries automatically copy the
 current hardware description and sales price when an item is referenced by id or
-barcode.【F:app/crud/tickets.py†L46-L85】  Each record also tracks invoice status
-with a `sent` flag and optional `invoice_number`, making it easy to reconcile
-what's already been billed.【F:app/schemas/ticket.py†L15-L55】【F:app/crud/tickets.py†L90-L130】
+barcode.【F:app/crud/tickets.py†L46-L85】  When a ticket is saved in hardware mode,
+the system also creates (or updates) a corresponding inventory usage event so
+stock levels track every install; reverting to a time entry deletes the event if
+it exists.【F:app/crud/tickets.py†L105-L134】【F:app/crud/inventory.py†L89-L121】  Each
+record also tracks invoice status with a `sent` flag and optional
+`invoice_number`, making it easy to reconcile what's already been
+billed.【F:app/schemas/ticket.py†L15-L55】【F:app/crud/tickets.py†L90-L130】
 
 | Method & path | Description | Auth required | Notes |
 |---------------|-------------|---------------|-------|
@@ -287,13 +363,16 @@ public; write operations require an API key or logged-in UI session.【F:app/rou
 
 | Method & path | Description | Auth required | Notes |
 |---------------|-------------|---------------|-------|
-| `GET /api/v1/clients` | Return the entire client table keyed by `client_key`. | No | Response shape: `{ "clients": { "key": { … } } }`. |【F:app/routers/clients.py†L16-L18】
-| `GET /api/v1/clients/lookup?name=…` | Resolve a client by display name or key. | No | Responds with `{ "client_key": "…", "client": { … } }` or `404` if unknown. |【F:app/routers/clients.py†L20-L27】
-| `GET /api/v1/clients/{client_key}` | Fetch a single client by key. | No | Same payload as lookup. |【F:app/routers/clients.py†L29-L35】
-| `POST /api/v1/clients` | Create a client entry. | Yes | Body must include non-empty `client_key` and `name`. Optional `attributes` dict merges into the stored record. |【F:app/routers/clients.py†L38-L66】
-| `PATCH /api/v1/clients/{client_key}` | Update a client entry. | Yes | Accepts optional `name` and `attributes` keys. Blank names are rejected. |【F:app/routers/clients.py†L68-L93】
-| `POST /api/v1/clients/{client_key}/delete` | Delete via POST (UI compatibility). | Yes | Equivalent to the `DELETE` endpoint. |【F:app/routers/clients.py†L95-L102】
-| `DELETE /api/v1/clients/{client_key}` | Delete via RESTful verb. | Yes | Returns `{ "status": "deleted", "client_key": "…" }`. |【F:app/routers/clients.py†L95-L102】
+| `GET /api/v1/clients` | Return the entire client table keyed by `client_key`. | No | Response shape: `{ "clients": { … }, "attribute_keys": [ … ] }`. |【F:app/routers/clients.py†L20-L30】
+| `GET /api/v1/clients/attributes` | List custom attribute keys tracked alongside clients. | No | Keys are read from (or initialised into) `custom_attributes.json`. |【F:app/routers/clients.py†L28-L30】【F:app/services/custom_attributes.py†L24-L63】
+| `GET /api/v1/clients/lookup?name=…` | Resolve a client by display name or key. | No | Responds with `{ "client_key": "…", "client": { … } }` or `404` if unknown. |【F:app/routers/clients.py†L32-L40】
+| `GET /api/v1/clients/{client_key}` | Fetch a single client by key. | No | Same payload as lookup. |【F:app/routers/clients.py†L42-L47】
+| `POST /api/v1/clients` | Create a client entry. | Yes | Body must include non-empty `client_key` and `name`. Optional `attributes` dict merges into the stored record. |【F:app/routers/clients.py†L50-L68】
+| `PATCH /api/v1/clients/{client_key}` | Update a client entry. | Yes | Accepts optional `name` and `attributes` keys. Blank names are rejected. |【F:app/routers/clients.py†L70-L89】
+| `POST /api/v1/clients/attributes` | Append a custom attribute key. | Yes | Validates that the key is non-empty and not reserved; returns the sorted list of keys. |【F:app/routers/clients.py†L102-L113】【F:app/services/custom_attributes.py†L65-L105】
+| `DELETE /api/v1/clients/attributes/{attribute_key}` | Remove a custom attribute key (and strip it from stored clients). | Yes | Rejects blank or unknown keys, then cascades removal across all clients. |【F:app/routers/clients.py†L116-L140】【F:app/services/custom_attributes.py†L87-L111】
+| `POST /api/v1/clients/{client_key}/delete` | Delete via POST (UI compatibility). | Yes | Equivalent to the `DELETE` endpoint. |【F:app/routers/clients.py†L91-L102】
+| `DELETE /api/v1/clients/{client_key}` | Delete via RESTful verb. | Yes | Returns `{ "status": "deleted", "client_key": "…" }`. |【F:app/routers/clients.py†L91-L102】|
 
 **Example – list clients**
 
@@ -315,9 +394,16 @@ Accept: application/json
       "name": "Globex Corporation",
       "billing_rate": "140"
     }
-  }
+  },
+  "attribute_keys": [
+    "billing_rate",
+    "contact"
+  ]
 }
 ```
+
+The companion `attribute_keys` array mirrors the registry stored on disk so
+headless clients can render custom fields alongside built-in demographics.【F:app/routers/clients.py†L20-L30】【F:app/services/custom_attributes.py†L24-L83】
 
 **Example – update a client**
 
