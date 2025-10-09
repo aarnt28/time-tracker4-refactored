@@ -15,6 +15,7 @@ from ..crud.inventory import (
 )
 from ..core.config import settings
 from ..services.clientsync import load_client_table
+from ..services.reporting import calculate_ticket_metrics
 from ..models.hardware import Hardware
 from ..models.inventory import InventoryEvent
 from ..models.ticket import Ticket
@@ -90,6 +91,16 @@ def inventory_page(request: Request, db: Session = Depends(get_db)):
         "hardware_options": hardware_options,
     }
     return templates.TemplateResponse("inventory.html", context)
+
+
+@router.get("/reports", response_class=HTMLResponse)
+def reports_page(request: Request, db: Session = Depends(get_db)):
+    metrics = calculate_ticket_metrics(db)
+    context = {
+        "request": request,
+        "metrics": metrics,
+    }
+    return templates.TemplateResponse("reports.html", context)
 
 @router.get("/ui/hardware_table", response_class=HTMLResponse)
 def hardware_table_partial(request: Request, db: Session = Depends(get_db)):
