@@ -9,12 +9,12 @@
     "city": "Dallas",
     "state": "Texas",
     "postal_code": "75201",
-    "support_hours_allowance": "",
-    "primary_contact_name": "",
-    "primary_contact_phone": "",
-    "primary_contact_email": "",
-    "office_manager_name": "",
-    "office_manager_phone": "",
+    "support_hours_allowance": "0",
+    "primary_contact_name": "Sheen Allen",
+    "primary_contact_phone": "2169560079",
+    "primary_contact_email": "drallen@dallasdentalarts.com",
+    "office_manager_name": "Eric Allen",
+    "office_manager_phone": "2169561166",
     "office_manager_email": ""
   },
   "bnr": {
@@ -27,13 +27,13 @@
     "city": "Prosper",
     "state": "Texas",
     "postal_code": "75078",
-    "support_hours_allowance": "",
-    "primary_contact_name": "",
-    "primary_contact_phone": "",
-    "primary_contact_email": "",
-    "office_manager_name": "",
-    "office_manager_phone": "",
-    "office_manager_email": ""
+    "support_hours_allowance": "0",
+    "primary_contact_name": "David Beck",
+    "primary_contact_phone": "21143355153",
+    "primary_contact_email": "david.beck@bnrconcrete.com",
+    "office_manager_name": "Chance Beck",
+    "office_manager_phone": "9033280441",
+    "office_manager_email": "cbeck@bnrconcrete.com"
   },
   "harrison": {
     "support_rate": 150,
@@ -102,13 +102,13 @@
     "city": "Dallas",
     "state": "TX",
     "postal_code": "75233",
-    "support_hours_allowance": "",
-    "primary_contact_name": "",
+    "support_hours_allowance": "0",
+    "primary_contact_name": "James Palmer",
     "primary_contact_phone": "",
-    "primary_contact_email": "",
-    "office_manager_name": "",
+    "primary_contact_email": "jim@addisonstonellc.com",
+    "office_manager_name": "Suzanne Sneathern",
     "office_manager_phone": "",
-    "office_manager_email": ""
+    "office_manager_email": "suzanne.sneathern@addisonstonellc.com"
   },
   "nds": {
     "support_rate": "150",
