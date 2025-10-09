@@ -1,9 +1,16 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="container" style="max-width:420px;margin:2rem auto;">
+  <div class="branding">
+        <img
+          src="/static/img/vip-full-hd-transparant-cropped-halfsize.png"
+          srcset="/static/img/vip-full-hd-transparant-cropped-halfsize.png 1x, /static/img/vip-full-hd-transparant-384x150.png 2x"
+          alt="VIP Clouds logo"
+          class="branding__logo"
+        />
   <h2>Sign in</h2>
   {% if error %}
-    <div class="alert alert-danger" role="alert" style="margin:1rem 0;">{{ error }}</div>
+  <div class="alert alert-danger" role="alert" style="margin:1rem 0;">{{ error }}</div>
   {% endif %}
   <form method="post" action="/login">
     <input type="hidden" name="next" value="{{ next or '/' }}">

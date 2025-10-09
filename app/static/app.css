@@ -11,7 +11,7 @@
   --vip-neutral-gray: #E0E0E0;
   --vip-text-primary: #0D47A1;
   --vip-text-secondary: #1B5E20;
-  --vip-gradient-main: linear-gradient(90deg, #0091EA 0%, #4CAF50 100%);
+  --vip-gradient-main: linear-gradient(90deg, #4CAF50 0%, #0091EA 100%);
 
   --bg: var(--vip-gradient-main);
   --panel: var(--vip-neutral-white);
