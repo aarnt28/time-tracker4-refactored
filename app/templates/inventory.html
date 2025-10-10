@@ -90,8 +90,12 @@
           <input name="client_name" placeholder="Destination or client" />
         </label>
         <label class="inventory-form__field">
-          <span>Actual cost (total)</span>
+          <span>Acquisition cost (total)</span>
           <input name="actual_cost" type="number" step="0.01" min="0" placeholder="0.00" />
+        </label>
+        <label class="inventory-form__field">
+          <span>Sale price (total)</span>
+          <input name="sale_price" type="number" step="0.01" min="0" placeholder="0.00" />
         </label>
         <label class="inventory-form__field inventory-form__field--wide">
           <span>Note</span>
@@ -117,8 +121,9 @@
               <th>Source</th>
               <th>Note</th>
               <th>Counterparty</th>
-              <th class="mono">Actual cost</th>
-              <th class="mono">Unit cost</th>
+              <th class="mono">Acquisition cost</th>
+              <th class="mono">Sale price</th>
+              <th class="mono">Margin</th>
               <th class="th-action">Actions</th>
             </tr>
           </thead>
@@ -181,6 +186,7 @@
         const vendorName = (data.get('vendor_name') || '').trim();
         const clientName = (data.get('client_name') || '').trim();
         const actualCostRaw = (data.get('actual_cost') || '').trim();
+        const salePriceRaw = (data.get('sale_price') || '').trim();
 
         if (!hardwareId){
           window.alert('Select a hardware item before saving.');
@@ -208,6 +214,15 @@
             return;
           }
           payload.actual_cost = costValue;
+        }
+
+        if (salePriceRaw){
+          const saleValue = Number.parseFloat(salePriceRaw);
+          if (!Number.isFinite(saleValue) || saleValue < 0){
+            window.alert('Sale price must be a non-negative number.');
+            return;
+          }
+          payload.sale_price = saleValue;
         }
 
         const endpoint = action === 'use' ? '/api/v1/inventory/use' : '/api/v1/inventory/receive';

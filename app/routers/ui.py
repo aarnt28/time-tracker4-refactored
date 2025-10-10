@@ -175,6 +175,7 @@ def inventory_adjust(
     vendor_name: str = Form(""),
     client_name: str = Form(""),
     actual_cost: str = Form(""),
+    sale_price: str = Form(""),
     db: Session = Depends(get_db),
 ):
     try:
@@ -203,6 +204,14 @@ def inventory_adjust(
             raise HTTPException(status_code=400, detail="Actual cost must be a number") from exc
         if cost_value < 0:
             raise HTTPException(status_code=400, detail="Actual cost must be non-negative")
+    sale_value = None
+    if sale_price:
+        try:
+            sale_value = float(sale_price)
+        except (TypeError, ValueError) as exc:
+            raise HTTPException(status_code=400, detail="Sale price must be a number") from exc
+        if sale_value < 0:
+            raise HTTPException(status_code=400, detail="Sale price must be non-negative")
     record_inventory_event(
         db,
         hardware_id=hardware.id,
@@ -211,7 +220,8 @@ def inventory_adjust(
         note=note.strip() or None,
         counterparty_name=vendor if action_value == "receive" else client,
         counterparty_type="vendor" if action_value == "receive" and vendor else ("client" if action_value == "use" and client else None),
-        actual_cost=cost_value if action_value == "receive" else None,
+        actual_cost=cost_value,
+        sale_price=sale_value,
     )
     return RedirectResponse(url="/inventory", status_code=303)
 

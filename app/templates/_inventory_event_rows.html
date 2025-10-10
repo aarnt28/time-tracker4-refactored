@@ -17,11 +17,25 @@
     <td class="mono">
       {% if event.actual_cost is not none %}
         {{ event.actual_cost | fmt_currency }}
+        {% if event.unit_cost is not none %}
+          <br /><small class="mono">({{ event.unit_cost | fmt_currency }}/unit)</small>
+        {% endif %}
       {% endif %}
     </td>
     <td class="mono">
-      {% if event.unit_cost is not none %}
-        {{ event.unit_cost | fmt_currency }}
+      {% if event.sale_price_total is not none %}
+        {{ event.sale_price_total | fmt_currency }}
+        {% if event.sale_unit_price is not none %}
+          <br /><small class="mono">({{ event.sale_unit_price | fmt_currency }}/unit)</small>
+        {% endif %}
+      {% endif %}
+    </td>
+    <td class="mono">
+      {% if event.profit_total is not none %}
+        {{ event.profit_total | fmt_currency }}
+        {% if event.profit_unit is not none %}
+          <br /><small class="mono">({{ event.profit_unit | fmt_currency }}/unit)</small>
+        {% endif %}
       {% endif %}
     </td>
     <td class="td-action">

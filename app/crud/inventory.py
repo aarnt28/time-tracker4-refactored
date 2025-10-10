@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from decimal import Decimal, InvalidOperation
 
 from sqlalchemy import desc, func, select
 from sqlalchemy.orm import Session
@@ -45,6 +46,34 @@ def get_inventory_summary(db: Session) -> list[dict[str, object]]:
     ]
 
 
+def _normalize_amount(value: object) -> float | None:
+    if value is None:
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    if isinstance(value, Decimal):
+        return float(value)
+    if isinstance(value, str):
+        cleaned = value.strip()
+        if not cleaned:
+            return None
+        cleaned = cleaned.replace("$", "").replace(",", "")
+        try:
+            return float(Decimal(cleaned))
+        except InvalidOperation:
+            return None
+    return None
+
+
+def _unit_value(total: float | None, change: int) -> float | None:
+    if total is None:
+        return None
+    quantity = abs(change)
+    if not quantity:
+        return None
+    return total / quantity
+
+
 def record_inventory_event(
     db: Session,
     *,
@@ -56,17 +85,16 @@ def record_inventory_event(
     counterparty_name: str | None = None,
     counterparty_type: str | None = None,
     actual_cost: float | None = None,
+    sale_price: float | None = None,
 ) -> InventoryEvent:
     if not change:
         raise ValueError("change must be non-zero")
     name = (counterparty_name or "").strip() or None
     ctype = (counterparty_type or "").strip() or None
-    cost_total = float(actual_cost) if actual_cost is not None else None
-    unit_cost = None
-    if cost_total is not None:
-        quantity = abs(change)
-        if quantity:
-            unit_cost = cost_total / quantity
+    cost_total = _normalize_amount(actual_cost)
+    sale_total = _normalize_amount(sale_price)
+    unit_cost = _unit_value(cost_total, change)
+    unit_sale = _unit_value(sale_total, change)
     event = InventoryEvent(
         hardware_id=hardware_id,
         change=change,
@@ -78,6 +106,8 @@ def record_inventory_event(
         counterparty_type=ctype,
         actual_cost=cost_total,
         unit_cost=unit_cost,
+        sale_price_total=sale_total,
+        sale_unit_price=unit_sale,
     )
     db.add(event)
     db.commit()
@@ -108,6 +138,8 @@ def ensure_ticket_usage_event(
     hardware_id: int,
     quantity: int = 1,
     note: str | None = None,
+    sale_price: object | None = None,
+    acquisition_cost: object | None = None,
 ) -> InventoryEvent:
     """Create or update the inventory event associated with a hardware ticket.
 
@@ -117,6 +149,11 @@ def ensure_ticket_usage_event(
 
     change = -abs(quantity)
     existing = get_event_by_ticket(db, ticket_id)
+    sale_total = _normalize_amount(sale_price)
+    cost_total = _normalize_amount(acquisition_cost)
+    unit_cost = _unit_value(cost_total, change)
+    unit_sale = _unit_value(sale_total, change)
+
     if existing:
         existing.hardware_id = hardware_id
         existing.change = change
@@ -124,8 +161,10 @@ def ensure_ticket_usage_event(
         existing.note = note
         existing.counterparty_name = None
         existing.counterparty_type = None
-        existing.actual_cost = None
-        existing.unit_cost = None
+        existing.actual_cost = cost_total
+        existing.unit_cost = unit_cost
+        existing.sale_price_total = sale_total
+        existing.sale_unit_price = unit_sale
         db.commit()
         db.refresh(existing)
         return existing
@@ -139,5 +178,6 @@ def ensure_ticket_usage_event(
         ticket_id=ticket_id,
         counterparty_name=None,
         counterparty_type=None,
-        actual_cost=None,
+        actual_cost=cost_total,
+        sale_price=sale_total,
     )

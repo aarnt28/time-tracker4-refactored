@@ -117,6 +117,8 @@ def run_migrations(engine: Engine) -> None:
             "counterparty_type": "TEXT",
             "actual_cost": "REAL",
             "unit_cost": "REAL",
+            "sale_price_total": "REAL",
+            "sale_unit_price": "REAL",
         }
         for name, dtype in new_cols.items():
             if name not in inventory_cols:

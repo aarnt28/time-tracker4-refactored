@@ -5,6 +5,8 @@ from sqlalchemy import select, desc
 from ..models.ticket import Ticket
 from ..models.hardware import Hardware
 from .inventory import ensure_ticket_usage_event, delete_ticket_event
+from decimal import Decimal, InvalidOperation
+
 from ..services.timecalc import compute_minutes, round_minutes
 from ..services.clientsync import resolve_client_name
 from ..core.config import settings
@@ -26,6 +28,25 @@ def list_active_tickets(db: Session, client_key: str | None = None, limit: int =
 
 def get_ticket(db: Session, entry_id: int) -> Ticket | None:
     return db.get(Ticket, entry_id)
+
+
+def _money_to_float(value: object) -> float | None:
+    if value is None:
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    if isinstance(value, Decimal):
+        return float(value)
+    if isinstance(value, str):
+        cleaned = value.strip()
+        if not cleaned:
+            return None
+        cleaned = cleaned.replace("$", "").replace(",", "")
+        try:
+            return float(Decimal(cleaned))
+        except InvalidOperation:
+            return None
+    return None
 
 
 def _resolve_hardware(db: Session, payload: dict, fallback_id: int | None) -> Hardware | None:
@@ -133,12 +154,20 @@ def create_entry(db: Session, payload: dict) -> Ticket:
     db.commit()
     db.refresh(t)
     if t.entry_type == "hardware" and t.hardware_id:
+        hardware = db.get(Hardware, t.hardware_id)
+        unit_sale = _money_to_float(t.hardware_sales_price)
+        unit_cost = _money_to_float(hardware.acquisition_cost) if hardware else None
+        quantity = t.hardware_quantity or 1
+        sale_total = unit_sale * quantity if unit_sale is not None else None
+        cost_total = unit_cost * quantity if unit_cost is not None else None
         ensure_ticket_usage_event(
             db,
             ticket_id=t.id,
             hardware_id=t.hardware_id,
             quantity=t.hardware_quantity or 1,
             note=t.note,
+            sale_price=sale_total,
+            acquisition_cost=cost_total,
         )
     return t
 
@@ -159,12 +188,20 @@ def update_ticket(db: Session, t: Ticket, payload: dict) -> Ticket:
     db.commit()
     db.refresh(t)
     if t.entry_type == "hardware" and t.hardware_id:
+        hardware = db.get(Hardware, t.hardware_id)
+        unit_sale = _money_to_float(t.hardware_sales_price)
+        unit_cost = _money_to_float(hardware.acquisition_cost) if hardware else None
+        quantity = t.hardware_quantity or 1
+        sale_total = unit_sale * quantity if unit_sale is not None else None
+        cost_total = unit_cost * quantity if unit_cost is not None else None
         ensure_ticket_usage_event(
             db,
             ticket_id=t.id,
             hardware_id=t.hardware_id,
             quantity=t.hardware_quantity or 1,
             note=t.note,
+            sale_price=sale_total,
+            acquisition_cost=cost_total,
         )
     else:
         delete_ticket_event(db, t.id)

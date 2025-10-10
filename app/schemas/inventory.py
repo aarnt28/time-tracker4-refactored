@@ -13,6 +13,7 @@ class InventoryAdjustment(BaseModel):
     vendor_name: Optional[str] = None
     client_name: Optional[str] = None
     actual_cost: Optional[float] = Field(default=None, ge=0)
+    sale_price: Optional[float] = Field(default=None, ge=0)
 
     @model_validator(mode="after")
     def validate_target(self) -> "InventoryAdjustment":
@@ -35,6 +36,10 @@ class InventoryEventOut(BaseModel):
     counterparty_type: Optional[str] = None
     actual_cost: Optional[float] = None
     unit_cost: Optional[float] = None
+    sale_price_total: Optional[float] = None
+    sale_unit_price: Optional[float] = None
+    profit_total: Optional[float] = None
+    profit_unit: Optional[float] = None
 
     class Config:
         from_attributes = True

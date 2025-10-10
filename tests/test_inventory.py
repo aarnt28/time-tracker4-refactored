@@ -14,9 +14,14 @@ os.environ.setdefault("DATA_DIR", str(ROOT / "data"))
 
 from app.db.session import Base
 from app.crud.hardware import create_hardware, get_hardware, list_hardware
-from app.crud.inventory import record_inventory_event, list_inventory_events, delete_event
+from app.crud.inventory import (
+    record_inventory_event,
+    list_inventory_events,
+    delete_event,
+)
 from app.routers.api_inventory import _lookup_hardware
 from app.models.hardware import Hardware
+from app.crud.tickets import create_entry
 
 # Ensure models are imported so metadata is populated
 from app.models import hardware as hardware_model  # noqa: F401
@@ -56,6 +61,25 @@ def test_record_inventory_event_tracks_costs(db_session):
     assert event.counterparty_type == "vendor"
     assert event.actual_cost == pytest.approx(100.0)
     assert event.unit_cost == pytest.approx(25.0)
+
+    sale_event = record_inventory_event(
+        db_session,
+        hardware_id=hardware.id,
+        change=-2,
+        source="ui:use",
+        note="Sold to client",
+        counterparty_name="Client A",
+        counterparty_type="client",
+        actual_cost=40.0,
+        sale_price=90.0,
+    )
+
+    assert sale_event.sale_price_total == pytest.approx(90.0)
+    assert sale_event.sale_unit_price == pytest.approx(45.0)
+    assert sale_event.actual_cost == pytest.approx(40.0)
+    assert sale_event.unit_cost == pytest.approx(20.0)
+    assert sale_event.profit_total == pytest.approx(50.0)
+    assert sale_event.profit_unit == pytest.approx(25.0)
 
 
 def test_hardware_common_vendors_and_average_cost(db_session):
@@ -99,6 +123,40 @@ def test_hardware_common_vendors_and_average_cost(db_session):
     gadget = next(row for row in rows if row.id == hardware.id)
     assert gadget.common_vendors == ["Vendor A", "Vendor B"]
     assert gadget.average_unit_cost == pytest.approx((25.0 + 30.0) / 2)
+
+
+def test_create_entry_records_sale_totals(db_session):
+    hardware = create_hardware(
+        db_session,
+        {
+            "barcode": "SALE123",
+            "description": "Bundle",
+            "acquisition_cost": "45.00",
+        },
+    )
+
+    create_entry(
+        db_session,
+        {
+            "client_key": "client-1",
+            "client": "Client 1",
+            "start_iso": "2023-01-01T00:00:00Z",
+            "end_iso": "2023-01-01T01:00:00Z",
+            "entry_type": "hardware",
+            "hardware_id": hardware.id,
+            "hardware_quantity": 2,
+            "hardware_sales_price": "150",
+            "note": "Sold bundle",
+        },
+    )
+
+    events = list_inventory_events(db_session)
+    sale_event = next(e for e in events if e.source == "ticket")
+
+    assert sale_event.change == -2
+    assert sale_event.sale_price_total == pytest.approx(300.0)
+    assert sale_event.actual_cost == pytest.approx(90.0)
+    assert sale_event.profit_total == pytest.approx(210.0)
 
 
 def test_delete_inventory_event(db_session):
