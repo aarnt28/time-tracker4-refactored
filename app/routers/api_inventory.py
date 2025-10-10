@@ -60,6 +60,7 @@ def api_receive_inventory(payload: InventoryAdjustment, db: Session = Depends(ge
         counterparty_name=payload.vendor_name,
         counterparty_type="vendor" if payload.vendor_name else None,
         actual_cost=payload.actual_cost,
+        sale_price=payload.sale_price,
     )
 
 
@@ -74,6 +75,8 @@ def api_use_inventory(payload: InventoryAdjustment, db: Session = Depends(get_db
         note=payload.note,
         counterparty_name=payload.client_name,
         counterparty_type="client" if payload.client_name else None,
+        actual_cost=payload.actual_cost,
+        sale_price=payload.sale_price,
     )
 
 

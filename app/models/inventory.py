@@ -26,6 +26,8 @@ class InventoryEvent(Base):
     counterparty_type = Column(Text, nullable=True)
     actual_cost = Column(Float, nullable=True)
     unit_cost = Column(Float, nullable=True)
+    sale_price_total = Column(Float, nullable=True)
+    sale_unit_price = Column(Float, nullable=True)
 
     hardware = relationship("Hardware", lazy="joined")
 
@@ -36,3 +38,19 @@ class InventoryEvent(Base):
     @property
     def hardware_description(self) -> str | None:
         return self.hardware.description if self.hardware else None
+
+    @property
+    def profit_total(self) -> float | None:
+        if self.sale_price_total is None or self.actual_cost is None:
+            return None
+        return self.sale_price_total - self.actual_cost
+
+    @property
+    def profit_unit(self) -> float | None:
+        total = self.profit_total
+        if total is None:
+            return None
+        quantity = abs(self.change)
+        if not quantity:
+            return None
+        return total / quantity
