@@ -126,7 +126,8 @@
     "primary_contact_email": "",
     "office_manager_name": "",
     "office_manager_phone": "",
-    "office_manager_email": ""
+    "office_manager_email": "",
+    "former_practices": "Whitewood Dental"
   },
   "brightway": {
     "contract": "true",
@@ -195,12 +196,58 @@
     "support_rate": "165"
   },
   "finley": {
-    "name": "Finley Ortho"
+    "name": "Finley Ortho",
+    "address_line1": "5163 Village Creek Dr",
+    "address_line2": "#501",
+    "city": "Plano",
+    "state": "Texas",
+    "postal_code": "75093",
+    "support_hours_allowance": "",
+    "primary_contact_name": "Dr. Finley",
+    "primary_contact_phone": "8184543044",
+    "primary_contact_email": "drfinley@finleyendo.com",
+    "office_manager_name": "",
+    "office_manager_phone": "",
+    "office_manager_email": "",
+    "contract": "false",
+    "owner": "Richard Finley",
+    "support_rate": "150"
   },
   "daf": {
-    "name": "Dallas Affordable Smiles"
+    "name": "Dallas Affordable Smiles",
+    "address_line1": "1235 S Josey Ln",
+    "address_line2": "Ste 534",
+    "city": "Carrollton",
+    "state": "Texas",
+    "postal_code": "75006",
+    "support_hours_allowance": "",
+    "primary_contact_name": "Dr. Huy Le",
+    "primary_contact_phone": "4696932770",
+    "primary_contact_email": "huy.le.ut@gmail.com",
+    "office_manager_name": "Self",
+    "office_manager_phone": "4699632770",
+    "office_manager_email": "info@dallasaffordablesmiles.com",
+    "contract": "false",
+    "owner": "Dr. Huy Le",
+    "support_rate": "150",
+    "former_practices": "Mios Dental, Whitewood Dental"
   },
   "swebb": {
-    "name": "Shawn Web (Formally - ASP)"
+    "name": "Shawn Web - Residential (Formally - ASP)",
+    "address_line1": "",
+    "address_line2": "",
+    "city": "",
+    "state": "",
+    "postal_code": "",
+    "support_hours_allowance": "",
+    "primary_contact_name": "Shawn Web",
+    "primary_contact_phone": "8175212577",
+    "primary_contact_email": "",
+    "office_manager_name": "",
+    "office_manager_phone": "",
+    "office_manager_email": "",
+    "contract": "false",
+    "owner": "Residence",
+    "support_rate": "165"
   }
 }
