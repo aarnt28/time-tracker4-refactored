@@ -14,6 +14,7 @@ from ..db.session import get_db
 from ..deps.auth import require_ui_or_token
 from ..models.hardware import Hardware
 from ..models.inventory import InventoryEvent
+from ..core.barcodes import barcode_aliases
 from ..schemas.inventory import (
     InventoryAdjustment,
     InventoryEventOut,
@@ -29,10 +30,11 @@ def _lookup_hardware(db: Session, hardware_id: int | None, barcode: str | None) 
         if hw:
             return hw
     if barcode:
-        stmt = select(Hardware).where(Hardware.barcode == barcode.strip())
-        hw = db.execute(stmt).scalars().first()
-        if hw:
-            return hw
+        for candidate in barcode_aliases(barcode):
+            stmt = select(Hardware).where(Hardware.barcode == candidate)
+            hw = db.execute(stmt).scalars().first()
+            if hw:
+                return hw
     raise HTTPException(status_code=404, detail="Hardware item not found")
 
 
