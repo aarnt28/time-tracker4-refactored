@@ -9,7 +9,7 @@ from sqlalchemy import select, desc
 from ..models.inventory import InventoryEvent
 
 from ..models.hardware import Hardware
-from ..core.barcodes import normalize_barcode
+from ..core.barcodes import barcode_aliases, normalize_barcode
 
 
 def list_hardware(db: Session, limit: int = 100, offset: int = 0):
@@ -28,16 +28,40 @@ def list_hardware(db: Session, limit: int = 100, offset: int = 0):
     return items
 
 
-def get_hardware(db: Session, item_id: int) -> Hardware | None:
-    """
-    Fetch a single hardware record by primary key.
-    """
-    item = db.get(Hardware, item_id)
-    if not item:
+def get_hardware(db: Session, identifier: int | str) -> Hardware | None:
+    """Fetch a single hardware record by id or barcode."""
+
+    def _finalize(obj: Hardware | None) -> Hardware | None:
+        if not obj:
+            return None
+        _normalize_existing_barcodes(db, [obj])
+        _attach_inventory_metrics(db, [obj])
+        return obj
+
+    if isinstance(identifier, int):
+        return _finalize(db.get(Hardware, identifier))
+
+    lookup_value = str(identifier).strip()
+    if not lookup_value:
         return None
-    _normalize_existing_barcodes(db, [item])
-    _attach_inventory_metrics(db, [item])
-    return item
+
+    for candidate in barcode_aliases(lookup_value):
+        stmt = select(Hardware).where(Hardware.barcode == candidate)
+        match = db.execute(stmt).scalars().first()
+        if match:
+            return _finalize(match)
+
+    if lookup_value.isdigit():
+        try:
+            as_int = int(lookup_value)
+        except ValueError:
+            as_int = None
+        else:
+            match = db.get(Hardware, as_int)
+            if match:
+                return _finalize(match)
+
+    return None
 
 
 def create_hardware(db: Session, payload: dict) -> Hardware:
