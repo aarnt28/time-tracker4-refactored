@@ -8,6 +8,7 @@ from .inventory import ensure_ticket_usage_event, delete_ticket_event
 from ..services.timecalc import compute_minutes, round_minutes
 from ..services.clientsync import resolve_client_name
 from ..core.config import settings
+from ..core.barcodes import barcode_aliases, normalize_barcode
 
 
 def list_tickets(db: Session, limit: int = 100, offset: int = 0):
@@ -29,10 +30,10 @@ def get_ticket(db: Session, entry_id: int) -> Ticket | None:
 
 def _resolve_hardware(db: Session, payload: dict, fallback_id: int | None) -> Hardware | None:
     hw_id = payload.get("hardware_id", fallback_id)
-    barcode = (payload.get("hardware_barcode") or "").strip()
+    barcode = payload.get("hardware_barcode")
 
-    if barcode:
-        stmt = select(Hardware).where(Hardware.barcode == barcode)
+    for candidate in barcode_aliases(barcode):
+        stmt = select(Hardware).where(Hardware.barcode == candidate)
         hw = db.execute(stmt).scalars().first()
         if hw:
             return hw
@@ -72,7 +73,8 @@ def _apply_hardware_link(db: Session, t: Ticket, payload: dict) -> None:
     price_override = payload.get("hardware_sales_price")
     if isinstance(price_override, str):
         price_override = price_override.strip() or None
-    barcode_override = (payload.get("hardware_barcode") or "").strip()
+    barcode_raw = payload.get("hardware_barcode")
+    barcode_override = normalize_barcode(barcode_raw) or ((barcode_raw or "").strip() or None)
 
     if hw:
         t.hardware_id = hw.id
@@ -81,7 +83,7 @@ def _apply_hardware_link(db: Session, t: Ticket, payload: dict) -> None:
         t.hardware_sales_price = price_override if price_override is not None else hw.sales_price
     else:
         t.hardware_id = None
-        t.hardware_barcode = barcode_override or None
+        t.hardware_barcode = barcode_override
         t.hardware_description = desc_override
         t.hardware_sales_price = price_override
 
