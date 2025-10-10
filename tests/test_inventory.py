@@ -13,8 +13,10 @@ if str(ROOT) not in sys.path:
 os.environ.setdefault("DATA_DIR", str(ROOT / "data"))
 
 from app.db.session import Base
-from app.crud.hardware import create_hardware, list_hardware
+from app.crud.hardware import create_hardware, get_hardware, list_hardware
 from app.crud.inventory import record_inventory_event, list_inventory_events, delete_event
+from app.routers.api_inventory import _lookup_hardware
+from app.models.hardware import Hardware
 
 # Ensure models are imported so metadata is populated
 from app.models import hardware as hardware_model  # noqa: F401
@@ -121,3 +123,60 @@ def test_delete_inventory_event(db_session):
 
     events_after = list_inventory_events(db_session)
     assert all(e.id != event.id for e in events_after)
+
+
+def test_create_hardware_normalizes_numeric_barcodes(db_session):
+    hardware = create_hardware(
+        db_session,
+        {"barcode": " 123456789012 ", "description": "Legacy"},
+    )
+
+    assert hardware.barcode == "0123456789012"
+
+
+def test_lookup_accepts_missing_leading_zero(db_session):
+    hardware = create_hardware(
+        db_session,
+        {"barcode": "0123456789012", "description": "Scanner"},
+    )
+
+    match = _lookup_hardware(db_session, None, "123456789012")
+    assert match.id == hardware.id
+
+
+def test_get_hardware_by_barcode(db_session):
+    hardware = create_hardware(
+        db_session,
+        {"barcode": "ABC123", "description": "Barcode fetch"},
+    )
+
+    fetched = get_hardware(db_session, "ABC123")
+    assert fetched is not None
+    assert fetched.id == hardware.id
+
+
+def test_get_hardware_accepts_barcode_aliases(db_session):
+    hardware = create_hardware(
+        db_session,
+        {"barcode": "0123456789012", "description": "Aliased barcode"},
+    )
+
+    fetched = get_hardware(db_session, "123456789012")
+    assert fetched is not None
+    assert fetched.id == hardware.id
+
+
+def test_list_hardware_backfills_legacy_barcodes(db_session):
+    legacy = Hardware(
+        barcode="123456789012",
+        description="Legacy barcode",
+        acquisition_cost=None,
+        sales_price=None,
+        created_at="2023-01-01T00:00:00Z",
+    )
+    db_session.add(legacy)
+    db_session.commit()
+
+    rows = list_hardware(db_session)
+    updated = next(row for row in rows if row.id == legacy.id)
+    assert updated.barcode == "0123456789012"

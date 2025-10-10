@@ -14,9 +14,9 @@ def api_list(limit: int = 100, offset: int = 0, db: Session = Depends(get_db)):
     return list_hardware(db, limit=limit, offset=offset)
 
 
-@router.get("/{item_id}", response_model=HardwareOut, dependencies=[Depends(require_ui_or_token)])
-def api_get(item_id: int, db: Session = Depends(get_db)):
-    r = get_hardware(db, item_id)
+@router.get("/{identifier}", response_model=HardwareOut, dependencies=[Depends(require_ui_or_token)])
+def api_get(identifier: str, db: Session = Depends(get_db)):
+    r = get_hardware(db, identifier)
     if not r:
         raise HTTPException(404, "Not found")
     return r
