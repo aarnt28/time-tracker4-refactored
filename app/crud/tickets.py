@@ -1,7 +1,7 @@
 from __future__ import annotations
 from datetime import datetime
 from sqlalchemy.orm import Session
-from sqlalchemy import select, desc
+from sqlalchemy import select, desc, or_
 from ..models.ticket import Ticket
 from ..models.hardware import Hardware
 from .inventory import ensure_ticket_usage_event, delete_ticket_event
@@ -20,7 +20,10 @@ def list_tickets(db: Session, limit: int = 100, offset: int = 0):
 
 
 def list_active_tickets(db: Session, client_key: str | None = None, limit: int = 100, offset: int = 0):
-    stmt = select(Ticket).where(Ticket.end_iso.is_(None))
+    stmt = select(Ticket).where(
+        Ticket.end_iso.is_(None),
+        or_(Ticket.entry_type.is_(None), Ticket.entry_type != "hardware"),
+    )
     if client_key:
         stmt = stmt.where(Ticket.client_key == client_key)
     stmt = stmt.order_by(desc(Ticket.created_at)).limit(limit).offset(offset)
