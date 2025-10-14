@@ -157,6 +157,112 @@
 
     }
 
+    .attachments-section {
+      margin-top: 24px;
+      border-top: 1px solid #e2e8f0;
+      padding-top: 16px;
+    }
+
+    .attachments-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .attachments-header h3 {
+      font-size: 1rem;
+      margin: 0;
+    }
+
+    .attachments-help {
+      margin: 0;
+      font-size: 0.875rem;
+      color: #64748b;
+    }
+
+    .attachment-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: grid;
+      gap: 8px;
+    }
+
+    .attachment-item {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      padding: 8px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .attachment-item a {
+      color: #2563eb;
+      font-weight: 600;
+      text-decoration: none;
+    }
+
+    .attachment-item a:hover,
+    .attachment-item a:focus {
+      text-decoration: underline;
+    }
+
+    .attachment-meta {
+      font-size: 0.75rem;
+      color: #64748b;
+    }
+
+    .attachment-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 12px;
+    }
+
+    .attachment-upload-label {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 8px 14px;
+      border-radius: 6px;
+      background: var(--brand);
+      color: #fff;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background-color 160ms ease-in-out;
+    }
+
+    .attachment-upload-label:hover,
+    .attachment-upload-label:focus-visible {
+      background-color: #1d4ed8;
+    }
+
+    .attachment-upload-label.is-disabled {
+      background: #cbd5f5;
+      color: #475569;
+      cursor: not-allowed;
+    }
+
+    .attachment-upload-label input[type="file"] {
+      display: none;
+    }
+
+    .attachment-empty {
+      margin: 8px 0 0 0;
+      font-size: 0.875rem;
+      color: #64748b;
+    }
+
+    .attachment-error {
+      margin: 8px 0 0 0;
+      font-size: 0.875rem;
+      color: #b91c1c;
+    }
+
   </style>
 
 </head>
@@ -390,6 +496,22 @@
 
         <div id="hardware-snapshot" class="hardware-snapshot" style="display:none;"></div>
 
+        <section id="ticket-attachments-section" class="attachments-section">
+          <div class="attachments-header">
+            <h3>Attachments</h3>
+            <p class="attachments-help">Upload screenshots or other images that belong with this ticket.</p>
+          </div>
+          <ul id="ticket-attachments-list" class="attachment-list" aria-live="polite"></ul>
+          <p id="ticket-attachments-empty" class="attachment-empty">Save the ticket to add attachments.</p>
+          <p id="ticket-attachments-error" class="attachment-error" role="alert" style="display:none;"></p>
+          <div class="attachment-actions">
+            <label class="attachment-upload-label is-disabled" id="ticket-attachment-trigger">
+              <input type="file" id="ticket-attachment-input" accept="image/*" multiple />
+              Add Attachment
+            </label>
+          </div>
+        </section>
+
         <div class="form-actions wrap">
 
           <button class="btn" type="submit">Save</button>
@@ -516,6 +638,22 @@
 
     const hardwareQuantityWrap = document.getElementById('hardware-quantity-wrap');
 
+    const attachmentsSection = document.getElementById('ticket-attachments-section');
+
+    const attachmentsList = document.getElementById('ticket-attachments-list');
+
+    const attachmentsEmpty = document.getElementById('ticket-attachments-empty');
+
+    const attachmentsError = document.getElementById('ticket-attachments-error');
+
+    const attachmentTrigger = document.getElementById('ticket-attachment-trigger');
+
+    const attachmentInput = document.getElementById('ticket-attachment-input');
+
+    if (attachmentInput){
+      attachmentInput.disabled = true;
+    }
+
     const customizeColumnsBtn = document.getElementById('customize-columns');
 
     const columnsModal = document.getElementById('columns-modal');
@@ -557,11 +695,177 @@
 
     let currentSortDirection = 'asc';
 
+    let currentTicketId = null;
+
+    let currentTicketAttachments = [];
+
     function formatCurrencyValue(value){
       if (value === null || value === undefined || value === '') return '';
       const number = Number.parseFloat(value);
       if (Number.isNaN(number)) return String(value);
       return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(number);
+    }
+
+    function formatBytes(size){
+      const value = Number(size);
+      if (!Number.isFinite(value) || value < 0) return null;
+      if (value === 0) return '0 B';
+      const units = ['B', 'KB', 'MB', 'GB'];
+      let index = Math.floor(Math.log(value) / Math.log(1024));
+      index = Math.min(index, units.length - 1);
+      const scaled = value / Math.pow(1024, index);
+      return `${scaled.toFixed(index === 0 ? 0 : 1)} ${units[index]}`;
+    }
+
+    function attachmentDownloadUrl(ticketId, attachment){
+      if (!ticketId || !attachment || !attachment.id) return '#';
+      return `/api/v1/tickets/${ticketId}/attachments/${encodeURIComponent(String(attachment.id))}`;
+    }
+
+    function renderAttachmentList(){
+      if (!attachmentsSection) return;
+      if (attachmentsError){
+        attachmentsError.style.display = 'none';
+        attachmentsError.textContent = '';
+      }
+      if (!attachmentsList || !attachmentsEmpty || !attachmentTrigger || !attachmentInput){
+        return;
+      }
+      if (!currentTicketId){
+        attachmentsList.innerHTML = '';
+        attachmentsEmpty.textContent = 'Save the ticket to add attachments.';
+        attachmentsEmpty.style.display = 'block';
+        attachmentTrigger.classList.add('is-disabled');
+        attachmentInput.disabled = true;
+        return;
+      }
+      attachmentTrigger.classList.remove('is-disabled');
+      attachmentInput.disabled = false;
+      const items = Array.isArray(currentTicketAttachments) ? currentTicketAttachments : [];
+      if (!items.length){
+        attachmentsList.innerHTML = '';
+        attachmentsEmpty.textContent = 'No attachments yet.';
+        attachmentsEmpty.style.display = 'block';
+        return;
+      }
+      attachmentsEmpty.style.display = 'none';
+      attachmentsList.innerHTML = '';
+      items.forEach((att) => {
+        const li = document.createElement('li');
+        li.className = 'attachment-item';
+        const link = document.createElement('a');
+        link.href = attachmentDownloadUrl(currentTicketId, att);
+        link.target = '_blank';
+        link.rel = 'noopener';
+        link.textContent = att.filename || 'Attachment';
+        if (att.filename){
+          link.setAttribute('download', att.filename);
+        }
+        li.appendChild(link);
+        const metaParts = [];
+        const sizeLabel = formatBytes(att.size);
+        if (sizeLabel) metaParts.push(sizeLabel);
+        if (att.content_type) metaParts.push(att.content_type);
+        if (att.uploaded_at){
+          const dt = new Date(att.uploaded_at);
+          if (!Number.isNaN(dt.getTime())){
+            metaParts.push(dt.toLocaleString());
+          }
+        }
+        if (metaParts.length){
+          const meta = document.createElement('div');
+          meta.className = 'attachment-meta';
+          meta.textContent = metaParts.join(' • ');
+          li.appendChild(meta);
+        }
+        attachmentsList.appendChild(li);
+      });
+    }
+
+    async function fetchAttachments(ticketId){
+      if (!attachmentsSection) return;
+      if (!ticketId){
+        currentTicketAttachments = [];
+        renderAttachmentList();
+        return;
+      }
+      try {
+        const res = await safeFetch(`/api/v1/tickets/${ticketId}/attachments`, { headers: apiHeaders(false) });
+        if (res.ok){
+          const data = await res.json();
+          currentTicketAttachments = Array.isArray(data) ? data : [];
+          if (attachmentsError){
+            attachmentsError.style.display = 'none';
+            attachmentsError.textContent = '';
+          }
+        } else {
+          let msg = 'Failed to load attachments.';
+          try {
+            const body = await res.json();
+            if (body && body.detail) msg = body.detail;
+          } catch (err) {}
+          if (attachmentsError){
+            attachmentsError.textContent = msg;
+            attachmentsError.style.display = 'block';
+          }
+          currentTicketAttachments = [];
+        }
+      } catch (err){
+        if (attachmentsError){
+          attachmentsError.textContent = 'Failed to load attachments.';
+          attachmentsError.style.display = 'block';
+        }
+        currentTicketAttachments = [];
+      }
+      renderAttachmentList();
+    }
+
+    async function uploadTicketAttachments(fileList){
+      if (!currentTicketId || !attachmentInput) return;
+      const files = Array.from(fileList || []).filter((file) => file);
+      if (!files.length) return;
+      if (attachmentsError){
+        attachmentsError.style.display = 'none';
+        attachmentsError.textContent = '';
+      }
+      if (attachmentTrigger){
+        attachmentTrigger.classList.add('is-disabled');
+      }
+      attachmentInput.disabled = true;
+      let encounteredError = false;
+      try {
+        for (const file of files){
+          const formData = new FormData();
+          formData.append('file', file);
+          const res = await safeFetch(`/api/v1/tickets/${currentTicketId}/attachments`, {
+            method: 'POST',
+            headers: apiHeaders(false),
+            body: formData
+          });
+          if (!res.ok){
+            encounteredError = true;
+            let msg = 'Attachment upload failed.';
+            try {
+              const body = await res.json();
+              if (body && body.detail) msg = body.detail;
+            } catch (err) {}
+            if (attachmentsError){
+              attachmentsError.textContent = msg;
+              attachmentsError.style.display = 'block';
+            }
+            break;
+          }
+        }
+      } finally {
+        attachmentInput.value = '';
+        attachmentInput.disabled = false;
+        if (attachmentTrigger){
+          attachmentTrigger.classList.remove('is-disabled');
+        }
+      }
+      if (!encounteredError){
+        await fetchAttachments(currentTicketId);
+      }
     }
 
     function getColumnDefinition(key){
@@ -1325,7 +1629,23 @@
 
     }
 
-    function closeModal(){ modal.style.display = 'none'; }
+    function closeModal(){
+      modal.style.display = 'none';
+      currentTicketId = null;
+      currentTicketAttachments = [];
+      if (attachmentInput){
+        attachmentInput.value = '';
+        attachmentInput.disabled = true;
+      }
+      if (attachmentTrigger){
+        attachmentTrigger.classList.add('is-disabled');
+      }
+      if (attachmentsError){
+        attachmentsError.style.display = 'none';
+        attachmentsError.textContent = '';
+      }
+      renderAttachmentList();
+    }
 
     function toLocalInput(iso){
 
@@ -1478,6 +1798,12 @@
 
       hardwareIdField.value = data.hardware_id ? String(data.hardware_id) : '';
 
+      currentTicketId = data.id || null;
+
+      currentTicketAttachments = Array.isArray(data.attachments) ? data.attachments.slice() : [];
+
+      renderAttachmentList();
+
       updateHardwareFieldVisibility();
 
       applyHardwareSelection({ preserveDetails: true });
@@ -1516,6 +1842,8 @@
 
         populateClientFromKey(data.client_key, { silent: true });
 
+        await fetchAttachments(currentTicketId);
+
       } else {
 
         title.textContent = 'New Ticket';
@@ -1543,6 +1871,8 @@
         updateHardwareFieldVisibility();
 
         updateHardwareSnapshot();
+
+        await fetchAttachments(null);
 
       }
 
@@ -1736,6 +2066,20 @@
 
     if (hardwareQuantityField){
       hardwareQuantityField.addEventListener('input', updateHardwareSnapshot);
+    }
+
+    if (attachmentInput){
+      attachmentInput.addEventListener('change', async (event)=>{
+        if (!currentTicketId){
+          if (attachmentsError){
+            attachmentsError.textContent = 'Save the ticket before uploading attachments.';
+            attachmentsError.style.display = 'block';
+          }
+          attachmentInput.value = '';
+          return;
+        }
+        await uploadTicketAttachments(event.target.files);
+      });
     }
 
     form.addEventListener('submit', async (e)=>{

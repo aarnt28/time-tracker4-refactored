@@ -80,6 +80,7 @@ def run_migrations(engine: Engine) -> None:
         "sent": "INTEGER DEFAULT 0 NOT NULL",
         "invoiced_total": "TEXT",
         "calculated_value": "TEXT",
+        "attachments": "TEXT",
     }
 
     # Tickets table incremental columns

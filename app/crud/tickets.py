@@ -1,5 +1,9 @@
 from __future__ import annotations
 from datetime import datetime
+import shutil
+from pathlib import Path
+from uuid import uuid4
+from typing import IO
 from sqlalchemy.orm import Session
 from sqlalchemy import select, desc, or_
 from ..models.ticket import Ticket
@@ -13,6 +17,18 @@ from ..core.config import settings
 from ..core.barcodes import barcode_aliases, normalize_barcode
 
 SIXTY = Decimal("60")
+ATTACHMENTS_DIR_NAME = "attachments"
+
+
+def _attachments_root() -> Path:
+    return settings.DATA_DIR / ATTACHMENTS_DIR_NAME
+
+
+def _ticket_attachment_dir(ticket_id: int, *, ensure: bool = False) -> Path:
+    path = _attachments_root() / str(ticket_id)
+    if ensure:
+        path.mkdir(parents=True, exist_ok=True)
+    return path
 
 
 def list_tickets(db: Session, limit: int = 100, offset: int = 0):
@@ -264,6 +280,11 @@ def create_entry(db: Session, payload: dict) -> Ticket:
         hardware_id=payload.get("hardware_id"),
         calculated_value=None,
     )
+    attachments_payload = payload.get("attachments")
+    if isinstance(attachments_payload, list):
+        t.attachments = attachments_payload
+    else:
+        t.attachments = []
     _apply_client_link(t, payload)
     _apply_time_math(t, payload)
     _apply_hardware_link(db, t, payload)
@@ -329,6 +350,64 @@ def update_ticket(db: Session, t: Ticket, payload: dict) -> Ticket:
     else:
         delete_ticket_event(db, t.id)
     return t
+
+
+def _sanitized_attachment(record: dict[str, object]) -> dict[str, object]:
+    clean = {k: v for k, v in record.items() if k != "storage_filename"}
+    if "id" in clean and clean["id"] is not None:
+        clean["id"] = str(clean["id"])
+    return clean
+
+
+def list_ticket_attachments(ticket: Ticket) -> list[dict[str, object]]:
+    return [_sanitized_attachment(record) for record in ticket._attachment_records()]
+
+
+def add_ticket_attachment(
+    db: Session,
+    ticket: Ticket,
+    filename: str,
+    content_type: str | None,
+    file_data: IO[bytes],
+) -> dict[str, object]:
+    safe_name = Path(filename or "attachment").name
+    if not safe_name:
+        safe_name = "attachment"
+    ext = Path(safe_name).suffix
+    attachment_id = uuid4().hex
+    storage_name = f"{attachment_id}{ext}" if ext else attachment_id
+    dest_dir = _ticket_attachment_dir(ticket.id, ensure=True)
+    dest_path = dest_dir / storage_name
+    try:
+        file_data.seek(0)
+    except Exception:
+        pass
+    with dest_path.open("wb") as buffer:
+        shutil.copyfileobj(file_data, buffer)
+    size = dest_path.stat().st_size if dest_path.exists() else None
+    record = {
+        "id": attachment_id,
+        "filename": safe_name,
+        "content_type": content_type,
+        "size": int(size) if size is not None else None,
+        "uploaded_at": datetime.utcnow().isoformat(timespec="seconds") + "Z",
+        "storage_filename": storage_name,
+    }
+    records = ticket._attachment_records()
+    records.append(record)
+    ticket._store_attachment_records(records)
+    db.commit()
+    db.refresh(ticket)
+    return _sanitized_attachment(record)
+
+
+def get_ticket_attachment(ticket: Ticket, attachment_id: str) -> tuple[dict[str, object], Path] | None:
+    record = ticket.get_attachment_record(attachment_id)
+    if not record:
+        return None
+    storage_name = record.get("storage_filename") or str(attachment_id)
+    path = _ticket_attachment_dir(ticket.id) / storage_name
+    return _sanitized_attachment(record), path
 
 
 def delete_ticket(db: Session, ticket: Ticket) -> None:

@@ -41,6 +41,18 @@ class EntryUpdate(BaseModel):
     hardware_sales_price: Optional[str] = None
 
 
+class TicketAttachment(BaseModel):
+    id: str
+    filename: str
+    content_type: Optional[str] = None
+    size: Optional[int] = None
+    uploaded_at: str
+    url: Optional[str] = None
+
+    class Config:
+        extra = "ignore"
+
+
 class EntryOut(BaseModel):
     id: int
     client: str
@@ -64,6 +76,7 @@ class EntryOut(BaseModel):
     hardware_sales_price: Optional[str] = None
     hardware_quantity: Optional[int] = None
     calculated_value: Optional[str] = None
+    attachments: list[TicketAttachment] = Field(default_factory=list)
 
     class Config:
         from_attributes = True
