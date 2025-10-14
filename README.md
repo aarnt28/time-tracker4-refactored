@@ -12,6 +12,10 @@ stores data, and Docker Compose makes it easy to run everything locally.
 
 * **Ticket tracking** – Create, view, update and delete support tickets.  Each
   ticket tracks description, client information, and completion status.
+* **Invoice insights** – Tickets include invoiced totals and calculated value
+  columns that auto-populate from hardware quantity × price or a client's
+  rounded time × support rate, plus inline editing and sortable, hideable
+  columns in the UI for flexible reporting.【F:app/crud/tickets.py†L18-L331】【F:app/templates/tickets.html†L224-L399】【F:app/templates/_rows.html†L1-L52】
 * **Hardware inventory** – Maintain an inventory of hardware items with a
   unique barcode, description, acquisition cost and sales price.
 * **Inventory adjustments & history** – Use the inventory dashboard to review

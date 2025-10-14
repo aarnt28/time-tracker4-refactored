@@ -76,6 +76,41 @@
 
     }
 
+    .tickets-table [data-column-key].is-column-hidden {
+      display: none;
+    }
+
+    .tickets-table th[data-column-key] {
+      position: relative;
+    }
+
+    .tickets-table th.sortable {
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .tickets-table th.sortable::after {
+      content: '\2195';
+      font-size: 0.75rem;
+      margin-left: 6px;
+      opacity: 0.35;
+    }
+
+    .tickets-table th.sortable.is-sorted-asc::after {
+      content: '\25B2';
+      opacity: 0.9;
+    }
+
+    .tickets-table th.sortable.is-sorted-desc::after {
+      content: '\25BC';
+      opacity: 0.9;
+    }
+
+    .tickets-table th.sortable:focus-visible {
+      outline: 2px solid var(--brand);
+      outline-offset: 2px;
+    }
+
     .tickets-table tr.row.is-open td {
 
       background: rgba(45, 108, 223, 0.12);
@@ -149,6 +184,7 @@
       <div class="actions">
 
         <button class="btn" type="button" id="new-ticket">New Ticket</button>
+        <button class="btn" type="button" id="customize-columns">Customize Columns</button>
         <a class="btn btn-ghost" href="/reports">View Reports</a>
 
       </div>
@@ -185,31 +221,20 @@
           <thead>
 
             <tr>
-
-              <th class="mono">ID</th>
-
-              <th>Client</th>
-
-              <th class="mono">Client Key</th>
-
-              <th class="mono hide-mobile">Start</th>
-
-              <th class="mono hide-mobile">End</th>
-
-              <th class="mono">Minutes</th>
-
-              <th class="mono">Rounded Hrs</th>
-
-              <th class="mono">Type</th>
-
-              <th class="mono">Hardware Price</th>
-
-              <th>Notes / Hardware</th>
-
-              <th class="mono">Invoice</th>
-
-              <th class="th-action">Status / Actions</th>
-
+              <th class="mono" data-column-key="id" data-sort-type="number" tabindex="0">ID</th>
+              <th data-column-key="client" data-sort-type="text" tabindex="0">Client</th>
+              <th class="mono" data-column-key="client_key" data-sort-type="text" tabindex="0">Client Key</th>
+              <th class="mono hide-mobile" data-column-key="start" data-sort-type="datetime" tabindex="0">Start</th>
+              <th class="mono hide-mobile" data-column-key="end" data-sort-type="datetime" tabindex="0">End</th>
+              <th class="mono" data-column-key="minutes" data-sort-type="number" tabindex="0">Minutes</th>
+              <th class="mono" data-column-key="rounded_hours" data-sort-type="number" tabindex="0">Rounded Hrs</th>
+              <th class="mono" data-column-key="entry_type" data-sort-type="text" tabindex="0">Type</th>
+              <th class="mono" data-column-key="hardware_price" data-sort-type="currency" tabindex="0">Hardware Price</th>
+              <th data-column-key="notes" data-sort-type="text" tabindex="0">Notes / Hardware</th>
+              <th class="mono" data-column-key="invoice_number" data-sort-type="text" tabindex="0">Invoice</th>
+              <th class="mono" data-column-key="invoiced_total" data-sort-type="currency" tabindex="0">Invoiced Total</th>
+              <th class="mono" data-column-key="calculated_value" data-sort-type="currency" tabindex="0">Calculated Value</th>
+              <th class="th-action" data-column-key="status" data-sortable="false">Status / Actions</th>
             </tr>
 
           </thead>
@@ -317,12 +342,14 @@
           <label id="hardware-description-wrap" style="display:none;">Hardware Description<input name="hardware_description" /></label>
 
           <label id="hardware-sales-price-wrap" style="display:none;">Hardware Sales Price<input name="hardware_sales_price" class="mono" /></label>
+          <label id="hardware-quantity-wrap" style="display:none;">Quantity<input name="hardware_quantity" type="number" min="1" class="mono" value="1" /></label>
 
           <label>Start<input name="start_iso" type="datetime-local" class="mono" required /></label>
 
           <label>End<input name="end_iso" type="datetime-local" class="mono" /></label>
 
           <label>Invoice #<input name="invoice_number" class="mono" /></label>
+          <label>Invoiced Total<input name="invoiced_total" class="mono" /></label>
 
           <label>Added to QB
 
@@ -353,6 +380,7 @@
           <label>Rounded Minutes<input name="rounded_minutes" class="mono" readonly /></label>
 
           <label>Rounded Hours<input name="rounded_hours" class="mono" readonly /></label>
+          <label>Calculated Value<input name="calculated_value" class="mono" readonly /></label>
 
           <label>Created<input name="created_at" class="mono" readonly /></label>
 
@@ -374,6 +402,22 @@
 
     </div>
 
+  </div>
+
+  <div id="columns-modal" class="modal-root" style="display:none;">
+    <div class="modal-card modal-card--medium">
+      <header class="modal-head">
+        <h2 class="modal-title">Customize Columns</h2>
+        <button id="columns-close" class="btn" type="button">Close</button>
+      </header>
+      <form id="columns-form" class="modal-form">
+        <p class="modal-note">Choose which ticket columns should appear in the table.</p>
+        <div id="columns-options" class="column-option-list"></div>
+        <div class="form-actions">
+          <button class="btn" type="submit">Apply</button>
+        </div>
+      </form>
+    </div>
   </div>
 
 
@@ -458,11 +502,289 @@
 
     const hardwareSalesPriceField = form.elements.hardware_sales_price;
 
+    const hardwareQuantityField = form.elements.hardware_quantity;
+
+    const invoicedTotalField = form.elements.invoiced_total;
+
+    const calculatedValueField = form.elements.calculated_value;
+
     const hardwareBarcodeWrap = document.getElementById('hardware-barcode-wrap');
 
     const hardwareDescriptionWrap = document.getElementById('hardware-description-wrap');
 
     const hardwareSalesPriceWrap = document.getElementById('hardware-sales-price-wrap');
+
+    const hardwareQuantityWrap = document.getElementById('hardware-quantity-wrap');
+
+    const customizeColumnsBtn = document.getElementById('customize-columns');
+
+    const columnsModal = document.getElementById('columns-modal');
+
+    const columnsClose = document.getElementById('columns-close');
+
+    const columnsForm = document.getElementById('columns-form');
+
+    const columnsOptions = document.getElementById('columns-options');
+
+    const ticketTable = document.querySelector('.tickets-table');
+
+    const tableHead = ticketTable ? ticketTable.querySelector('thead') : null;
+
+    const headerCells = tableHead ? Array.from(tableHead.querySelectorAll('th[data-column-key]')) : [];
+
+    const TABLE_COLUMN_DEFS = [
+      { key: 'id', label: 'ID', sortType: 'number' },
+      { key: 'client', label: 'Client', sortType: 'text' },
+      { key: 'client_key', label: 'Client Key', sortType: 'text' },
+      { key: 'start', label: 'Start', sortType: 'datetime' },
+      { key: 'end', label: 'End', sortType: 'datetime' },
+      { key: 'minutes', label: 'Minutes', sortType: 'number' },
+      { key: 'rounded_hours', label: 'Rounded Hrs', sortType: 'number' },
+      { key: 'entry_type', label: 'Type', sortType: 'text' },
+      { key: 'hardware_price', label: 'Hardware Price', sortType: 'currency' },
+      { key: 'notes', label: 'Notes / Hardware', sortType: 'text' },
+      { key: 'invoice_number', label: 'Invoice', sortType: 'text' },
+      { key: 'invoiced_total', label: 'Invoiced Total', sortType: 'currency' },
+      { key: 'calculated_value', label: 'Calculated Value', sortType: 'currency' },
+      { key: 'status', label: 'Status / Actions', sortType: 'number', sortable: false },
+    ];
+
+    const COLUMN_STORAGE_KEY = 'tickets_table_columns_v1';
+
+    let visibleColumnKeys = new Set();
+
+    let currentSortKey = null;
+
+    let currentSortDirection = 'asc';
+
+    function formatCurrencyValue(value){
+      if (value === null || value === undefined || value === '') return '';
+      const number = Number.parseFloat(value);
+      if (Number.isNaN(number)) return String(value);
+      return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(number);
+    }
+
+    function getColumnDefinition(key){
+      return TABLE_COLUMN_DEFS.find((col) => col.key === key);
+    }
+
+    function loadColumnPreferences(){
+      try {
+        const raw = window.localStorage.getItem(COLUMN_STORAGE_KEY);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        if (!parsed || typeof parsed !== 'object') return null;
+        return parsed;
+      } catch (err){
+        console.warn('Failed to load column preferences', err);
+        return null;
+      }
+    }
+
+    function saveColumnPreferences(selectedKeys, availableKeys){
+      try {
+        const payload = {
+          selected: Array.isArray(selectedKeys) ? selectedKeys.slice() : [],
+          known: Array.isArray(availableKeys) ? availableKeys.slice() : []
+        };
+        window.localStorage.setItem(COLUMN_STORAGE_KEY, JSON.stringify(payload));
+      } catch (err){
+        console.warn('Failed to save column preferences', err);
+      }
+    }
+
+    function applyColumnVisibility(){
+      const elements = document.querySelectorAll('.tickets-table [data-column-key]');
+      elements.forEach((el) => {
+        const key = el.dataset.columnKey;
+        const visible = visibleColumnKeys.has(key);
+        if (!visible){
+          el.classList.add('is-column-hidden');
+          if (el.tagName === 'TH'){
+            el.setAttribute('aria-hidden', 'true');
+            el.setAttribute('tabindex', '-1');
+          }
+        } else {
+          el.classList.remove('is-column-hidden');
+          if (el.tagName === 'TH'){
+            el.removeAttribute('aria-hidden');
+            const def = getColumnDefinition(key);
+            if (!def || def.sortable !== false){
+              el.setAttribute('tabindex', '0');
+            }
+          }
+        }
+      });
+    }
+
+    function applyStoredColumnPreferences(){
+      const availableKeys = TABLE_COLUMN_DEFS.map((col) => col.key);
+      const defaultVisible = TABLE_COLUMN_DEFS.filter((col) => col.defaultVisible !== false).map((col) => col.key);
+      visibleColumnKeys = new Set(defaultVisible);
+      const prefs = loadColumnPreferences();
+      if (prefs){
+        const storedSelected = Array.isArray(prefs.selected) ? prefs.selected.filter((key) => availableKeys.includes(key)) : [];
+        const knownKeys = Array.isArray(prefs.known) ? prefs.known : [];
+        if (storedSelected.length){
+          visibleColumnKeys = new Set(storedSelected);
+        }
+        defaultVisible.forEach((key) => {
+          if (!knownKeys.includes(key)) visibleColumnKeys.add(key);
+        });
+        saveColumnPreferences(Array.from(visibleColumnKeys), availableKeys);
+      } else {
+        saveColumnPreferences(Array.from(visibleColumnKeys), availableKeys);
+      }
+      applyColumnVisibility();
+    }
+
+    function renderColumnOptions(){
+      if (!columnsOptions) return;
+      columnsOptions.innerHTML = '';
+      TABLE_COLUMN_DEFS.forEach((col) => {
+        const optionId = `tickets-column-${col.key}`;
+        const wrapper = document.createElement('label');
+        wrapper.className = 'column-option';
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.value = col.key;
+        checkbox.id = optionId;
+        checkbox.checked = visibleColumnKeys.has(col.key);
+        const labelSpan = document.createElement('span');
+        labelSpan.textContent = col.label;
+        wrapper.appendChild(checkbox);
+        wrapper.appendChild(labelSpan);
+        columnsOptions.appendChild(wrapper);
+      });
+    }
+
+    function openColumnsModal(){
+      if (!columnsModal) return;
+      renderColumnOptions();
+      columnsModal.style.display = 'block';
+    }
+
+    function closeColumnsModal(){
+      if (!columnsModal) return;
+      columnsModal.style.display = 'none';
+    }
+
+    function getSortValue(row, key, type){
+      const cell = row.querySelector(`[data-column-key="${key}"]`);
+      if (!cell) return null;
+      let raw = cell.dataset.sortValue;
+      if (raw === undefined){
+        const input = cell.querySelector('input');
+        if (input){
+          raw = input.value;
+        } else {
+          const btn = cell.querySelector('.note-preview-btn');
+          raw = btn ? btn.textContent : cell.textContent;
+        }
+      }
+      if (raw === undefined || raw === null) raw = '';
+      if (type === 'number' || type === 'currency'){
+        const cleaned = String(raw).replace(/[^0-9.-]/g, '');
+        const num = Number.parseFloat(cleaned);
+        return Number.isNaN(num) ? null : num;
+      }
+      if (type === 'datetime'){
+        const ts = Date.parse(String(raw));
+        return Number.isNaN(ts) ? null : ts;
+      }
+      return String(raw).trim().toLowerCase();
+    }
+
+    function compareSortValues(a, b, type){
+      const emptyA = a === null || a === undefined || a === '';
+      const emptyB = b === null || b === undefined || b === '';
+      if (emptyA && emptyB) return 0;
+      if (emptyA) return 1;
+      if (emptyB) return -1;
+      if (type === 'number' || type === 'currency' || type === 'datetime'){
+        return a - b;
+      }
+      return String(a).localeCompare(String(b));
+    }
+
+    function applyDefaultOrdering(rows){
+      const list = Array.isArray(rows) ? rows : Array.from(ticketRows.querySelectorAll('tr.row'));
+      if (!list.length) return;
+      const open = [];
+      const done = [];
+      list.forEach((row) => {
+        if (row.classList.contains('is-done')){
+          done.push(row);
+        } else {
+          open.push(row);
+        }
+      });
+      const frag = document.createDocumentFragment();
+      open.concat(done).forEach((row) => frag.appendChild(row));
+      ticketRows.appendChild(frag);
+    }
+
+    function updateSortIndicators(){
+      headerCells.forEach((cell) => {
+        const def = getColumnDefinition(cell.dataset.columnKey);
+        const sortable = !def || def.sortable !== false;
+        cell.classList.remove('is-sorted-asc', 'is-sorted-desc');
+        if (sortable){
+          cell.classList.add('sortable');
+          cell.setAttribute('aria-sort', 'none');
+        } else {
+          cell.classList.remove('sortable');
+          cell.setAttribute('aria-sort', 'none');
+        }
+      });
+      if (!currentSortKey) return;
+      const active = headerCells.find((cell) => cell.dataset.columnKey === currentSortKey);
+      if (!active) return;
+      active.classList.add(currentSortDirection === 'asc' ? 'is-sorted-asc' : 'is-sorted-desc');
+      active.setAttribute('aria-sort', currentSortDirection === 'asc' ? 'ascending' : 'descending');
+    }
+
+    function toggleSort(columnKey){
+      const def = getColumnDefinition(columnKey);
+      if (def && def.sortable === false) return;
+      if (currentSortKey === columnKey){
+        currentSortDirection = currentSortDirection === 'asc' ? 'desc' : 'asc';
+      } else {
+        currentSortKey = columnKey;
+        currentSortDirection = 'asc';
+      }
+      applySort();
+    }
+
+    function applySort(){
+      const rows = Array.from(ticketRows.querySelectorAll('tr.row'));
+      if (!rows.length){
+        updateSortIndicators();
+        return;
+      }
+      if (!currentSortKey){
+        applyDefaultOrdering(rows);
+        updateSortIndicators();
+        return;
+      }
+      const def = getColumnDefinition(currentSortKey);
+      if (!def || def.sortable === false){
+        currentSortKey = null;
+        applySort();
+        return;
+      }
+      const sortType = def.sortType || 'text';
+      const factor = currentSortDirection === 'asc' ? 1 : -1;
+      rows.sort((a, b) => {
+        const valueA = getSortValue(a, currentSortKey, sortType);
+        const valueB = getSortValue(b, currentSortKey, sortType);
+        return compareSortValues(valueA, valueB, sortType) * factor;
+      });
+      const frag = document.createDocumentFragment();
+      rows.forEach((row) => frag.appendChild(row));
+      ticketRows.appendChild(frag);
+      updateSortIndicators();
+    }
 
     const clientModal = document.getElementById('client-modal');
 
@@ -517,6 +839,68 @@
       });
 
     }
+
+    applyStoredColumnPreferences();
+
+    if (customizeColumnsBtn){
+      customizeColumnsBtn.addEventListener('click', (event)=>{
+        event.preventDefault();
+        openColumnsModal();
+      });
+    }
+
+    if (columnsClose){
+      columnsClose.addEventListener('click', (event)=>{
+        event.preventDefault();
+        closeColumnsModal();
+      });
+    }
+
+    if (columnsForm){
+      columnsForm.addEventListener('submit', (event)=>{
+        event.preventDefault();
+        if (!columnsOptions) return;
+        const selected = Array.from(columnsOptions.querySelectorAll('input[type="checkbox"]'))
+          .filter((input) => input.checked)
+          .map((input) => input.value);
+        if (!selected.length){
+          window.alert('Select at least one column.');
+          return;
+        }
+        visibleColumnKeys = new Set(selected);
+        applyColumnVisibility();
+        saveColumnPreferences(selected, TABLE_COLUMN_DEFS.map((col) => col.key));
+        applySort();
+        closeColumnsModal();
+      });
+    }
+
+    if (columnsModal){
+      columnsModal.addEventListener('click', (event)=>{
+        if (event.target === columnsModal) closeColumnsModal();
+      });
+    }
+
+    headerCells.forEach((cell) => {
+      const def = getColumnDefinition(cell.dataset.columnKey);
+      if (def && def.sortable === false){
+        cell.setAttribute('aria-sort', 'none');
+        return;
+      }
+      cell.classList.add('sortable');
+      if (!cell.hasAttribute('tabindex') || cell.getAttribute('tabindex') === '-1'){
+        cell.setAttribute('tabindex', '0');
+      }
+      cell.addEventListener('click', ()=>{ toggleSort(cell.dataset.columnKey); });
+      cell.addEventListener('keydown', (event)=>{
+        if (event.key === 'Enter' || event.key === ' '){
+          event.preventDefault();
+          toggleSort(cell.dataset.columnKey);
+        }
+      });
+    });
+
+    updateSortIndicators();
 
     function ensureClientOption(key, name){
 
@@ -774,11 +1158,23 @@
 
       hardwareSalesPriceWrap.style.display = display;
 
+      if (hardwareQuantityWrap) hardwareQuantityWrap.style.display = display;
+
       hardwareBarcodeField.disabled = !isHardware;
 
       hardwareDescriptionField.disabled = !isHardware;
 
       hardwareSalesPriceField.disabled = !isHardware;
+
+      if (hardwareQuantityField){
+        hardwareQuantityField.disabled = !isHardware;
+        if (isHardware && !hardwareQuantityField.value){
+          hardwareQuantityField.value = '1';
+        }
+        if (!isHardware){
+          hardwareQuantityField.value = '1';
+        }
+      }
 
       if (!isHardware){
 
@@ -844,13 +1240,19 @@
 
       const barcode = (hardwareBarcodeField.value || '').trim();
 
+      const quantityRaw = hardwareQuantityField ? Number.parseInt(hardwareQuantityField.value, 10) : 1;
+
+      const quantity = Number.isNaN(quantityRaw) ? 1 : Math.max(quantityRaw, 1);
+
       const pricePart = price ? ` — ${price}` : '';
+
+      const quantityPart = quantity > 1 ? ` — Qty: ${quantity}` : '';
 
       const barcodePart = barcode ? ` (barcode: ${barcode})` : '';
 
       hardwareSnapshot.style.display = 'block';
 
-      hardwareSnapshot.textContent = `Hardware Snapshot: ${desc}${pricePart}${barcodePart}`;
+      hardwareSnapshot.textContent = `Hardware Snapshot: ${desc}${pricePart}${quantityPart}${barcodePart}`;
 
     }
 
@@ -908,40 +1310,6 @@
 
     }
 
-    function sortTicketRows(){
-
-      const rows = Array.from(ticketRows.querySelectorAll('tr.row'));
-
-      if (!rows.length) return;
-
-      const open = [];
-
-      const done = [];
-
-      rows.forEach(row => {
-
-        if (row.classList.contains('is-done')){
-
-          done.push(row);
-
-        } else {
-
-          open.push(row);
-
-        }
-
-      });
-
-      const frag = document.createDocumentFragment();
-
-      open.forEach(row => frag.appendChild(row));
-
-      done.forEach(row => frag.appendChild(row));
-
-      ticketRows.appendChild(frag);
-
-    }
-
     async function refreshTable(){
 
       const res = await safeFetch('/ui/ticket_table', { headers: { 'X-Requested-With': 'fetch' } }, false);
@@ -949,9 +1317,8 @@
       if (res.ok){
 
         ticketRows.innerHTML = await res.text();
-
-        sortTicketRows();
-
+        applyColumnVisibility();
+        applySort();
         applyNotePreviews();
 
       }
@@ -1050,11 +1417,24 @@
 
       elements.hardware_sales_price.value = data.hardware_sales_price || '';
 
+      if (elements.hardware_quantity){
+        const quantityValue = data.hardware_quantity ? Number.parseInt(data.hardware_quantity, 10) : data.hardware_quantity;
+        if (Number.isFinite(quantityValue)){
+          elements.hardware_quantity.value = String(quantityValue);
+        } else {
+          elements.hardware_quantity.value = data.hardware_quantity ? String(data.hardware_quantity) : '1';
+        }
+      }
+
       elements.start_iso.value = toLocalInput(data.start_iso) || '';
 
       elements.end_iso.value = toLocalInput(data.end_iso) || '';
 
       elements.invoice_number.value = data.invoice_number || '';
+
+      if (elements.invoiced_total){
+        elements.invoiced_total.value = data.invoiced_total ?? '';
+      }
 
       elements.completed.value = String(data.completed || 0);
 
@@ -1069,6 +1449,10 @@
       elements.rounded_minutes.value = data.rounded_minutes ?? '';
 
       elements.rounded_hours.value = data.rounded_hours ?? '';
+
+      if (elements.calculated_value){
+        elements.calculated_value.value = formatCurrencyValue(data.calculated_value);
+      }
 
       elements.created_at.value = data.created_at || '';
 
@@ -1350,6 +1734,10 @@
 
     hardwareSalesPriceField.addEventListener('input', updateHardwareSnapshot);
 
+    if (hardwareQuantityField){
+      hardwareQuantityField.addEventListener('input', updateHardwareSnapshot);
+    }
+
     form.addEventListener('submit', async (e)=>{
 
       e.preventDefault();
@@ -1368,6 +1756,8 @@
 
       const invoiceValue = (elements.invoice_number.value || '').trim();
 
+      const invoicedTotalValue = invoicedTotalField ? (invoicedTotalField.value || '').trim() : '';
+
       const payload = {
 
         client_key: clientKey,
@@ -1377,6 +1767,8 @@
         note: noteValue || null,
 
         invoice_number: invoiceValue || null,
+
+        invoiced_total: invoicedTotalValue || null,
 
         entry_type: entryType,
 
@@ -1410,6 +1802,13 @@
 
         payload.hardware_sales_price = salesPriceValue || null;
 
+        if (hardwareQuantityField){
+          const quantityValue = Number.parseInt(hardwareQuantityField.value, 10);
+          if (!Number.isNaN(quantityValue)){
+            payload.hardware_quantity = quantityValue;
+          }
+        }
+
       } else {
 
         payload.hardware_barcode = null;
@@ -1419,6 +1818,8 @@
         payload.hardware_description = null;
 
         payload.hardware_sales_price = null;
+
+        payload.hardware_quantity = null;
 
       }
 
@@ -1596,7 +1997,7 @@
 
       if (!row) return;
 
-      if (e.target.closest('.open-client, .note-preview-btn, .js-delete-ticket, .js-toggle-status, .js-complete-checkbox, .invoice-input, button, input, textarea, select, label')) return;
+      if (e.target.closest('.open-client, .note-preview-btn, .js-delete-ticket, .js-toggle-status, .js-complete-checkbox, .invoice-input, .invoiced-total-input, button, input, textarea, select, label')) return;
 
       if (!row.dataset.id) return;
 
@@ -1683,6 +2084,28 @@
 
       }
 
+      const totalInput = e.target.closest('.invoiced-total-input');
+
+      if (totalInput){
+
+        const id = totalInput.dataset.id;
+
+        const res = await safeFetch(`/api/v1/tickets/${id}`, {
+
+          method: 'PATCH',
+
+          headers: apiHeaders(true),
+
+          body: JSON.stringify({ invoiced_total: totalInput.value })
+
+        });
+
+        if (!res.ok){ window.alert('Invoiced total update failed'); await refreshTable(); }
+
+        return;
+
+      }
+
       const input = e.target.closest('.invoice-input');
 
       if (!input) return;
@@ -1715,7 +2138,7 @@
 
     });
 
-    sortTicketRows();
+    applySort();
 
     applyNotePreviews();
 
