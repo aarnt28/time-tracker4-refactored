@@ -12,6 +12,9 @@ stores data, and Docker Compose makes it easy to run everything locally.
 
 * **Ticket tracking** – Create, view, update and delete support tickets.  Each
   ticket tracks description, client information, and completion status.
+* **Ticket attachments** – Upload screenshots or other image files alongside
+  a ticket for richer context directly from the UI or the API. Files are stored
+  under the persistent data volume and exposed through secured download links.【F:app/routers/api_tickets.py†L15-L141】【F:app/templates/tickets.html†L302-L2115】
 * **Invoice insights** – Tickets include invoiced totals and calculated value
   columns that auto-populate from hardware quantity × price or a client's
   rounded time × support rate, plus inline editing and sortable, hideable
@@ -282,6 +285,9 @@ billed.【F:app/schemas/ticket.py†L15-L55】【F:app/crud/tickets.py†L90-L13
 | `GET /api/v1/tickets/{entry_id}` | Retrieve one ticket. | Yes | `404` when the id is missing. |【F:app/routers/api_tickets.py†L21-L29】
 | `POST /api/v1/tickets` | Create a ticket entry. | Yes | Body must include `client_key` and `start_iso`. Optional fields include `end_iso`, `note`, `invoice_number`, `sent`, `entry_type`, `hardware_id`, and `hardware_barcode`. |【F:app/routers/api_tickets.py†L32-L41】【F:app/schemas/ticket.py†L6-L35】【F:app/crud/tickets.py†L58-L109】
 | `PATCH /api/v1/tickets/{entry_id}` | Update fields on an existing ticket. | Yes | Any subset of fields may be supplied. Updating `client_key` or `client` revalidates the client table; changing `start_iso`/`end_iso` recomputes rounded minutes; switching to `entry_type="hardware"` will relink the referenced hardware. Fields like `sent` and `invoice_number` can be adjusted to reflect billing progress. |【F:app/routers/api_tickets.py†L44-L55】【F:app/crud/tickets.py†L77-L130】
+| `GET /api/v1/tickets/{entry_id}/attachments` | List image attachments for a ticket. | Yes | Returns metadata (filename, size, uploaded timestamp) and signed download URLs for each stored file. |【F:app/routers/api_tickets.py†L97-L109】【F:app/crud/tickets.py†L211-L230】
+| `POST /api/v1/tickets/{entry_id}/attachments` | Upload a new attachment. | Yes | Accepts `multipart/form-data` with a single image (`png`, `jpg`, `gif`, `webp`). Saved files are written under `/data/attachments/{ticket_id}`. |【F:app/routers/api_tickets.py†L110-L136】【F:app/crud/tickets.py†L212-L228】
+| `GET /api/v1/tickets/{entry_id}/attachments/{attachment_id}` | Download an attachment. | Yes | Streams the stored file back with the recorded filename and content type. Returns `404` when the ticket or attachment id is unknown. |【F:app/routers/api_tickets.py†L138-L141】
 | `DELETE /api/v1/tickets/{entry_id}` | Remove a ticket entry. | Yes | Returns `{ "status": "deleted" }` when successful. |【F:app/routers/api_tickets.py†L58-L65】
 
 **Example – list active tickets for a client**

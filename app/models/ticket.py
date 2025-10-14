@@ -1,4 +1,5 @@
 from __future__ import annotations
+import json
 from sqlalchemy import Column, Integer, Text
 from ..db.session import Base
 
@@ -30,6 +31,7 @@ class Ticket(Base):
     hardware_quantity = Column(Integer, nullable=True, default=1)
     invoiced_total = Column(Text, nullable=True)
     calculated_value = Column(Text, nullable=True)
+    attachments_blob = Column("attachments", Text, nullable=True)
 
     @property
     def hardware_barcode(self) -> str | None:
@@ -41,3 +43,57 @@ class Ticket(Base):
             self._hardware_barcode = value
         elif hasattr(self, "_hardware_barcode"):
             delattr(self, "_hardware_barcode")
+
+    def _attachment_records(self) -> list[dict[str, object]]:
+        raw = self.attachments_blob
+        if not raw:
+            return []
+        try:
+            decoded = json.loads(raw)
+        except (TypeError, json.JSONDecodeError):
+            return []
+        if not isinstance(decoded, list):
+            return []
+        records: list[dict[str, object]] = []
+        for item in decoded:
+            if isinstance(item, dict):
+                records.append(dict(item))
+        return records
+
+    def _store_attachment_records(self, records: list[dict[str, object]]) -> None:
+        if not records:
+            self.attachments_blob = None
+            return
+        self.attachments_blob = json.dumps(records)
+
+    @property
+    def attachments(self) -> list[dict[str, object]]:
+        visible: list[dict[str, object]] = []
+        for record in self._attachment_records():
+            filtered = {
+                k: v for k, v in record.items() if k != "storage_filename"
+            }
+            if "id" in filtered and filtered["id"] is not None:
+                filtered["id"] = str(filtered["id"])
+            visible.append(filtered)
+        return visible
+
+    @attachments.setter
+    def attachments(self, value: list[dict[str, object]] | None) -> None:
+        if not value:
+            self.attachments_blob = None
+            return
+        if not isinstance(value, list):
+            raise ValueError("attachments must be a list of objects")
+        cleaned: list[dict[str, object]] = []
+        for item in value:
+            if isinstance(item, dict):
+                cleaned.append(dict(item))
+        self._store_attachment_records(cleaned)
+
+    def get_attachment_record(self, attachment_id: str) -> dict[str, object] | None:
+        for record in self._attachment_records():
+            if str(record.get("id")) == str(attachment_id):
+                return record
+        return None
+
