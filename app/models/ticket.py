@@ -28,6 +28,8 @@ class Ticket(Base):
     hardware_description = Column(Text, nullable=True)
     hardware_sales_price = Column(Text, nullable=True)
     hardware_quantity = Column(Integer, nullable=True, default=1)
+    invoiced_total = Column(Text, nullable=True)
+    calculated_value = Column(Text, nullable=True)
 
     @property
     def hardware_barcode(self) -> str | None:

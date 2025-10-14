@@ -20,6 +20,7 @@ class EntryCreate(EntryBase):
     end_iso: Optional[str] = None
     invoice_number: Optional[str] = None
     sent: Optional[int] = 0
+    invoiced_total: Optional[str] = None
 
 
 class EntryUpdate(BaseModel):
@@ -31,6 +32,7 @@ class EntryUpdate(BaseModel):
     completed: Optional[int] = None
     sent: Optional[int] = None
     invoice_number: Optional[str] = None
+    invoiced_total: Optional[str] = None
     entry_type: Optional[str] = Field(default=None, pattern="^(time|hardware)$")
     hardware_id: Optional[int] = None
     hardware_barcode: Optional[str] = None
@@ -52,6 +54,7 @@ class EntryOut(BaseModel):
     completed: int
     sent: int
     invoice_number: Optional[str]
+    invoiced_total: Optional[str]
     created_at: str
     minutes: int
     entry_type: str
@@ -60,6 +63,7 @@ class EntryOut(BaseModel):
     hardware_description: Optional[str] = None
     hardware_sales_price: Optional[str] = None
     hardware_quantity: Optional[int] = None
+    calculated_value: Optional[str] = None
 
     class Config:
         from_attributes = True
