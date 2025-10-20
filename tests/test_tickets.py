@@ -13,7 +13,11 @@ if str(ROOT) not in sys.path:
 os.environ.setdefault("DATA_DIR", str(ROOT / "data"))
 
 from app.db.session import Base
-from app.crud.tickets import create_entry, list_active_tickets
+from app.crud.tickets import (
+    CONTRACT_CLIENT_NOTE_PREFIX,
+    create_entry,
+    list_active_tickets,
+)
 
 # Ensure models are registered so metadata tables are created
 from app.models import ticket as ticket_model  # noqa: F401
@@ -70,3 +74,32 @@ def test_list_active_tickets_excludes_hardware_entries(db_session):
     active = list_active_tickets(db_session)
 
     assert [ticket.id for ticket in active] == [open_time_ticket.id]
+
+
+def test_contract_client_note_prefix_added(db_session):
+    ticket = create_entry(
+        db_session,
+        {
+            "client_key": "brightway",
+            "client": "Brightway Dental (Elite)",
+            "start_iso": "2024-02-01T09:00:00",
+            "note": "Original note",
+        },
+    )
+
+    assert ticket.note == f"{CONTRACT_CLIENT_NOTE_PREFIX}\nOriginal note"
+
+
+def test_contract_client_note_prefix_not_duplicated(db_session):
+    existing_note = f"{CONTRACT_CLIENT_NOTE_PREFIX}\nFollow up"
+    ticket = create_entry(
+        db_session,
+        {
+            "client_key": "asana",
+            "client": "Asana Dental (Elite)",
+            "start_iso": "2024-02-02T09:00:00",
+            "note": existing_note,
+        },
+    )
+
+    assert ticket.note == existing_note
