@@ -39,13 +39,37 @@
     "support_rate": 150,
     "contract": false,
     "owner": "Jim Harrison",
-    "name": "Harrison Law Firm"
+    "name": "Harrison Law Firm",
+    "address_line1": "207 S Denton Tap Rd",
+    "address_line2": "Suite 400",
+    "city": "Coppell",
+    "state": "Texas",
+    "postal_code": "75019",
+    "support_hours_allowance": "0",
+    "primary_contact_name": "Jim Harrison",
+    "primary_contact_phone": "2147691944",
+    "primary_contact_email": "jim@harrisonlawfirm.net",
+    "office_manager_name": "",
+    "office_manager_phone": "",
+    "office_manager_email": ""
   },
   "pdd": {
     "support_rate": 150,
     "contract": false,
     "owner": "Dr. Jason Roe",
-    "name": "Pro Dental Dallas (Plano)"
+    "name": "Pro Dental Dallas (Plano)",
+    "address_line1": "5136 Village Creek Dr",
+    "address_line2": "Ste 501",
+    "city": "Plano",
+    "state": "Texas",
+    "postal_code": "75093",
+    "support_hours_allowance": "0",
+    "primary_contact_name": "Kat Harding",
+    "primary_contact_phone": "2145193228",
+    "primary_contact_email": "clinic@prodentaldallas.com",
+    "office_manager_name": "Mendi Melendez",
+    "office_manager_phone": "2146836769",
+    "office_manager_email": "contact@downtowndallasdentistry.com"
   },
   "andrews": {
     "support_rate": "150",
@@ -58,12 +82,12 @@
     "state": "TX",
     "postal_code": "75010",
     "support_hours_allowance": "",
-    "primary_contact_name": "",
-    "primary_contact_phone": "",
-    "primary_contact_email": "",
-    "office_manager_name": "",
-    "office_manager_phone": "",
-    "office_manager_email": ""
+    "primary_contact_name": "Simon Tefler",
+    "primary_contact_phone": "9728967495",
+    "primary_contact_email": "simon@andrewsrefinishing.com",
+    "office_manager_name": "Cheyenne",
+    "office_manager_phone": "4693810111",
+    "office_manager_email": "chub@andrewsrefinishing.com"
   },
   "pddd": {
     "support_rate": 150,
@@ -72,7 +96,19 @@
       "Dr. Jason Roe",
       "Dr. Adrian Lobono"
     ],
-    "name": "Pro Dental Dallas (Downtown)"
+    "name": "Pro Dental Dallas (Downtown)",
+    "address_line1": "325 N Saint Paul St",
+    "address_line2": "Ste 1150",
+    "city": "Dallas",
+    "state": "Texas",
+    "postal_code": "75201",
+    "support_hours_allowance": "0",
+    "primary_contact_name": "Kat Harding",
+    "primary_contact_phone": "2145193228",
+    "primary_contact_email": "clinic@prodentaldallas.com",
+    "office_manager_name": "Mendi Melendez",
+    "office_manager_phone": "2146836769",
+    "office_manager_email": "contact@downtowndallasdentistry.com"
   },
   "kz_ar": {
     "support_rate": 150,
@@ -249,5 +285,8 @@
     "contract": "false",
     "owner": "Residence",
     "support_rate": "165"
+  },
+  "wheel": {
+    "name": "Wheel Repair Solutions"
   }
 }
