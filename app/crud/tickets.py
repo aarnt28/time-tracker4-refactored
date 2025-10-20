@@ -18,6 +18,40 @@ from ..core.barcodes import barcode_aliases, normalize_barcode
 
 SIXTY = Decimal("60")
 ATTACHMENTS_DIR_NAME = "attachments"
+CONTRACT_CLIENT_NOTE_PREFIX = "Add to monthly - but do not assign value"
+
+
+def _coerce_bool(value: object) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return value != 0
+    if isinstance(value, str):
+        normalized = value.strip().casefold()
+        return normalized in {"true", "1", "yes", "y"}
+    return False
+
+
+def _is_contract_client(client_key: str | None, table: dict | None = None) -> bool:
+    if not client_key:
+        return False
+    if table is None:
+        table = load_client_table()
+    entry = table.get(client_key) if isinstance(table, dict) else None
+    if not isinstance(entry, dict):
+        return False
+    return _coerce_bool(entry.get("contract"))
+
+
+def _prepend_contract_note(note: str | None, *, contract_client: bool) -> str | None:
+    if not contract_client:
+        return note
+    existing = note or ""
+    if existing:
+        if existing.lstrip().startswith(CONTRACT_CLIENT_NOTE_PREFIX):
+            return existing
+        return f"{CONTRACT_CLIENT_NOTE_PREFIX}\n{existing}"
+    return CONTRACT_CLIENT_NOTE_PREFIX
 
 
 def _attachments_root() -> Path:
@@ -265,12 +299,15 @@ def create_entry(db: Session, payload: dict) -> Ticket:
     if "client_key" not in payload or not payload["client_key"]:
         raise ValueError("client_key is required")
     invoice_total_value = _normalize_currency_input(payload.get("invoiced_total"))
+    note_value = payload.get("note")
+    if _is_contract_client(payload.get("client_key")):
+        note_value = _prepend_contract_note(note_value, contract_client=True)
     t = Ticket(
         client="",  # populated below
         client_key=payload["client_key"],
         start_iso=payload["start_iso"],
         end_iso=payload.get("end_iso"),
-        note=payload.get("note"),
+        note=note_value,
         completed=0,
         sent=payload.get("sent", 0) or 0,
         invoice_number=payload.get("invoice_number"),
@@ -317,6 +354,9 @@ def update_ticket(db: Session, t: Ticket, payload: dict) -> Ticket:
     data = dict(payload)
     if "invoiced_total" in data:
         data["invoiced_total"] = _normalize_currency_input(data.get("invoiced_total"))
+    contract_client = _is_contract_client(data.get("client_key", t.client_key))
+    if "note" in data and contract_client:
+        data["note"] = _prepend_contract_note(data.get("note"), contract_client=True)
     for k, v in data.items():
         if k in {"client", "client_key"}:
             continue
