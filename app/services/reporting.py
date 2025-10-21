@@ -75,15 +75,18 @@ def calculate_ticket_metrics(
         "tickets_sent": 0,
         "time_ticket_count": 0,
         "hardware_ticket_count": 0,
+        "flat_rate_ticket_count": 0,
     }
 
     total_time_revenue = Decimal("0")
     total_hardware_revenue = Decimal("0")
+    total_flat_rate_revenue = Decimal("0")
     billable_minutes_total = Decimal("0")
     hardware_units_total = 0
     unsent_revenue_total = Decimal("0")
     unsent_time_revenue = Decimal("0")
     unsent_hardware_revenue = Decimal("0")
+    unsent_flat_rate_revenue = Decimal("0")
     unsent_ticket_count = 0
 
     client_metrics: Dict[str, Dict[str, Any]] = {}
@@ -111,10 +114,12 @@ def calculate_ticket_metrics(
                 "total": 0,
                 "time_count": 0,
                 "hardware_count": 0,
+                "flat_rate_count": 0,
                 "open_count": 0,
                 "completed_count": 0,
                 "time_revenue": Decimal("0"),
                 "hardware_revenue": Decimal("0"),
+                "flat_rate_revenue": Decimal("0"),
                 "billable_minutes": Decimal("0"),
                 "unsent_revenue": Decimal("0"),
             },
@@ -129,7 +134,11 @@ def calculate_ticket_metrics(
         client_entry = table.get(ticket.client_key or "") if table else None
         support_rate = _to_decimal(client_entry.get("support_rate")) if isinstance(client_entry, dict) else Decimal("0")
 
-        if (ticket.entry_type or "time").lower() == "hardware":
+        revenue = Decimal("0")
+
+        entry_type = (ticket.entry_type or "time").lower()
+
+        if entry_type == "hardware":
             totals["hardware_ticket_count"] += 1
             metrics["hardware_count"] += 1
 
@@ -148,6 +157,19 @@ def calculate_ticket_metrics(
 
             if not ticket.sent:
                 unsent_hardware_revenue += revenue
+                metrics["unsent_revenue"] += revenue
+        elif entry_type == "deployment_flat_rate":
+            totals["flat_rate_ticket_count"] += 1
+            metrics["flat_rate_count"] += 1
+
+            quantity = ticket.flat_rate_quantity or 1
+            unit_price = _to_decimal(ticket.flat_rate_amount)
+            revenue = unit_price * Decimal(quantity)
+            total_flat_rate_revenue += revenue
+            metrics["flat_rate_revenue"] += revenue
+
+            if not ticket.sent:
+                unsent_flat_rate_revenue += revenue
                 metrics["unsent_revenue"] += revenue
         else:
             totals["time_ticket_count"] += 1
@@ -173,14 +195,15 @@ def calculate_ticket_metrics(
         if not ticket.sent:
             unsent_revenue_total += revenue
 
-    revenue_total = total_time_revenue + total_hardware_revenue
+    revenue_total = total_time_revenue + total_hardware_revenue + total_flat_rate_revenue
 
     tickets_by_client = []
     revenue_by_client = []
     for data in client_metrics.values():
         time_rev = _quantize_currency(data["time_revenue"])
         hardware_rev = _quantize_currency(data["hardware_revenue"])
-        total_rev = _quantize_currency(time_rev + hardware_rev)
+        flat_rate_rev = _quantize_currency(data["flat_rate_revenue"])
+        total_rev = _quantize_currency(time_rev + hardware_rev + flat_rate_rev)
         billable_hours = _quantize_hours(data["billable_minutes"])
         unsent_rev = _quantize_currency(data["unsent_revenue"])
 
@@ -190,6 +213,7 @@ def calculate_ticket_metrics(
                 "total": data["total"],
                 "time": data["time_count"],
                 "hardware": data["hardware_count"],
+                "flat_rate": data["flat_rate_count"],
                 "open": data["open_count"],
                 "completed": data["completed_count"],
             }
@@ -199,6 +223,7 @@ def calculate_ticket_metrics(
                 "client": data["client"],
                 "time_revenue": time_rev,
                 "hardware_revenue": hardware_rev,
+                "flat_rate_revenue": flat_rate_rev,
                 "total_revenue": total_rev,
                 "billable_hours": billable_hours,
                 "unsent_revenue": unsent_rev,
@@ -225,6 +250,7 @@ def calculate_ticket_metrics(
             "billable_minutes": int(billable_minutes_total),
             "revenue_time": _quantize_currency(total_time_revenue),
             "revenue_hardware": _quantize_currency(total_hardware_revenue),
+            "revenue_flat_rate": _quantize_currency(total_flat_rate_revenue),
             "revenue_total": _quantize_currency(revenue_total),
             "average_revenue_per_ticket": _quantize_currency(
                 revenue_total / totals["tickets_total"]
@@ -241,6 +267,7 @@ def calculate_ticket_metrics(
             "unsent_revenue": _quantize_currency(unsent_revenue_total),
             "unsent_time_revenue": _quantize_currency(unsent_time_revenue),
             "unsent_hardware_revenue": _quantize_currency(unsent_hardware_revenue),
+            "unsent_flat_rate_revenue": _quantize_currency(unsent_flat_rate_revenue),
             "unsent_ticket_count": unsent_ticket_count,
             "clients_with_activity": len(client_metrics),
         }

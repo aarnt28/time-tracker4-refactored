@@ -77,6 +77,8 @@ def run_migrations(engine: Engine) -> None:
         "hardware_description": "TEXT",
         "hardware_sales_price": "TEXT",
         "hardware_quantity": "INTEGER",
+        "flat_rate_amount": "TEXT",
+        "flat_rate_quantity": "INTEGER",
         "sent": "INTEGER DEFAULT 0 NOT NULL",
         "invoiced_total": "TEXT",
         "calculated_value": "TEXT",

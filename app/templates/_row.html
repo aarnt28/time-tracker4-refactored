@@ -7,12 +7,16 @@
   <td class="mono">{{ r.rounded_minutes }}</td>
   <td class="mono">{{ r.rounded_hours|hours2d }}</td>
 
-  <td class="mono">{{ r.hardware_sales_price or '' }}</td>
+  <td class="mono">{{ r.hardware_sales_price or r.flat_rate_amount or '' }}</td>
 
   <td class="note">
     {% if r.entry_type == 'hardware' %}
       <div class="note-cell">
         <div class="note-preview"><strong>{{ r.hardware_description or '(no description)' }}</strong></div>
+      </div>
+    {% elif r.entry_type == 'deployment_flat_rate' %}
+      <div class="note-cell">
+        <div class="note-preview"><strong>Deployment Flat Rate · Qty {{ r.flat_rate_quantity or 1 }} @ {{ r.flat_rate_amount or '—' }}</strong>{% if r.note %} — {{ r.note }}{% endif %}</div>
       </div>
     {% else %}
       <div class="note-cell {% if r.note %}collapsed{% endif %}">

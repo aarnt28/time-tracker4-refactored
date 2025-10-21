@@ -70,6 +70,18 @@ def test_calculate_ticket_metrics_aggregates_revenue(db_session):
         },
     )
 
+    create_entry(
+        db_session,
+        {
+            "client_key": "client_a",
+            "client": "Client A",
+            "entry_type": "deployment_flat_rate",
+            "flat_rate_amount": "400",
+            "flat_rate_quantity": 1,
+            "start_iso": "2024-01-06T09:00:00",
+        },
+    )
+
     metrics = calculate_ticket_metrics(
         db_session,
         client_table={
@@ -80,24 +92,31 @@ def test_calculate_ticket_metrics_aggregates_revenue(db_session):
 
     assert metrics["totals"]["revenue_time"] == Decimal("600.00")
     assert metrics["totals"]["revenue_hardware"] == Decimal("1000.00")
-    assert metrics["totals"]["revenue_total"] == Decimal("1600.00")
+    assert metrics["totals"]["revenue_flat_rate"] == Decimal("400.00")
+    assert metrics["totals"]["revenue_total"] == Decimal("2000.00")
     assert metrics["totals"]["time_ticket_count"] == 2
     assert metrics["totals"]["hardware_ticket_count"] == 1
-    assert metrics["totals"]["tickets_open"] == 1  # hardware ticket remains open by default
+    assert metrics["totals"]["flat_rate_ticket_count"] == 1
+    assert metrics["totals"]["tickets_open"] == 2  # hardware + flat rate tickets remain open by default
     assert metrics["totals"]["tickets_completed"] == 2
     assert metrics["totals"]["billable_hours"] == pytest.approx(3.5)
-    assert metrics["totals"]["unsent_revenue"] == Decimal("1300.00")
-    assert metrics["totals"]["unsent_ticket_count"] == 2
+    assert metrics["totals"]["unsent_revenue"] == Decimal("1700.00")
+    assert metrics["totals"]["unsent_time_revenue"] == Decimal("300.00")
+    assert metrics["totals"]["unsent_hardware_revenue"] == Decimal("1000.00")
+    assert metrics["totals"]["unsent_flat_rate_revenue"] == Decimal("400.00")
+    assert metrics["totals"]["unsent_ticket_count"] == 3
 
     tickets_by_client = metrics["tickets_by_client"]
     assert tickets_by_client[0]["client"] == "Client A"
-    assert tickets_by_client[0]["total"] == 2
+    assert tickets_by_client[0]["total"] == 3
     assert tickets_by_client[0]["hardware"] == 1
+    assert tickets_by_client[0]["flat_rate"] == 1
 
     revenue_by_client = metrics["revenue_by_client"]
     assert revenue_by_client[0]["client"] == "Client A"
-    assert revenue_by_client[0]["total_revenue"] == Decimal("1300.00")
-    assert revenue_by_client[0]["unsent_revenue"] == Decimal("1300.00")
+    assert revenue_by_client[0]["flat_rate_revenue"] == Decimal("400.00")
+    assert revenue_by_client[0]["total_revenue"] == Decimal("1700.00")
+    assert revenue_by_client[0]["unsent_revenue"] == Decimal("1700.00")
 
     assert metrics["top_hardware_items"][0]["description"] == "Firewall Appliance"
     assert metrics["top_hardware_items"][0]["quantity"] == 2

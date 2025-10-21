@@ -132,7 +132,7 @@
       <article class="summary-card">
         <span class="summary-card__kicker">Total revenue</span>
         <span class="summary-card__value">{{ metrics.totals.revenue_total | fmt_currency }}</span>
-        <p class="summary-card__meta">Time: {{ metrics.totals.revenue_time | fmt_currency }} · Hardware: {{ metrics.totals.revenue_hardware | fmt_currency }}</p>
+        <p class="summary-card__meta">Time: {{ metrics.totals.revenue_time | fmt_currency }} · Hardware: {{ metrics.totals.revenue_hardware | fmt_currency }} · Flat Rate: {{ metrics.totals.revenue_flat_rate | fmt_currency }}</p>
       </article>
       <article class="summary-card">
         <span class="summary-card__kicker">Billable hours</span>
@@ -147,7 +147,7 @@
       <article class="summary-card">
         <span class="summary-card__kicker">Ticket mix</span>
         <span class="summary-card__value">{{ metrics.totals.tickets_total }}</span>
-        <p class="summary-card__meta">Time: {{ metrics.totals.time_ticket_count }} · Hardware: {{ metrics.totals.hardware_ticket_count }} · Open: {{ metrics.totals.tickets_open }}</p>
+        <p class="summary-card__meta">Time: {{ metrics.totals.time_ticket_count }} · Hardware: {{ metrics.totals.hardware_ticket_count }} · Flat Rate: {{ metrics.totals.flat_rate_ticket_count }} · Open: {{ metrics.totals.tickets_open }}</p>
       </article>
       <article class="summary-card">
         <span class="summary-card__kicker">Average revenue per ticket</span>
@@ -170,6 +170,7 @@
               <th class="mono">Billable Hours</th>
               <th class="mono">Time Revenue</th>
               <th class="mono">Hardware Revenue</th>
+              <th class="mono">Flat Rate Revenue</th>
               <th class="mono">Total Revenue</th>
               <th class="mono">Outstanding</th>
             </tr>
@@ -181,6 +182,7 @@
               <td class="mono">{{ '%.2f'|format(row.billable_hours) }}</td>
               <td class="mono">{{ row.time_revenue | fmt_currency }}</td>
               <td class="mono">{{ row.hardware_revenue | fmt_currency }}</td>
+              <td class="mono">{{ row.flat_rate_revenue | fmt_currency }}</td>
               <td class="mono">{{ row.total_revenue | fmt_currency }}</td>
               <td class="mono">{{ row.unsent_revenue | fmt_currency }}</td>
             </tr>
@@ -196,7 +198,7 @@
     <section class="reports-section">
       <header class="reports-section__header">
         <h3 class="reports-section__title">Ticket volume by client</h3>
-        <p class="reports-section__lede">Track where your team spends time and which clients rely on hardware versus labor.</p>
+        <p class="reports-section__lede">Track where your team spends time and which clients rely on hardware or flat-rate deployments.</p>
       </header>
       {% if metrics.tickets_by_client %}
       <div class="table-scroll">
@@ -207,6 +209,7 @@
               <th class="mono">Total Tickets</th>
               <th class="mono">Time</th>
               <th class="mono">Hardware</th>
+              <th class="mono">Flat Rate</th>
               <th class="mono">Open</th>
               <th class="mono">Completed</th>
             </tr>
@@ -218,6 +221,7 @@
               <td class="mono">{{ row.total }}</td>
               <td class="mono">{{ row.time }}</td>
               <td class="mono">{{ row.hardware }}</td>
+              <td class="mono">{{ row.flat_rate }}</td>
               <td class="mono">{{ row.open }}</td>
               <td class="mono">{{ row.completed }}</td>
             </tr>

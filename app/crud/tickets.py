@@ -82,7 +82,7 @@ def list_tickets(db: Session, limit: int = 100, offset: int = 0):
 def list_active_tickets(db: Session, client_key: str | None = None, limit: int = 100, offset: int = 0):
     stmt = select(Ticket).where(
         Ticket.end_iso.is_(None),
-        or_(Ticket.entry_type.is_(None), Ticket.entry_type != "hardware"),
+        or_(Ticket.entry_type.is_(None), Ticket.entry_type == "time"),
     )
     if client_key:
         stmt = stmt.where(Ticket.client_key == client_key)
@@ -176,6 +176,17 @@ def _calculate_ticket_amount(ticket: Ticket, table: dict | None = None) -> Decim
         if unit_price is None:
             return None
         quantity = ticket.hardware_quantity or 1
+        try:
+            quantity_decimal = Decimal(int(quantity))
+        except (TypeError, ValueError, InvalidOperation):
+            quantity_decimal = Decimal(1)
+        return unit_price * quantity_decimal
+
+    if entry_type == "deployment_flat_rate":
+        unit_price = _to_decimal(ticket.flat_rate_amount)
+        if unit_price is None:
+            return None
+        quantity = ticket.flat_rate_quantity or 1
         try:
             quantity_decimal = Decimal(int(quantity))
         except (TypeError, ValueError, InvalidOperation):
@@ -284,6 +295,31 @@ def _apply_hardware_link(db: Session, t: Ticket, payload: dict) -> None:
     t.hardware_quantity = qty_int
 
 
+def _apply_flat_rate_fields(t: Ticket, payload: dict) -> None:
+    if payload.get("entry_type", t.entry_type) != "deployment_flat_rate":
+        t.flat_rate_amount = None
+        t.flat_rate_quantity = None
+        return
+
+    amount_source = payload.get("flat_rate_amount", t.flat_rate_amount)
+    normalized_amount = _normalize_currency_input(amount_source)
+    if not normalized_amount:
+        raise ValueError("flat_rate_amount is required for deployment flat rate tickets")
+
+    quantity_value = payload.get("flat_rate_quantity")
+    if quantity_value is None:
+        quantity_value = t.flat_rate_quantity if t.flat_rate_quantity else 1
+    try:
+        qty_int = int(quantity_value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("flat_rate_quantity must be a positive integer") from exc
+    if qty_int <= 0:
+        raise ValueError("flat_rate_quantity must be a positive integer")
+
+    t.flat_rate_amount = normalized_amount
+    t.flat_rate_quantity = qty_int
+
+
 def _apply_client_link(t: Ticket, payload: dict) -> None:
     client_key = payload.get("client_key", t.client_key)
     if not client_key:
@@ -325,6 +361,7 @@ def create_entry(db: Session, payload: dict) -> Ticket:
     _apply_client_link(t, payload)
     _apply_time_math(t, payload)
     _apply_hardware_link(db, t, payload)
+    _apply_flat_rate_fields(t, payload)
     _ensure_calculated_fields(t, initialize_invoice=True)
     db.add(t)
     db.commit()
@@ -365,8 +402,21 @@ def update_ticket(db: Session, t: Ticket, payload: dict) -> Ticket:
         setattr(t, k, v)
     if any(k in payload for k in ("start_iso", "end_iso")):
         _apply_time_math(t, payload)
-    if any(k in payload for k in ("entry_type", "hardware_id", "hardware_barcode", "hardware_quantity", "hardware_sales_price", "hardware_description")):
+    if any(
+        k in payload
+        for k in (
+            "entry_type",
+            "hardware_id",
+            "hardware_barcode",
+            "hardware_quantity",
+            "hardware_sales_price",
+            "hardware_description",
+            "flat_rate_amount",
+            "flat_rate_quantity",
+        )
+    ):
         _apply_hardware_link(db, t, payload)
+        _apply_flat_rate_fields(t, payload)
     initialize_invoice = not (isinstance(t.invoiced_total, str) and t.invoiced_total.strip())
     _ensure_calculated_fields(t, initialize_invoice=initialize_invoice)
     db.commit()
