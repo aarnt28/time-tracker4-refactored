@@ -59,6 +59,19 @@ def test_list_active_tickets_excludes_hardware_entries(db_session):
         },
     )
 
+    # Deployment flat rate entries should also be excluded from the active listing
+    create_entry(
+        db_session,
+        {
+            "client_key": "client_d",
+            "client": "Client D",
+            "entry_type": "deployment_flat_rate",
+            "flat_rate_amount": "600",
+            "flat_rate_quantity": 2,
+            "start_iso": "2024-01-04T09:00:00",
+        },
+    )
+
     closed_time_ticket = create_entry(
         db_session,
         {
@@ -74,6 +87,25 @@ def test_list_active_tickets_excludes_hardware_entries(db_session):
     active = list_active_tickets(db_session)
 
     assert [ticket.id for ticket in active] == [open_time_ticket.id]
+
+
+def test_create_deployment_flat_rate_ticket(db_session):
+    ticket = create_entry(
+        db_session,
+        {
+            "client_key": "client_flat",
+            "client": "Client Flat",
+            "entry_type": "deployment_flat_rate",
+            "flat_rate_amount": "750",
+            "flat_rate_quantity": 3,
+            "start_iso": "2024-03-05T09:00:00",
+        },
+    )
+
+    assert ticket.entry_type == "deployment_flat_rate"
+    assert ticket.flat_rate_amount == "750.00"
+    assert ticket.flat_rate_quantity == 3
+    assert ticket.calculated_value == "2250.00"
 
 
 def test_contract_client_note_prefix_added(db_session):

@@ -335,8 +335,8 @@
               <th class="mono" data-column-key="minutes" data-sort-type="number" tabindex="0">Minutes</th>
               <th class="mono" data-column-key="rounded_hours" data-sort-type="number" tabindex="0">Rounded Hrs</th>
               <th class="mono" data-column-key="entry_type" data-sort-type="text" tabindex="0">Type</th>
-              <th class="mono" data-column-key="hardware_price" data-sort-type="currency" tabindex="0">Hardware Price</th>
-              <th data-column-key="notes" data-sort-type="text" tabindex="0">Notes / Hardware</th>
+              <th class="mono" data-column-key="unit_price" data-sort-type="currency" tabindex="0">Unit Price</th>
+              <th data-column-key="notes" data-sort-type="text" tabindex="0">Notes / Details</th>
               <th class="mono" data-column-key="invoice_number" data-sort-type="text" tabindex="0">Invoice</th>
               <th class="mono" data-column-key="invoiced_total" data-sort-type="currency" tabindex="0">Invoiced Total</th>
               <th class="mono" data-column-key="calculated_value" data-sort-type="currency" tabindex="0">Calculated Value</th>
@@ -429,6 +429,8 @@
 
               <option value="hardware">hardware</option>
 
+              <option value="deployment_flat_rate">Deployment Flat Rate</option>
+
             </select>
 
           </label>
@@ -450,9 +452,12 @@
           <label id="hardware-sales-price-wrap" style="display:none;">Hardware Sales Price<input name="hardware_sales_price" class="mono" /></label>
           <label id="hardware-quantity-wrap" style="display:none;">Quantity<input name="hardware_quantity" type="number" min="1" class="mono" value="1" /></label>
 
+          <label id="flat-rate-amount-wrap" style="display:none;">Flat Rate Amount<input name="flat_rate_amount" class="mono" /></label>
+          <label id="flat-rate-quantity-wrap" style="display:none;">Flat Rate Quantity<input name="flat_rate_quantity" type="number" min="1" class="mono" value="1" /></label>
+
           <label>Start<input name="start_iso" type="datetime-local" class="mono" required /></label>
 
-          <label>End<input name="end_iso" type="datetime-local" class="mono" /></label>
+          <label id="end-time-wrap">End<input name="end_iso" type="datetime-local" class="mono" /></label>
 
           <label>Invoice #<input name="invoice_number" class="mono" /></label>
           <label>Invoiced Total<input name="invoiced_total" class="mono" /></label>
@@ -626,6 +631,10 @@
 
     const hardwareQuantityField = form.elements.hardware_quantity;
 
+    const flatRateAmountField = form.elements.flat_rate_amount;
+
+    const flatRateQuantityField = form.elements.flat_rate_quantity;
+
     const invoicedTotalField = form.elements.invoiced_total;
 
     const calculatedValueField = form.elements.calculated_value;
@@ -637,6 +646,16 @@
     const hardwareSalesPriceWrap = document.getElementById('hardware-sales-price-wrap');
 
     const hardwareQuantityWrap = document.getElementById('hardware-quantity-wrap');
+
+    const flatRateAmountWrap = document.getElementById('flat-rate-amount-wrap');
+
+    const flatRateQuantityWrap = document.getElementById('flat-rate-quantity-wrap');
+
+    const startField = form.elements.start_iso;
+
+    const endField = form.elements.end_iso;
+
+    const endTimeWrap = document.getElementById('end-time-wrap');
 
     const attachmentsSection = document.getElementById('ticket-attachments-section');
 
@@ -679,8 +698,8 @@
       { key: 'minutes', label: 'Minutes', sortType: 'number' },
       { key: 'rounded_hours', label: 'Rounded Hrs', sortType: 'number' },
       { key: 'entry_type', label: 'Type', sortType: 'text' },
-      { key: 'hardware_price', label: 'Hardware Price', sortType: 'currency' },
-      { key: 'notes', label: 'Notes / Hardware', sortType: 'text' },
+      { key: 'unit_price', label: 'Unit Price', sortType: 'currency' },
+      { key: 'notes', label: 'Notes / Details', sortType: 'text' },
       { key: 'invoice_number', label: 'Invoice', sortType: 'text' },
       { key: 'invoiced_total', label: 'Invoiced Total', sortType: 'currency' },
       { key: 'calculated_value', label: 'Calculated Value', sortType: 'currency' },
@@ -1450,19 +1469,23 @@
 
     }
 
-    function updateHardwareFieldVisibility(){
+    function updateEntryTypeFieldVisibility(){
 
-      const isHardware = entryTypeField.value === 'hardware';
+      const entryType = entryTypeField.value;
 
-      const display = isHardware ? '' : 'none';
+      const isHardware = entryType === 'hardware';
 
-      hardwareBarcodeWrap.style.display = display;
+      const isFlatRate = entryType === 'deployment_flat_rate';
 
-      hardwareDescriptionWrap.style.display = display;
+      const hardwareDisplay = isHardware ? '' : 'none';
 
-      hardwareSalesPriceWrap.style.display = display;
+      hardwareBarcodeWrap.style.display = hardwareDisplay;
 
-      if (hardwareQuantityWrap) hardwareQuantityWrap.style.display = display;
+      hardwareDescriptionWrap.style.display = hardwareDisplay;
+
+      hardwareSalesPriceWrap.style.display = hardwareDisplay;
+
+      if (hardwareQuantityWrap) hardwareQuantityWrap.style.display = hardwareDisplay;
 
       hardwareBarcodeField.disabled = !isHardware;
 
@@ -1486,6 +1509,46 @@
 
         hardwareIdField.value = '';
 
+      }
+
+      const flatDisplay = isFlatRate ? '' : 'none';
+
+      if (flatRateAmountWrap) flatRateAmountWrap.style.display = flatDisplay;
+
+      if (flatRateQuantityWrap) flatRateQuantityWrap.style.display = flatDisplay;
+
+      if (flatRateAmountField){
+        flatRateAmountField.disabled = !isFlatRate;
+        if (!isFlatRate){
+          flatRateAmountField.value = '';
+        }
+      }
+
+      if (flatRateQuantityField){
+        flatRateQuantityField.disabled = !isFlatRate;
+        if (isFlatRate && !flatRateQuantityField.value){
+          flatRateQuantityField.value = '1';
+        }
+        if (!isFlatRate){
+          flatRateQuantityField.value = '1';
+        }
+      }
+
+      if (endTimeWrap){
+        endTimeWrap.style.display = isFlatRate ? 'none' : '';
+      }
+
+      if (endField){
+        if (isFlatRate){
+          endField.disabled = true;
+          if (startField && startField.value){
+            endField.value = startField.value;
+          } else {
+            endField.value = '';
+          }
+        } else {
+          endField.disabled = false;
+        }
       }
 
     }
@@ -1590,7 +1653,7 @@
 
       document.querySelectorAll('#ticket-rows .note').forEach(cell => {
 
-        if (cell.dataset.isHardware === '1') return;
+        if (cell.dataset.isHardware === '1' || cell.dataset.isFlatRate === '1') return;
 
         const btn = cell.querySelector('.note-preview-btn');
 
@@ -1746,6 +1809,19 @@
         }
       }
 
+      if (elements.flat_rate_amount){
+        elements.flat_rate_amount.value = data.flat_rate_amount ?? '';
+      }
+
+      if (elements.flat_rate_quantity){
+        const flatRateQuantity = data.flat_rate_quantity ? Number.parseInt(data.flat_rate_quantity, 10) : data.flat_rate_quantity;
+        if (Number.isFinite(flatRateQuantity)){
+          elements.flat_rate_quantity.value = String(flatRateQuantity);
+        } else {
+          elements.flat_rate_quantity.value = data.flat_rate_quantity ? String(data.flat_rate_quantity) : '1';
+        }
+      }
+
       elements.start_iso.value = toLocalInput(data.start_iso) || '';
 
       elements.end_iso.value = toLocalInput(data.end_iso) || '';
@@ -1804,7 +1880,7 @@
 
       renderAttachmentList();
 
-      updateHardwareFieldVisibility();
+      updateEntryTypeFieldVisibility();
 
       applyHardwareSelection({ preserveDetails: true });
 
@@ -1868,7 +1944,7 @@
 
         });
 
-        updateHardwareFieldVisibility();
+        updateEntryTypeFieldVisibility();
 
         updateHardwareSnapshot();
 
@@ -2038,7 +2114,7 @@
 
     entryTypeField.addEventListener('change', async ()=>{
 
-      updateHardwareFieldVisibility();
+      updateEntryTypeFieldVisibility();
 
       if (entryTypeField.value === 'hardware'){
 
@@ -2051,6 +2127,14 @@
       updateHardwareSnapshot();
 
     });
+
+    if (startField && endField){
+      startField.addEventListener('input', ()=>{
+        if (entryTypeField.value === 'deployment_flat_rate'){
+          endField.value = startField.value;
+        }
+      });
+    }
 
     hardwareBarcodeField.addEventListener('change', ()=>{
 
@@ -2153,6 +2237,32 @@
           }
         }
 
+        payload.flat_rate_amount = null;
+        payload.flat_rate_quantity = null;
+
+      } else if (entryType === 'deployment_flat_rate'){
+
+        payload.hardware_barcode = null;
+
+        payload.hardware_id = null;
+
+        payload.hardware_description = null;
+
+        payload.hardware_sales_price = null;
+
+        payload.hardware_quantity = null;
+
+        const flatRateValue = flatRateAmountField ? (flatRateAmountField.value || '').trim() : '';
+
+        payload.flat_rate_amount = flatRateValue || null;
+
+        if (flatRateQuantityField){
+          const flatQty = Number.parseInt(flatRateQuantityField.value, 10);
+          if (!Number.isNaN(flatQty)){
+            payload.flat_rate_quantity = flatQty;
+          }
+        }
+
       } else {
 
         payload.hardware_barcode = null;
@@ -2164,6 +2274,10 @@
         payload.hardware_sales_price = null;
 
         payload.hardware_quantity = null;
+
+        payload.flat_rate_amount = null;
+
+        payload.flat_rate_quantity = null;
 
       }
 

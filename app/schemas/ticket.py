@@ -7,12 +7,14 @@ class EntryBase(BaseModel):
     client: Optional[str] = None
     client_key: str
     note: Optional[str] = None
-    entry_type: str = Field(default="time", pattern="^(time|hardware)$")
+    entry_type: str = Field(default="time", pattern="^(time|hardware|deployment_flat_rate)$")
     hardware_id: Optional[int] = None  # when entry_type == 'hardware'
     hardware_barcode: Optional[str] = None
     hardware_quantity: Optional[int] = Field(default=None, ge=1)
     hardware_description: Optional[str] = None
     hardware_sales_price: Optional[str] = None
+    flat_rate_amount: Optional[str] = None
+    flat_rate_quantity: Optional[int] = Field(default=None, ge=1)
 
 
 class EntryCreate(EntryBase):
@@ -33,12 +35,14 @@ class EntryUpdate(BaseModel):
     sent: Optional[int] = None
     invoice_number: Optional[str] = None
     invoiced_total: Optional[str] = None
-    entry_type: Optional[str] = Field(default=None, pattern="^(time|hardware)$")
+    entry_type: Optional[str] = Field(default=None, pattern="^(time|hardware|deployment_flat_rate)$")
     hardware_id: Optional[int] = None
     hardware_barcode: Optional[str] = None
     hardware_quantity: Optional[int] = Field(default=None, ge=1)
     hardware_description: Optional[str] = None
     hardware_sales_price: Optional[str] = None
+    flat_rate_amount: Optional[str] = None
+    flat_rate_quantity: Optional[int] = Field(default=None, ge=1)
 
 
 class TicketAttachment(BaseModel):
@@ -75,6 +79,8 @@ class EntryOut(BaseModel):
     hardware_description: Optional[str] = None
     hardware_sales_price: Optional[str] = None
     hardware_quantity: Optional[int] = None
+    flat_rate_amount: Optional[str] = None
+    flat_rate_quantity: Optional[int] = None
     calculated_value: Optional[str] = None
     attachments: list[TicketAttachment] = Field(default_factory=list)
 
