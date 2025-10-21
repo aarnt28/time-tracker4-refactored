@@ -11,12 +11,20 @@
   <td class="mono hide-mobile" data-column-key="end" data-label="End" data-sort-value="{{ r.end_iso or '' }}">{{ r.end_iso | fmt_dt }}</td>
   <td class="mono" data-column-key="minutes" data-label="Minutes" data-sort-value="{{ r.minutes }}">{{ r.minutes }}</td>
   <td class="mono" data-column-key="rounded_hours" data-label="Rounded Hrs" data-sort-value="{{ r.rounded_hours }}">{{ r.rounded_hours }}</td>
-  <td class="mono" data-column-key="entry_type" data-label="Type" data-sort-value="{{ r.entry_type }}">{{ r.entry_type }}</td>
-  <td class="mono" data-column-key="hardware_price" data-label="Hardware Price" data-sort-value="{{ r.hardware_sales_price or '' }}">{{ r.hardware_sales_price or '' }}</td>
-  <td class="note" data-column-key="notes" data-label="Notes / Hardware" data-full-note="{{ (r.note or '')|escape }}" data-is-hardware="{{ 1 if r.entry_type == 'hardware' else 0 }}">
+  <td class="mono" data-column-key="entry_type" data-label="Type" data-sort-value="{{ r.entry_type }}">
+    {% if r.entry_type == 'deployment_flat_rate' %}
+      Deployment Flat Rate
+    {% else %}
+      {{ r.entry_type }}
+    {% endif %}
+  </td>
+  <td class="mono" data-column-key="unit_price" data-label="Unit Price" data-sort-value="{{ r.hardware_sales_price or r.flat_rate_amount or '' }}">{{ r.hardware_sales_price or r.flat_rate_amount or '' }}</td>
+  <td class="note" data-column-key="notes" data-label="Notes / Details" data-full-note="{{ (r.note or '')|escape }}" data-is-hardware="{{ 1 if r.entry_type == 'hardware' else 0 }}" data-is-flat-rate="{{ 1 if r.entry_type == 'deployment_flat_rate' else 0 }}">
     <button class="note-preview-btn" type="button">
       {% if r.entry_type == 'hardware' %}
         <strong>{{ r.hardware_description or '(no description)' }}</strong>
+      {% elif r.entry_type == 'deployment_flat_rate' %}
+        <strong>Deployment Flat Rate · Qty {{ r.flat_rate_quantity or 1 }} @ {{ r.flat_rate_amount or '—' }}</strong>{% if r.note %} — {{ r.note }}{% endif %}
       {% else %}
         {{ r.note or '' }}
       {% endif %}

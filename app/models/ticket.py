@@ -22,13 +22,17 @@ class Ticket(Base):
     invoice_number = Column(Text, nullable=True)
     created_at = Column(Text, nullable=False)
     minutes = Column(Integer, nullable=False, default=0)
-    entry_type = Column(Text, nullable=False, default="time")  # 'time' or 'hardware'
+    entry_type = Column(Text, nullable=False, default="time")
 
     # Link & snapshot when entry_type == 'hardware'
     hardware_id = Column(Integer, nullable=True, index=True)
     hardware_description = Column(Text, nullable=True)
     hardware_sales_price = Column(Text, nullable=True)
     hardware_quantity = Column(Integer, nullable=True, default=1)
+
+    # Deployment flat rate metadata
+    flat_rate_amount = Column(Text, nullable=True)
+    flat_rate_quantity = Column(Integer, nullable=True, default=1)
     invoiced_total = Column(Text, nullable=True)
     calculated_value = Column(Text, nullable=True)
     attachments_blob = Column("attachments", Text, nullable=True)
