@@ -288,5 +288,24 @@
   },
   "wheel": {
     "name": "Wheel Repair Solutions"
+  },
+  "frisco_peds": {
+    "name": "Frisco Pediatric Dentistry",
+    "address_line1": "5225 Independence Pkwy",
+    "address_line2": "Suite 300",
+    "city": "Frisco",
+    "state": "TX",
+    "postal_code": "75035",
+    "support_hours_allowance": "",
+    "primary_contact_name": "Dr. Diane Lide",
+    "primary_contact_phone": "(972) 377-8444",
+    "primary_contact_email": "diane.lide@att.net",
+    "office_manager_name": "",
+    "office_manager_phone": "",
+    "office_manager_email": "",
+    "contract": "",
+    "former_practices": "",
+    "owner": "Dr. Diane Lide",
+    "support_rate": "150"
   }
 }
