@@ -49,6 +49,15 @@
         </table>
       </div>
     </section>
+    <section id="clients-map-section" class="clients-map" aria-live="polite">
+      <div class="clients-map__header">
+        <h2 class="clients-map__title">Client Locations</h2>
+        <p id="clients-map-status" class="clients-map__status">
+          Add client addresses to see them on the map.
+        </p>
+      </div>
+      <div id="clients-map-canvas" class="clients-map__canvas" role="presentation" style="display:none;"></div>
+    </section>
   </main>
 
   <!-- Edit modal -->
@@ -137,6 +146,15 @@ const COLUMN_STORAGE_KEY = 'clients_table_columns_v1';
 let availableTableColumns = BASE_TABLE_COLUMNS.slice();
 let visibleColumnKeys = new Set(BASE_TABLE_COLUMNS.filter((col) => col.defaultVisible !== false).map((col) => col.key));
 let latestTablePayload = null;
+const clientsMapSection = document.getElementById('clients-map-section');
+const clientsMapStatus = document.getElementById('clients-map-status');
+const clientsMapCanvas = document.getElementById('clients-map-canvas');
+let clientsMapInstance = null;
+let clientsMapMarkers = [];
+let clientsMapInfoWindow = null;
+let clientsMapGeocoder = null;
+let clientsMapRequestId = 0;
+const clientsMapGeocodeCache = new Map();
 
 function getApiToken(){ return window.localStorage.getItem('api_token') || ''; }
 function setApiToken(t){ if (t) window.localStorage.setItem('api_token', t); }
@@ -229,6 +247,18 @@ function formatCellValue(value){
   return String(value);
 }
 
+function escapeHtml(value){
+  const str = value == null ? '' : String(value);
+  const replacements = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  };
+  return str.replace(/[&<>"']/g, (char) => replacements[char] || char);
+}
+
 function normalizeTel(value){
   return value.replace(/[^0-9+#*]/g, '');
 }
@@ -272,6 +302,171 @@ function loadGoogleMaps(){
     document.head.appendChild(script);
   });
   return googleMapsLoaderPromise;
+}
+
+function hasClientMapAddress(entry){
+  if (!entry) return false;
+  const parts = [
+    entry.address_line1,
+    entry.city,
+    entry.state,
+    entry.postal_code
+  ].map((part) => (part == null ? '' : String(part).trim())).filter(Boolean);
+  return parts.length >= 2;
+}
+
+function buildClientMapAddress(entry){
+  if (!entry) return '';
+  const parts = [];
+  if (entry.address_line1) parts.push(entry.address_line1);
+  if (entry.address_line2) parts.push(entry.address_line2);
+  const cityState = [entry.city, entry.state].filter((value) => !!value).join(', ');
+  if (cityState) parts.push(cityState);
+  if (entry.postal_code) parts.push(entry.postal_code);
+  return parts.join(', ');
+}
+
+function clearClientsMapMarkers(){
+  if (!clientsMapMarkers.length) return;
+  clientsMapMarkers.forEach((marker) => {
+    try {
+      marker.setMap(null);
+    } catch (err) {
+      console.warn('Failed to clear client map marker', err);
+    }
+  });
+  clientsMapMarkers = [];
+  if (clientsMapInfoWindow){
+    clientsMapInfoWindow.close();
+  }
+}
+
+async function refreshClientsMap(tableData){
+  if (!clientsMapSection || !clientsMapStatus || !clientsMapCanvas){
+    return;
+  }
+  if (!GOOGLE_MAPS_API_KEY){
+    clientsMapSection.classList.add('clients-map--disabled');
+    clientsMapStatus.textContent = 'Set the GOOGLE_MAPS_API_KEY environment variable to enable the client locations map.';
+    clientsMapCanvas.style.display = 'none';
+    clearClientsMapMarkers();
+    return;
+  }
+  clientsMapSection.classList.remove('clients-map--disabled');
+  const entries = Object.entries(tableData || {}).map(([clientKey, entry]) => ({
+    clientKey,
+    entry: entry || {}
+  }));
+  const mappable = entries.filter(({ entry }) => hasClientMapAddress(entry));
+  if (!mappable.length){
+    clearClientsMapMarkers();
+    clientsMapCanvas.style.display = 'none';
+    clientsMapStatus.textContent = 'No client addresses available yet.';
+    return;
+  }
+  const requestId = ++clientsMapRequestId;
+  clientsMapStatus.textContent = 'Loading client locations…';
+  try {
+    const maps = await loadGoogleMaps();
+    if (clientsMapRequestId !== requestId) return;
+    if (!clientsMapGeocoder){
+      clientsMapGeocoder = new maps.Geocoder();
+    }
+    const located = [];
+    const unmatched = [];
+    for (const item of mappable){
+      const address = buildClientMapAddress(item.entry);
+      if (!address){
+        unmatched.push(item);
+        continue;
+      }
+      let cached = clientsMapGeocodeCache.get(address);
+      if (cached === undefined){
+        cached = await new Promise((resolve) => {
+          clientsMapGeocoder.geocode({ address }, (results, status) => {
+            if (status === 'OK' && results && results.length){
+              const result = results[0];
+              resolve({
+                location: result.geometry && result.geometry.location,
+                formattedAddress: result.formatted_address || address
+              });
+            } else {
+              resolve(null);
+            }
+          });
+        });
+        clientsMapGeocodeCache.set(address, cached);
+      }
+      if (clientsMapRequestId !== requestId) return;
+      if (cached && cached.location){
+        located.push({
+          clientKey: item.clientKey,
+          name: item.entry.name || item.clientKey,
+          address: cached.formattedAddress || address,
+          location: cached.location
+        });
+      } else {
+        unmatched.push(item);
+      }
+    }
+    if (clientsMapRequestId !== requestId) return;
+    if (!located.length){
+      clearClientsMapMarkers();
+      clientsMapCanvas.style.display = 'none';
+      clientsMapStatus.textContent = 'Google Maps could not locate any client addresses yet.';
+      return;
+    }
+    clientsMapCanvas.style.display = 'block';
+    if (!clientsMapInstance){
+      clientsMapInstance = new maps.Map(clientsMapCanvas, {
+        center: located[0].location,
+        zoom: located.length === 1 ? 14 : 10,
+        mapTypeControl: false,
+        streetViewControl: false,
+        fullscreenControl: false
+      });
+    } else {
+      clientsMapInstance.setCenter(located[0].location);
+    }
+    clearClientsMapMarkers();
+    if (!clientsMapInfoWindow){
+      clientsMapInfoWindow = new maps.InfoWindow();
+    } else {
+      clientsMapInfoWindow.close();
+    }
+    const bounds = new maps.LatLngBounds();
+    located.forEach((item) => {
+      const marker = new maps.Marker({
+        map: clientsMapInstance,
+        position: item.location,
+        title: item.name
+      });
+      marker.addListener('click', () => {
+        clientsMapInfoWindow.setContent(
+          `<div class="clients-map__infowindow"><strong>${escapeHtml(item.name)}</strong><div>${escapeHtml(item.address)}</div></div>`
+        );
+        clientsMapInfoWindow.open({ anchor: marker, map: clientsMapInstance, shouldFocus: false });
+      });
+      clientsMapMarkers.push(marker);
+      if (item.location) bounds.extend(item.location);
+    });
+    if (located.length > 1){
+      clientsMapInstance.fitBounds(bounds);
+    } else {
+      clientsMapInstance.setZoom(14);
+    }
+    let statusMessage = `Showing ${located.length} client location${located.length === 1 ? '' : 's'}.`;
+    if (unmatched.length){
+      statusMessage += ` ${unmatched.length} address${unmatched.length === 1 ? '' : 'es'} could not be located.`;
+    }
+    clientsMapStatus.textContent = statusMessage;
+  } catch (err) {
+    if (clientsMapRequestId !== requestId) return;
+    console.warn('Failed to refresh client map', err);
+    clearClientsMapMarkers();
+    clientsMapCanvas.style.display = 'none';
+    clientsMapStatus.textContent = 'Google Maps is unavailable. Check your API key and connectivity.';
+  }
 }
 
 function attachQuickLink(def, input){
@@ -672,6 +867,7 @@ function renderTable(data){
   });
 
   renderColumnsOptions();
+  Promise.resolve(refreshClientsMap(tableData)).catch((err) => console.warn('Client map refresh failed', err));
 }
 
 function loadTable(){
