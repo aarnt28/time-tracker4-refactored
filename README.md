@@ -146,6 +146,160 @@ underlying Pydantic schemas.
 * `422 Unprocessable Entity` – validation failed (missing required fields,
   invalid enum value, etc.).
 
+### Mobile integration data models
+
+The mobile API uses JSON payloads. When building a Swift client, set
+`Content-Type: application/json` for request bodies (except file uploads) and
+include the `X-API-Key` header with the same token configured on the server.
+Timestamps are ISO 8601 strings. Monetary values are returned as strings so the
+backend can preserve the formatting that the web UI expects.
+
+#### Ticket payloads
+
+**Create request (`POST /api/v1/tickets`)** – body validated by
+`EntryCreate`/`EntryBase`.
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `client` | `String?` | No | Human readable client name; the API will fall back to the value stored for the `client_key` if omitted. |
+| `client_key` | `String` | Yes | Lookup key from the client table JSON. |
+| `start_iso` | `String` | Yes | Start timestamp, ISO 8601 string. |
+| `end_iso` | `String?` | No | End timestamp; omit or set `null` while a ticket is active. |
+| `note` | `String?` | No | Markdown/plain text body for the entry. |
+| `entry_type` | `String` | No | Defaults to `"time"`. Allowed values: `time`, `hardware`, `deployment_flat_rate`. |
+| `hardware_id` | `Int?` | No | Numeric hardware FK when logging a hardware sale (required with `entry_type = hardware`). |
+| `hardware_barcode` | `String?` | No | Snapshot of the barcode; send if you want the record to reflect the barcode even if the hardware ID changes. |
+| `hardware_quantity` | `Int?` | No | Quantity sold/used; must be ≥ 1. |
+| `hardware_description` | `String?` | No | Snapshot description for hardware entries. |
+| `hardware_sales_price` | `String?` | No | Currency string per unit for hardware entries. |
+| `flat_rate_amount` | `String?` | No | Currency string when `entry_type = deployment_flat_rate`. |
+| `flat_rate_quantity` | `Int?` | No | Multiplier for flat rate entries; must be ≥ 1 when provided. |
+| `invoice_number` | `String?` | No | Optional invoice reference. |
+| `sent` | `Int?` | No | Defaults to `0`. Use `1` to mark an entry as invoiced/emailed. |
+| `invoiced_total` | `String?` | No | Optional override for the billed total. |
+
+**Update request (`PATCH /api/v1/tickets/{id}`)** – body validated by
+`EntryUpdate`. All fields above become optional and may be omitted when not
+changing.
+
+**Ticket response (`EntryOut`)** – returned by read, create, update calls.
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `id` | `Int` | Primary key. |
+| `client` / `client_key` | `String` | Display name and lookup key. |
+| `start_iso` / `end_iso` | `String` / `String?` | Raw timestamps stored in the database. |
+| `elapsed_minutes` | `Int` | Actual minutes between `start_iso` and `end_iso`. |
+| `rounded_minutes` / `rounded_hours` | `Int` / `String` | Rounded values based on the client’s billing increment. |
+| `note`, `completed`, `sent`, `invoice_number`, `invoiced_total` | Various | Mirror the stored attributes. |
+| `created_at` | `String` | ISO 8601 creation timestamp. |
+| `minutes` | `Int` | Persisted working minutes for the entry. |
+| `entry_type` | `String` | Echoes the entry classification. |
+| `hardware_id`, `hardware_barcode`, `hardware_description`, `hardware_sales_price`, `hardware_quantity` | Optional fields | Present for hardware sales. |
+| `flat_rate_amount`, `flat_rate_quantity` | Optional fields | Present for deployment flat-rate tickets. |
+| `calculated_value` | `String?` | Server-calculated billing amount (rounded and formatted). |
+| `attachments` | `[TicketAttachment]` | Ordered list of attachment metadata (see below). |
+
+**Ticket attachment object** (`GET /api/v1/tickets/{id}/attachments`).
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `id` | `String` | Attachment identifier; use in download/delete calls. |
+| `filename` | `String` | Original filename. |
+| `content_type` | `String?` | MIME type (only image types are accepted on upload). |
+| `size` | `Int?` | Size in bytes when recorded. |
+| `uploaded_at` | `String` | ISO 8601 timestamp. |
+| `url` | `String?` | Direct download path for the resource. |
+
+Upload new attachments by sending `multipart/form-data` with a single `file`
+part to `POST /api/v1/tickets/{id}/attachments`. Only PNG, JPEG, GIF and WEBP
+images are accepted.
+
+#### Hardware payloads
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `barcode` | `String` | Yes | Normalized and deduplicated when created. |
+| `description` | `String` | Yes | Human-readable name for the item. |
+| `acquisition_cost` | `String?` | No | Monetary string; may also be provided through header aliases like `X-Acquisition-Cost`. |
+| `sales_price` | `String?` | No | Monetary string; header aliases (`X-Sales-Price`, etc.) are accepted. |
+
+Hardware responses (`HardwareOut`) add:
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `id` | `Int` | Primary key. |
+| `created_at` | `String` | Creation timestamp (`YYYY-MM-DDTHH:MM:SSZ`). |
+| `common_vendors` | `[String]` | Vendors recorded on inventory receipts. |
+| `average_unit_cost` | `Double?` | Average cost computed from vendor receipts when available. |
+
+#### Inventory payloads
+
+Inventory adjustments (`POST /api/v1/inventory/receive` and `/use`) accept the
+following body (`InventoryAdjustment`):
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `hardware_id` | `Int?` | One of `hardware_id` or `barcode` is required. |
+| `barcode` | `String?` | Alternate lookup when the numeric ID is unknown. |
+| `quantity` | `Int` | Required positive value; the `/use` route automatically applies a negative change. |
+| `note` | `String?` | Free-form description of the adjustment. |
+| `vendor_name` | `String?` | Populates the vendor counterparty on receipts. |
+| `client_name` | `String?` | Populates the client counterparty on usage records. |
+| `actual_cost` | `Double?` | Per-unit cost paid to the vendor. |
+| `sale_price` | `Double?` | Total sale price billed to the client. |
+
+Inventory events (`InventoryEventOut`) include:
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `id` | `Int` | Event identifier. |
+| `hardware_id` | `Int` | Foreign key to hardware. |
+| `change` | `Int` | Positive for receipts, negative for usage. |
+| `source` | `String` | Origin tag (e.g. `api:receive`, `api:use`, `ticket:auto`). |
+| `note` | `String?` | Optional description. |
+| `created_at` | `String` | ISO 8601 timestamp. |
+| `ticket_id` | `Int?` | Linked ticket when auto-generated. |
+| `hardware_barcode` / `hardware_description` | `String?` | Snapshots of the hardware metadata. |
+| `counterparty_name` / `counterparty_type` | `String?` | Vendor/client context when recorded. |
+| `actual_cost` / `unit_cost` | `Double?` | Cost metadata derived from receipts. |
+| `sale_price_total` / `sale_unit_price` | `Double?` | Sale totals and per-unit price when provided. |
+| `profit_total` / `profit_unit` | `Double?` | Computed profit metrics (`sale_price_total - actual_cost`). |
+
+Inventory summary rows (`GET /api/v1/inventory/summary`) expose:
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `hardware_id` | `Int` | Hardware primary key. |
+| `barcode` | `String` | Normalized barcode. |
+| `description` | `String` | Hardware description. |
+| `quantity` | `Int` | On-hand quantity computed from events. |
+| `last_activity` | `String?` | ISO timestamp of the most recent event. |
+
+#### Client payloads
+
+The client directory is stored on disk in `client_table.json`. Read-only routes
+(`/api/v1/clients`, `/api/v1/clients/{client_key}`, `/api/v1/clients/lookup`)
+return:
+
+```
+{
+  "client_key": "acme",
+  "client": {
+    "name": "Acme Corp",
+    "display_name": "Acme",
+    "support_rate": "135",
+    "contract": true,
+    "<custom attribute keys>": "..."
+  }
+}
+```
+
+Custom attribute keys are listed under the top-level `attribute_keys` array and
+can be managed via `POST /api/v1/clients/attributes` and
+`DELETE /api/v1/clients/attributes/{key}`. Writes require a valid UI session or
+API token.
+
 ### Hardware inventory API – `/api/v1/hardware`
 
 | Method & path | Description | Auth required | Notes |

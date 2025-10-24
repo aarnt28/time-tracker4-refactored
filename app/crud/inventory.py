@@ -65,13 +65,13 @@ def _normalize_amount(value: object) -> float | None:
     return None
 
 
-def _unit_value(total: float | None, change: int) -> float | None:
-    if total is None:
+def _total_value(unit: float | None, change: int) -> float | None:
+    if unit is None:
         return None
     quantity = abs(change)
     if not quantity:
         return None
-    return total / quantity
+    return unit * quantity
 
 
 def record_inventory_event(
@@ -91,10 +91,10 @@ def record_inventory_event(
         raise ValueError("change must be non-zero")
     name = (counterparty_name or "").strip() or None
     ctype = (counterparty_type or "").strip() or None
-    cost_total = _normalize_amount(actual_cost)
-    sale_total = _normalize_amount(sale_price)
-    unit_cost = _unit_value(cost_total, change)
-    unit_sale = _unit_value(sale_total, change)
+    unit_cost = _normalize_amount(actual_cost)
+    unit_sale = _normalize_amount(sale_price)
+    cost_total = _total_value(unit_cost, change)
+    sale_total = _total_value(unit_sale, change)
     event = InventoryEvent(
         hardware_id=hardware_id,
         change=change,
@@ -149,10 +149,10 @@ def ensure_ticket_usage_event(
 
     change = -abs(quantity)
     existing = get_event_by_ticket(db, ticket_id)
-    sale_total = _normalize_amount(sale_price)
-    cost_total = _normalize_amount(acquisition_cost)
-    unit_cost = _unit_value(cost_total, change)
-    unit_sale = _unit_value(sale_total, change)
+    unit_sale = _normalize_amount(sale_price)
+    unit_cost = _normalize_amount(acquisition_cost)
+    sale_total = _total_value(unit_sale, change)
+    cost_total = _total_value(unit_cost, change)
 
     if existing:
         existing.hardware_id = hardware_id
@@ -178,6 +178,6 @@ def ensure_ticket_usage_event(
         ticket_id=ticket_id,
         counterparty_name=None,
         counterparty_type=None,
-        actual_cost=cost_total,
-        sale_price=sale_total,
+        actual_cost=unit_cost,
+        sale_price=unit_sale,
     )
