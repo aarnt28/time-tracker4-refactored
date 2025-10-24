@@ -392,11 +392,11 @@
   },
   "sks": {
     "name": "SKS Law Firm",
-    "address_line1": "",
-    "address_line2": "",
-    "city": "",
-    "state": "",
-    "postal_code": "",
+    "address_line1": "8181 Midtown Blvd",
+    "address_line2": "Unit 7101",
+    "city": "Dallas",
+    "state": "Texas",
+    "postal_code": "75231",
     "support_hours_allowance": "",
     "primary_contact_name": "",
     "primary_contact_phone": "",
@@ -404,9 +404,9 @@
     "office_manager_name": "",
     "office_manager_phone": "",
     "office_manager_email": "",
-    "contract": "",
+    "contract": "false",
     "former_practices": "",
-    "owner": "",
+    "owner": "Sharron Simmons",
     "support_rate": "150"
   }
 }
