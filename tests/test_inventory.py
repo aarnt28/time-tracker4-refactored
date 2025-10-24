@@ -54,7 +54,7 @@ def test_record_inventory_event_tracks_costs(db_session):
         note="Initial stock",
         counterparty_name="Vendor A",
         counterparty_type="vendor",
-        actual_cost=100.0,
+        actual_cost=25.0,
     )
 
     assert event.counterparty_name == "Vendor A"
@@ -70,8 +70,8 @@ def test_record_inventory_event_tracks_costs(db_session):
         note="Sold to client",
         counterparty_name="Client A",
         counterparty_type="client",
-        actual_cost=40.0,
-        sale_price=90.0,
+        actual_cost=20.0,
+        sale_price=45.0,
     )
 
     assert sale_event.sale_price_total == pytest.approx(90.0)
@@ -96,7 +96,7 @@ def test_hardware_common_vendors_and_average_cost(db_session):
         note="Vendor A shipment",
         counterparty_name="Vendor A",
         counterparty_type="vendor",
-        actual_cost=100.0,
+        actual_cost=25.0,
     )
     record_inventory_event(
         db_session,
@@ -106,7 +106,7 @@ def test_hardware_common_vendors_and_average_cost(db_session):
         note="Vendor B shipment",
         counterparty_name="Vendor B",
         counterparty_type="vendor",
-        actual_cost=60.0,
+        actual_cost=30.0,
     )
     record_inventory_event(
         db_session,
