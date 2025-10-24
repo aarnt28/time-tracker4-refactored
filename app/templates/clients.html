@@ -992,16 +992,72 @@ function openEditor(clientKey, entry, attributeKeys){
 
   DEMOGRAPHIC_FIELDS.forEach(addDemographicRow);
 
-  const addressFieldSelectors = [
-    'address_line1',
-    'address_line2',
-    'city',
-    'state',
-    'postal_code'
-  ];
-  const addressInputs = addressFieldSelectors
-    .map((key) => demographicsContainer.querySelector(`input[data-attr-key="${key}"]`))
-    .filter((input) => !!input);
+  const line1InputEl = demographicsContainer.querySelector('input[data-attr-key="address_line1"]');
+  const line2InputEl = demographicsContainer.querySelector('input[data-attr-key="address_line2"]');
+  const cityInputEl = demographicsContainer.querySelector('input[data-attr-key="city"]');
+  const stateInputEl = demographicsContainer.querySelector('input[data-attr-key="state"]');
+  const postalInputEl = demographicsContainer.querySelector('input[data-attr-key="postal_code"]');
+  const addressInputs = [
+    line1InputEl,
+    line2InputEl,
+    cityInputEl,
+    stateInputEl,
+    postalInputEl
+  ].filter((input) => !!input);
+
+  function setInputElementValue(input, value){
+    if (!input) return false;
+    const normalized = value == null ? '' : String(value);
+    if (input.value === normalized) return false;
+    input.value = normalized;
+    return true;
+  }
+
+  function emitInputChange(input){
+    if (!input) return;
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+
+  function applyAddressCandidate(candidate){
+    if (!candidate) return;
+    const changedInputs = new Set();
+    const line1Value = candidate.line1
+      || candidate.delivery_line_1
+      || candidate.street_line
+      || candidate.street
+      || candidate.address_line1;
+    if (line1Value && setInputElementValue(line1InputEl, line1Value)){
+      changedInputs.add(line1InputEl);
+    }
+    if (line2InputEl){
+      const line2Value = candidate.line2
+        || candidate.delivery_line_2
+        || candidate.secondary
+        || candidate.address_line2;
+      if (line2Value && setInputElementValue(line2InputEl, line2Value)){
+        changedInputs.add(line2InputEl);
+      }
+    }
+    if (cityInputEl && candidate.city && setInputElementValue(cityInputEl, candidate.city)){
+      changedInputs.add(cityInputEl);
+    }
+    const stateValue = candidate.state || candidate.region || candidate.state_province;
+    if (stateInputEl && stateValue && setInputElementValue(stateInputEl, stateValue)){
+      changedInputs.add(stateInputEl);
+    }
+    const postalValue = candidate.postal_code || candidate.zip || candidate.postcode;
+    if (postalInputEl && postalValue && setInputElementValue(postalInputEl, postalValue)){
+      changedInputs.add(postalInputEl);
+    }
+    const seen = new Set();
+    changedInputs.forEach((input) => {
+      if (input && !seen.has(input)){
+        emitInputChange(input);
+        seen.add(input);
+      }
+    });
+    if (line1InputEl && !seen.has(line1InputEl)) emitInputChange(line1InputEl);
+  }
 
   let mapSection = null;
   let mapStatus = null;
@@ -1009,6 +1065,8 @@ function openEditor(clientKey, entry, attributeKeys){
   let mapInstance = null;
   let mapMarker = null;
   let mapGeocoder = null;
+  let mapApplyButton = null;
+  let mapCandidate = null;
   let mapRequestId = 0;
 
   if (GOOGLE_MAPS_API_KEY){
@@ -1031,6 +1089,23 @@ function openEditor(clientKey, entry, attributeKeys){
     mapStatus.style.color = '#555';
     mapStatus.textContent = 'Add an address to preview the pinned map.';
     mapSection.appendChild(mapStatus);
+
+    const mapActions = document.createElement('div');
+    mapActions.style.display = 'flex';
+    mapActions.style.gap = '8px';
+    mapActions.style.alignItems = 'center';
+    mapApplyButton = document.createElement('button');
+    mapApplyButton.type = 'button';
+    mapApplyButton.className = 'btn btn-ghost inline';
+    mapApplyButton.textContent = 'Use this address';
+    mapApplyButton.disabled = true;
+    mapApplyButton.addEventListener('click', () => {
+      if (!mapCandidate) return;
+      applyAddressCandidate(mapCandidate);
+      mapApplyButton.blur();
+    });
+    mapActions.appendChild(mapApplyButton);
+    mapSection.appendChild(mapActions);
 
     mapCanvas = document.createElement('div');
     mapCanvas.style.width = '100%';
@@ -1077,6 +1152,66 @@ function openEditor(clientKey, entry, attributeKeys){
     return meaningful.length >= 2;
   }
 
+  function parseGeocodeResult(result){
+    if (!result) return null;
+    const components = Array.isArray(result.address_components) ? result.address_components : [];
+    const findComponent = (types) => {
+      const desired = Array.isArray(types) ? types : [types];
+      return components.find((component) => {
+        const componentTypes = component && Array.isArray(component.types) ? component.types : [];
+        return desired.some((type) => componentTypes.includes(type));
+      }) || null;
+    };
+    const getComponentValue = (types, preferShort = false) => {
+      const component = findComponent(types);
+      if (!component) return '';
+      if (preferShort && component.short_name) return component.short_name;
+      return component.long_name || component.short_name || '';
+    };
+    const streetNumber = getComponentValue('street_number');
+    const route = getComponentValue('route');
+    const streetLine = [streetNumber, route].filter(Boolean).join(' ').trim();
+    const secondaryParts = [];
+    ['subpremise', 'premise', 'floor', 'unit', 'room'].forEach((type) => {
+      const value = getComponentValue(type);
+      if (value) secondaryParts.push(value);
+    });
+    const city = getComponentValue(['locality', 'postal_town', 'sublocality']);
+    const state =
+      getComponentValue('administrative_area_level_1', true)
+      || getComponentValue('administrative_area_level_1');
+    const postalCode = getComponentValue('postal_code');
+    const country = getComponentValue('country', true) || getComponentValue('country');
+    const formatted = result.formatted_address || result.name || '';
+    const fallbackLine1 = streetLine || (formatted ? formatted.split(',')[0].trim() : '');
+    return {
+      line1: fallbackLine1 || null,
+      line2: secondaryParts.join(' ').trim() || '',
+      city: city || null,
+      state: state || null,
+      postal_code: postalCode || null,
+      country: country || null,
+      formatted: formatted || null,
+    };
+  }
+
+  function updateMapCandidate(candidate){
+    mapCandidate = candidate || null;
+    if (!mapApplyButton) return;
+    if (mapCandidate && mapCandidate.line1){
+      mapApplyButton.disabled = false;
+      const description = mapCandidate.formatted
+        ? `Use ${mapCandidate.formatted}`
+        : 'Use the validated address';
+      mapApplyButton.title = description;
+      mapApplyButton.setAttribute('aria-label', description);
+    } else {
+      mapApplyButton.disabled = true;
+      mapApplyButton.title = 'No validated address available yet';
+      mapApplyButton.removeAttribute('aria-label');
+    }
+  }
+
   async function refreshClientMap(){
     if (!mapSection || !mapCanvas || !GOOGLE_MAPS_API_KEY){
       return;
@@ -1085,17 +1220,20 @@ function openEditor(clientKey, entry, attributeKeys){
     if (!hasMappableAddress(values)){
       mapStatus.textContent = 'Add an address to preview the pinned map.';
       mapCanvas.style.display = 'none';
+      updateMapCandidate(null);
       return;
     }
     const address = buildAddressString(values);
     if (!address){
       mapStatus.textContent = 'Add an address to preview the pinned map.';
       mapCanvas.style.display = 'none';
+      updateMapCandidate(null);
       return;
     }
     mapCanvas.style.display = 'block';
     const requestId = ++mapRequestId;
     mapStatus.textContent = 'Locating address…';
+    updateMapCandidate(null);
     try {
       const maps = await loadGoogleMaps();
       if (mapRequestId !== requestId) return;
@@ -1110,6 +1248,7 @@ function openEditor(clientKey, entry, attributeKeys){
           if (!location){
             mapStatus.textContent = 'Google Maps returned an unexpected response.';
             mapCanvas.style.display = 'none';
+            updateMapCandidate(null);
             return;
           }
           const formattedAddress = result.formatted_address || address;
@@ -1136,18 +1275,22 @@ function openEditor(clientKey, entry, attributeKeys){
             mapMarker.setTitle(formattedAddress);
           }
           mapStatus.textContent = formattedAddress;
+          updateMapCandidate(parseGeocodeResult(result));
         } else if (status === 'ZERO_RESULTS'){
           mapCanvas.style.display = 'none';
           mapStatus.textContent = 'Google Maps could not find this address yet.';
+          updateMapCandidate(null);
         } else {
           mapCanvas.style.display = 'none';
           mapStatus.textContent = 'Google Maps returned an error. Please verify the address.';
+          updateMapCandidate(null);
         }
       });
     } catch (err) {
       if (mapRequestId !== requestId) return;
       mapCanvas.style.display = 'none';
       mapStatus.textContent = 'Google Maps is unavailable. Check your API key and connectivity.';
+      updateMapCandidate(null);
     }
   }
 
@@ -1172,6 +1315,9 @@ function openEditor(clientKey, entry, attributeKeys){
       mapInstance = null;
       mapMarker = null;
       mapGeocoder = null;
+      updateMapCandidate(null);
+      mapApplyButton = null;
+      mapCandidate = null;
     });
   }
 
