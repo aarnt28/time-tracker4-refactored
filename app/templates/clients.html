@@ -122,6 +122,8 @@ const ADDRESS_AUTOCOMPLETE_DEBOUNCE = 250;
 const ADDRESS_AUTOCOMPLETE_LIMIT = 20;
 let ADDRESS_AUTOCOMPLETE_DISABLED = false;
 let currentAttributeKeys = [];
+const GOOGLE_MAPS_API_KEY = {{ (google_maps_api_key or '')|tojson }};
+let googleMapsLoaderPromise = null;
 const BASE_TABLE_COLUMNS = [
   { key: '__client_key__', label: 'Client Key', defaultVisible: true },
   { key: 'name', label: 'Name', defaultVisible: true }
@@ -229,6 +231,47 @@ function formatCellValue(value){
 
 function normalizeTel(value){
   return value.replace(/[^0-9+#*]/g, '');
+}
+
+function loadGoogleMaps(){
+  if (!GOOGLE_MAPS_API_KEY){
+    return Promise.reject(new Error('Google Maps API key is not configured'));
+  }
+  if (window.google && window.google.maps){
+    return Promise.resolve(window.google.maps);
+  }
+  if (googleMapsLoaderPromise){
+    return googleMapsLoaderPromise;
+  }
+  googleMapsLoaderPromise = new Promise((resolve, reject) => {
+    const existing = document.querySelector('script[data-google-maps-loader="true"]');
+    if (existing){
+      existing.addEventListener('load', () => {
+        if (window.google && window.google.maps){
+          resolve(window.google.maps);
+        } else {
+          reject(new Error('Google Maps failed to initialize'));
+        }
+      });
+      existing.addEventListener('error', () => reject(new Error('Google Maps failed to load')));
+      return;
+    }
+    const script = document.createElement('script');
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(GOOGLE_MAPS_API_KEY)}`;
+    script.async = true;
+    script.defer = true;
+    script.dataset.googleMapsLoader = 'true';
+    script.onload = () => {
+      if (window.google && window.google.maps){
+        resolve(window.google.maps);
+      } else {
+        reject(new Error('Google Maps failed to initialize'));
+      }
+    };
+    script.onerror = () => reject(new Error('Google Maps failed to load'));
+    document.head.appendChild(script);
+  });
+  return googleMapsLoaderPromise;
 }
 
 function attachQuickLink(def, input){
@@ -702,6 +745,189 @@ function openEditor(clientKey, entry, attributeKeys){
   }
 
   DEMOGRAPHIC_FIELDS.forEach(addDemographicRow);
+
+  const addressFieldSelectors = [
+    'address_line1',
+    'address_line2',
+    'city',
+    'state',
+    'postal_code'
+  ];
+  const addressInputs = addressFieldSelectors
+    .map((key) => demographicsContainer.querySelector(`input[data-attr-key="${key}"]`))
+    .filter((input) => !!input);
+
+  let mapSection = null;
+  let mapStatus = null;
+  let mapCanvas = null;
+  let mapInstance = null;
+  let mapMarker = null;
+  let mapGeocoder = null;
+  let mapRequestId = 0;
+
+  if (GOOGLE_MAPS_API_KEY){
+    mapSection = document.createElement('section');
+    mapSection.style.display = 'flex';
+    mapSection.style.flexDirection = 'column';
+    mapSection.style.gap = '8px';
+    mapSection.style.margin = '16px 0';
+
+    const mapHeading = document.createElement('h3');
+    mapHeading.textContent = 'Location Preview';
+    mapHeading.style.margin = '0';
+    mapHeading.style.fontSize = '1rem';
+    mapHeading.style.fontWeight = '600';
+    mapSection.appendChild(mapHeading);
+
+    mapStatus = document.createElement('p');
+    mapStatus.style.margin = '0';
+    mapStatus.style.fontSize = '0.875rem';
+    mapStatus.style.color = '#555';
+    mapStatus.textContent = 'Add an address to preview the pinned map.';
+    mapSection.appendChild(mapStatus);
+
+    mapCanvas = document.createElement('div');
+    mapCanvas.style.width = '100%';
+    mapCanvas.style.height = '240px';
+    mapCanvas.style.borderRadius = '8px';
+    mapCanvas.style.border = '1px solid #e0e0e0';
+    mapCanvas.style.backgroundColor = '#f5f5f5';
+    mapCanvas.style.overflow = 'hidden';
+    mapCanvas.style.display = 'none';
+    mapCanvas.setAttribute('role', 'presentation');
+    mapSection.appendChild(mapCanvas);
+
+    fields.appendChild(mapSection);
+  }
+
+  function collectAddressValues(){
+    const values = {};
+    addressInputs.forEach((input) => {
+      const key = input.dataset.attrKey;
+      values[key] = input.value.trim();
+    });
+    return values;
+  }
+
+  function buildAddressString(values){
+    if (!values) return '';
+    const parts = [];
+    if (values.address_line1) parts.push(values.address_line1);
+    if (values.address_line2) parts.push(values.address_line2);
+    const cityState = [values.city, values.state].filter(Boolean).join(', ');
+    if (cityState) parts.push(cityState);
+    if (values.postal_code) parts.push(values.postal_code);
+    return parts.join(', ');
+  }
+
+  function hasMappableAddress(values){
+    if (!values) return false;
+    const meaningful = [
+      values.address_line1,
+      values.city,
+      values.state,
+      values.postal_code
+    ].filter((part) => !!part);
+    return meaningful.length >= 2;
+  }
+
+  async function refreshClientMap(){
+    if (!mapSection || !mapCanvas || !GOOGLE_MAPS_API_KEY){
+      return;
+    }
+    const values = collectAddressValues();
+    if (!hasMappableAddress(values)){
+      mapStatus.textContent = 'Add an address to preview the pinned map.';
+      mapCanvas.style.display = 'none';
+      return;
+    }
+    const address = buildAddressString(values);
+    if (!address){
+      mapStatus.textContent = 'Add an address to preview the pinned map.';
+      mapCanvas.style.display = 'none';
+      return;
+    }
+    mapCanvas.style.display = 'block';
+    const requestId = ++mapRequestId;
+    mapStatus.textContent = 'Locating address…';
+    try {
+      const maps = await loadGoogleMaps();
+      if (mapRequestId !== requestId) return;
+      if (!mapGeocoder){
+        mapGeocoder = new maps.Geocoder();
+      }
+      mapGeocoder.geocode({ address }, (results, status) => {
+        if (mapRequestId !== requestId) return;
+        if (status === 'OK' && results && results.length){
+          const result = results[0];
+          const location = result.geometry && result.geometry.location;
+          if (!location){
+            mapStatus.textContent = 'Google Maps returned an unexpected response.';
+            mapCanvas.style.display = 'none';
+            return;
+          }
+          const formattedAddress = result.formatted_address || address;
+          if (!mapInstance){
+            mapInstance = new maps.Map(mapCanvas, {
+              center: location,
+              zoom: 15,
+              mapTypeControl: false,
+              streetViewControl: false,
+              fullscreenControl: false,
+            });
+          } else {
+            mapInstance.setCenter(location);
+          }
+          if (!mapMarker){
+            mapMarker = new maps.Marker({
+              map: mapInstance,
+              position: location,
+              title: formattedAddress,
+            });
+          } else {
+            mapMarker.setMap(mapInstance);
+            mapMarker.setPosition(location);
+            mapMarker.setTitle(formattedAddress);
+          }
+          mapStatus.textContent = formattedAddress;
+        } else if (status === 'ZERO_RESULTS'){
+          mapCanvas.style.display = 'none';
+          mapStatus.textContent = 'Google Maps could not find this address yet.';
+        } else {
+          mapCanvas.style.display = 'none';
+          mapStatus.textContent = 'Google Maps returned an error. Please verify the address.';
+        }
+      });
+    } catch (err) {
+      if (mapRequestId !== requestId) return;
+      mapCanvas.style.display = 'none';
+      mapStatus.textContent = 'Google Maps is unavailable. Check your API key and connectivity.';
+    }
+  }
+
+  if (mapSection && addressInputs.length){
+    const onAddressInput = () => refreshClientMap();
+    addressInputs.forEach((input) => {
+      input.addEventListener('input', onAddressInput);
+      registerCleanup(() => input.removeEventListener('input', onAddressInput));
+    });
+    // Trigger initial map render with the existing values.
+    setTimeout(() => {
+      refreshClientMap();
+    }, 0);
+    registerCleanup(() => {
+      mapRequestId += 1;
+      if (mapMarker){
+        mapMarker.setMap(null);
+      }
+      if (mapSection && mapSection.parentElement){
+        mapSection.parentElement.removeChild(mapSection);
+      }
+      mapInstance = null;
+      mapMarker = null;
+      mapGeocoder = null;
+    });
+  }
 
   const autocompleteCleanup = setupAddressAutocomplete({ modal, container: demographicsContainer });
   if (autocompleteCleanup) registerCleanup(autocompleteCleanup);

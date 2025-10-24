@@ -71,7 +71,11 @@ def tickets_page(request: Request, db: Session = Depends(get_db)):
 
 @router.get("/clients", response_class=HTMLResponse)
 def clients_page(request: Request):
-    return templates.TemplateResponse("clients.html", {"request": request})
+    context = {
+        "request": request,
+        "google_maps_api_key": settings.GOOGLE_MAPS_API_KEY,
+    }
+    return templates.TemplateResponse("clients.html", context)
 
 @router.get("/hardware", response_class=HTMLResponse)
 def hardware_page(request: Request, db: Session = Depends(get_db)):
