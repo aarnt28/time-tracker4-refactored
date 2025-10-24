@@ -38,9 +38,10 @@ stores data, and Docker Compose makes it easy to run everything locally.
 * **Geoapify address autocomplete** – Client address fields can be
   auto-completed with Geoapify's geocoding suggestions when an API key
   is configured.
-* **Client location preview** – Display a pinned Google Map in the client
-  editor whenever a mailing address is available, making it easy to verify
-  on-site details before scheduling work.【F:app/templates/clients.html†L688-L785】
+* **Client location preview & overview map** – Display a pinned Google Map in
+  the client editor and a consolidated map at the bottom of the Clients page
+  that pins every mappable customer, making it easy to verify on-site details
+  and plan visits at a glance.【F:app/templates/clients.html†L43-L60】【F:app/templates/clients.html†L250-L470】【F:app/templates/clients.html†L964-L1126】
 * **Responsive UI** – HTML pages served with Jinja2 templates and static
   resources provide a simple front‑end for managing tickets, hardware and
   clients.  Sessions and login keep your changes protected.
@@ -716,10 +717,13 @@ enable it:
 
 If the credentials are omitted, the UI silently falls back to manual entry.
 
-### Google Maps location preview setup & maintenance
+### Google Maps client map setup & maintenance
 
-The client editor can embed a Google Map that pins the supplied mailing
-address. To enable and maintain this integration:
+The client editor modal and the Clients page can embed Google Maps whenever a
+mailing address is available. The editor shows a single-location preview for the
+client you're editing, while the list view aggregates every mappable client into
+pins at the bottom of the page so you can visualise coverage at a glance. To
+enable and maintain this integration:
 
 1. **Create or reuse a Google Cloud project** with billing enabled, then
    activate the **Maps JavaScript API** and **Geocoding API**. Both services
@@ -728,10 +732,13 @@ address. To enable and maintain this integration:
    lock it to your production domains and/or IP addresses.
 3. **Set the `GOOGLE_MAPS_API_KEY` environment variable** for the application
    (for example in `.env`, `docker-compose.yml`, or your hosting secrets). The
-   key is injected into the client editor template at render time.
+   key is injected into both the client editor and list templates at render
+   time.
 4. **Restart the application** so the new environment variable is picked up.
    Opening a client with a populated address now shows a pinned map inside the
-   modal. Edits to the address will live-update the map preview.
+   modal, and the Clients page automatically renders the overview map once
+   clients have mappable addresses. Edits to an address live-update the preview
+   and refreshed list data updates the pins.
 
 For long-term maintenance:
 
@@ -741,7 +748,8 @@ For long-term maintenance:
   traffic does not disable the embed.
 * If you need to temporarily disable the map (for example, during maintenance
   or cost controls), unset `GOOGLE_MAPS_API_KEY`; the UI automatically hides the
-  map preview and continues functioning with manual address entry only.【F:README.md†L719-L744】
+  modal preview and Clients page overview map while continuing to function with
+  manual address entry only.【F:README.md†L720-L752】
 
 ## Contributing
 
