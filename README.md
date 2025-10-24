@@ -605,7 +605,7 @@ Content-Type: application/json
 
 ### Address autocomplete & verification API – `/api/v1/address`
 
-These endpoints call Google Places Autocomplete and the Address Validation API
+These endpoints call Google Places Autocomplete (Places API – New) and the Address Validation API
 using the shared Maps API key and are guarded by the same API token/session
 requirement as other headless routes.【F:app/routers/address.py†L5-L51】 When the
 Google credentials are missing, `/suggest` returns an empty `suggestions`
@@ -695,8 +695,8 @@ The application reads configuration from environment variables defined in
 | `SESSION_COOKIE_NAME` | Name of the session cookie                | `tt_session`         |
 | `SESSION_MAX_AGE`   | Session lifetime in seconds                 | `2592000` (30 days)  |
 | `GOOGLE_MAPS_API_KEY` | Google Maps Platform API key for autocomplete, validation, and map embeds | empty (disabled) |
-| `GOOGLE_PLACES_AUTOCOMPLETE_URL` | Override for the Google Places Autocomplete REST endpoint | Google default |
-| `GOOGLE_PLACES_DETAILS_URL` | Override for the Google Places Details REST endpoint | Google default |
+| `GOOGLE_PLACES_AUTOCOMPLETE_URL` | Override for the Google Places Autocomplete REST endpoint (Places API – New) | Google default |
+| `GOOGLE_PLACES_DETAILS_URL` | Override for the Google Places Details REST endpoint (Places API – New) | Google default |
 | `GOOGLE_ADDRESS_VALIDATION_URL` | Override for the Google Address Validation REST endpoint | Google default |
 | `GOOGLE_ADDRESS_VALIDATION_REGION_CODE` | Default ISO region code sent to the Address Validation API | `US` |
 
@@ -709,7 +709,7 @@ Address prefill in the client editor is powered by Google Places Autocomplete
 and the Address Validation API. To enable it:
 
 1. **Create or reuse a Google Cloud project** with billing enabled, then turn on
-   the **Places API** and **Address Validation API** (the existing Maps
+   the **Places API (New)** and **Address Validation API** (the existing Maps
    JavaScript API is also required if you use the embedded maps).
 2. **Generate a restricted API key** that is allowed to call the enabled
    services and lock it to the domains/IPs where this app runs.
@@ -732,7 +732,7 @@ pins at the bottom of the page so you can visualise coverage at a glance. To
 enable and maintain this integration:
 
 1. **Create or reuse a Google Cloud project** with billing enabled, then
-   activate the **Maps JavaScript**, **Geocoding**, **Places**, and **Address
+   activate the **Maps JavaScript**, **Geocoding**, **Places API (New)**, and **Address
    Validation** APIs. These cover map rendering, coordinate lookups, and the
    autocomplete/verification flows described above.
 2. **Generate a restricted API key** scoped to the enabled Google Maps

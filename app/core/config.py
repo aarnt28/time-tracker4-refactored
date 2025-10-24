@@ -36,11 +36,11 @@ class Settings:
     GOOGLE_MAPS_API_KEY = os.getenv("GOOGLE_MAPS_API_KEY", "")
     GOOGLE_PLACES_AUTOCOMPLETE_URL = os.getenv(
         "GOOGLE_PLACES_AUTOCOMPLETE_URL",
-        "https://maps.googleapis.com/maps/api/place/autocomplete/json",
+        "https://places.googleapis.com/v1/places:autocomplete",
     )
     GOOGLE_PLACES_DETAILS_URL = os.getenv(
         "GOOGLE_PLACES_DETAILS_URL",
-        "https://maps.googleapis.com/maps/api/place/details/json",
+        "https://places.googleapis.com/v1/places",
     )
     GOOGLE_ADDRESS_VALIDATION_URL = os.getenv(
         "GOOGLE_ADDRESS_VALIDATION_URL",
