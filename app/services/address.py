@@ -20,6 +20,10 @@ def _ensure_configured() -> None:
         raise AddressServiceNotConfigured("Address tools are not configured")
 
 
+def _is_new_places_api(url: str) -> bool:
+    return "places.googleapis.com" in url and "maps/api/place" not in url
+
+
 def _build_last_line(city: Optional[str], state: Optional[str], postal_code: Optional[str]) -> str:
     parts: List[str] = []
     if city and state:
@@ -42,11 +46,59 @@ def _component_map(components: List[Dict[str, Any]]) -> Dict[str, Dict[str, Any]
     return mapping
 
 
+def _normalize_place_details(details: Dict[str, Any]) -> Dict[str, Any]:
+    if "address_components" in details:
+        return details
+
+    if "addressComponents" not in details:
+        return details
+
+    components: List[Dict[str, Any]] = []
+    for component in details.get("addressComponents") or []:
+        long_name = (
+            component.get("longText")
+            or component.get("text")
+            or component.get("value")
+            or component.get("displayName")
+        )
+        short_name = (
+            component.get("shortText")
+            or component.get("abbreviatedText")
+            or component.get("text")
+            or long_name
+        )
+        components.append(
+            {
+                "long_name": long_name,
+                "short_name": short_name,
+                "types": component.get("types") or [],
+            }
+        )
+
+    location = (details.get("location") or {})
+    geometry = {
+        "location": {
+            "lat": location.get("latitude"),
+            "lng": location.get("longitude"),
+        }
+    }
+
+    normalized = {
+        "address_components": components,
+        "geometry": geometry,
+        "formatted_address": details.get("formattedAddress"),
+        "types": details.get("types") or [],
+    }
+    return normalized
+
+
 def _parse_place_details(details: Optional[Dict[str, Any]]) -> Dict[str, Any]:
     if not details:
         return {}
 
-    components = details.get("address_components") or []
+    normalized = _normalize_place_details(details)
+
+    components = normalized.get("address_components") or []
     mapping = _component_map(components)
 
     street_number = (mapping.get("street_number") or {}).get("long_name")
@@ -76,7 +128,7 @@ def _parse_place_details(details: Optional[Dict[str, Any]]) -> Dict[str, Any]:
 
     county = (mapping.get("administrative_area_level_2") or {}).get("long_name")
 
-    geometry = details.get("geometry") or {}
+    geometry = normalized.get("geometry") or {}
     location = geometry.get("location") or {}
     lat = location.get("lat")
     lon = location.get("lng")
@@ -91,8 +143,12 @@ def _parse_place_details(details: Optional[Dict[str, Any]]) -> Dict[str, Any]:
         "county": county or None,
         "lat": float(lat) if isinstance(lat, (int, float)) else None,
         "lon": float(lon) if isinstance(lon, (int, float)) else None,
-        "formatted": details.get("formatted_address"),
-        "place_types": details.get("types") or [],
+        "formatted": normalized.get("formatted_address")
+        or details.get("formatted_address")
+        or details.get("formattedAddress"),
+        "place_types": normalized.get("types")
+        or details.get("types")
+        or [],
     }
     return parsed
 
@@ -145,12 +201,30 @@ def _raise_for_status(response: httpx.Response, context: str) -> None:
 async def _fetch_place_details(
     client: httpx.AsyncClient, place_id: str
 ) -> Optional[Dict[str, Any]]:
+    url = settings.GOOGLE_PLACES_DETAILS_URL
+    if _is_new_places_api(url):
+        endpoint = f"{url.rstrip('/')}/{place_id}"
+        headers = {
+            "X-Goog-FieldMask": "addressComponents,formattedAddress,location,types",
+        }
+        params = {
+            "key": settings.GOOGLE_MAPS_API_KEY,
+            "languageCode": "en",
+        }
+        region_code = settings.GOOGLE_ADDRESS_VALIDATION_REGION_CODE
+        if region_code:
+            params["regionCode"] = region_code
+
+        response = await client.get(endpoint, params=params, headers=headers)
+        _raise_for_status(response, "place details")
+        return response.json()
+
     params = {
         "place_id": place_id,
         "key": settings.GOOGLE_MAPS_API_KEY,
         "fields": "address_component,geometry,formatted_address,types",
     }
-    response = await client.get(settings.GOOGLE_PLACES_DETAILS_URL, params=params)
+    response = await client.get(url, params=params)
     _raise_for_status(response, "place details")
 
     data = response.json()
@@ -293,6 +367,122 @@ def _map_verified_address(result: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     return verified
 
 
+async def _fetch_legacy_autocomplete_predictions(
+    client: httpx.AsyncClient,
+    url: str,
+    search: str,
+    *,
+    city: Optional[str],
+    state: Optional[str],
+    postal_code: Optional[str],
+    max_results: int,
+) -> List[Dict[str, Any]]:
+    params: Dict[str, Any] = {
+        "input": search,
+        "key": settings.GOOGLE_MAPS_API_KEY,
+        "types": "address",
+    }
+
+    components_filter = _compose_components_filter(city, state, postal_code)
+    if components_filter:
+        params["components"] = components_filter
+
+    response = await client.get(url, params=params)
+
+    _raise_for_status(response, "address autocomplete")
+
+    data = response.json()
+    status = data.get("status")
+    if status and status not in {"OK", "ZERO_RESULTS"}:
+        logger.warning(
+            "Google autocomplete error: %s (%s)", status, data.get("error_message")
+        )
+        return []
+
+    predictions = data.get("predictions") or []
+    return predictions[:max_results]
+
+
+async def _fetch_new_autocomplete_predictions(
+    client: httpx.AsyncClient,
+    url: str,
+    search: str,
+    *,
+    city: Optional[str],
+    state: Optional[str],
+    postal_code: Optional[str],
+    max_results: int,
+) -> List[Dict[str, Any]]:
+    headers = {
+        "X-Goog-FieldMask": "suggestions.placePrediction.placeId,"
+        "suggestions.placePrediction.text,"
+        "suggestions.placePrediction.structuredFormat,"
+        "suggestions.placePrediction.types",
+    }
+    params = {"key": settings.GOOGLE_MAPS_API_KEY}
+    body: Dict[str, Any] = {
+        "input": search,
+        "languageCode": "en",
+        "maxResultCount": max_results,
+        "includeQueryPredictions": False,
+        "includedPrimaryTypes": ["street_address"],
+    }
+
+    region_code = settings.GOOGLE_ADDRESS_VALIDATION_REGION_CODE
+    if region_code:
+        body["regionCode"] = region_code
+
+    address_filter: Dict[str, Any] = {}
+    if city and city.strip():
+        address_filter["locality"] = city.strip()
+    if state and state.strip():
+        address_filter["administrativeArea"] = state.strip()
+    if postal_code and postal_code.strip():
+        address_filter["postalCode"] = postal_code.strip()
+    if address_filter:
+        body["addressFilter"] = address_filter
+
+    response = await client.post(url, params=params, json=body, headers=headers)
+
+    _raise_for_status(response, "address autocomplete")
+
+    data = response.json()
+    error_info = data.get("error")
+    if error_info:
+        logger.warning(
+            "Google autocomplete error: %s (%s)",
+            error_info.get("status"),
+            error_info.get("message"),
+        )
+        return []
+    suggestions = data.get("suggestions") or []
+
+    predictions: List[Dict[str, Any]] = []
+    for suggestion in suggestions:
+        place_prediction = suggestion.get("placePrediction") or {}
+        place_id = place_prediction.get("placeId")
+        if not place_id:
+            continue
+
+        structured_format = place_prediction.get("structuredFormat") or {}
+        main_text = (structured_format.get("mainText") or {}).get("text")
+        secondary_text = (structured_format.get("secondaryText") or {}).get("text")
+
+        predictions.append(
+            {
+                "description": (place_prediction.get("text") or {}).get("text"),
+                "structured_formatting": {
+                    "main_text": main_text,
+                    "secondary_text": secondary_text,
+                },
+                "place_id": place_id,
+                "types": place_prediction.get("types") or [],
+            }
+        )
+
+    return predictions[:max_results]
+
+
 async def fetch_autocomplete_suggestions(
     search: str,
     *,
@@ -308,32 +498,30 @@ async def fetch_autocomplete_suggestions(
     if not search or not search.strip():
         return []
 
-    params: Dict[str, Any] = {
-        "input": search.strip(),
-        "key": settings.GOOGLE_MAPS_API_KEY,
-        "types": "address",
-    }
-
-    components_filter = _compose_components_filter(city, state, postal_code)
-    if components_filter:
-        params["components"] = components_filter
+    url = settings.GOOGLE_PLACES_AUTOCOMPLETE_URL
 
     timeout = httpx.Timeout(6.0)
     async with httpx.AsyncClient(timeout=timeout) as client:
-        response = await client.get(settings.GOOGLE_PLACES_AUTOCOMPLETE_URL, params=params)
-
-        _raise_for_status(response, "address autocomplete")
-
-        data = response.json()
-        status = data.get("status")
-        if status and status not in {"OK", "ZERO_RESULTS"}:
-            logger.warning(
-                "Google autocomplete error: %s (%s)", status, data.get("error_message")
+        if _is_new_places_api(url):
+            predictions = await _fetch_new_autocomplete_predictions(
+                client,
+                url,
+                search.strip(),
+                city=city,
+                state=state,
+                postal_code=postal_code,
+                max_results=max_results,
             )
-            return []
-
-        predictions = data.get("predictions") or []
-        predictions = predictions[:max_results]
+        else:
+            predictions = await _fetch_legacy_autocomplete_predictions(
+                client,
+                url,
+                search.strip(),
+                city=city,
+                state=state,
+                postal_code=postal_code,
+                max_results=max_results,
+            )
 
         async def enrich_prediction(prediction: Dict[str, Any]) -> Optional[Dict[str, Any]]:
             place_id = prediction.get("place_id")
