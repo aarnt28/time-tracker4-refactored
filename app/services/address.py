@@ -100,19 +100,13 @@ def _parse_place_details(details: Optional[Dict[str, Any]]) -> Dict[str, Any]:
 def _compose_components_filter(
     city: Optional[str], state: Optional[str], postal_code: Optional[str]
 ) -> Optional[str]:
-    components: List[str] = []
-    region_code = settings.GOOGLE_ADDRESS_VALIDATION_REGION_CODE
-    if region_code:
-        components.append(f"country:{region_code}")
-    if state and state.strip():
-        components.append(f"administrative_area:{state.strip()}")
-    if city and city.strip():
-        components.append(f"locality:{city.strip()}")
-    if postal_code and postal_code.strip():
-        components.append(f"postal_code:{postal_code.strip()}")
-    if not components:
+    region_code = (settings.GOOGLE_ADDRESS_VALIDATION_REGION_CODE or "").strip()
+    if not region_code:
         return None
-    return "|".join(components)
+    # Google Places Autocomplete only accepts country filters in the components
+    # query parameter. State, city, or postal code filters trigger INVALID_REQUEST
+    # responses, so we restrict the filter to the configured country.
+    return f"country:{region_code}"
 
 
 def _summarize_verdict(verdict: Dict[str, Any]) -> Optional[str]:
