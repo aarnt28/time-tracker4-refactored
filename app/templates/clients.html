@@ -550,6 +550,19 @@ function setupAddressAutocomplete({ modal, container }){
   let localDisabled = false;
   let lastQuery = '';
 
+  function setInputValue(input, value){
+    if (!input) return false;
+    const normalized = value == null ? '' : String(value);
+    if (input.value === normalized) return false;
+    input.value = normalized;
+    return true;
+  }
+
+  function emitInputEvent(input){
+    if (!input) return;
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+
   function cleanup(){
     if (destroyed) return;
     destroyed = true;
@@ -616,15 +629,33 @@ function setupAddressAutocomplete({ modal, container }){
 
   function applySuggestion(item){
     if (!item) return;
-    if (item.street_line) line1Input.value = item.street_line;
-    if (line2Input && item.secondary !== undefined && item.secondary !== null){
-      line2Input.value = item.secondary || '';
+    const changedInputs = new Set();
+    if (item.street_line && setInputValue(line1Input, item.street_line)){
+      changedInputs.add(line1Input);
     }
-    if (cityInput && item.city) cityInput.value = item.city;
-    if (stateInput && item.state) stateInput.value = item.state;
-    if (postalInput && item.postal_code) postalInput.value = item.postal_code;
+    if (line2Input && item.secondary !== undefined && item.secondary !== null){
+      if (setInputValue(line2Input, item.secondary || '')){
+        changedInputs.add(line2Input);
+      }
+    }
+    if (cityInput && item.city && setInputValue(cityInput, item.city)){
+      changedInputs.add(cityInput);
+    }
+    if (stateInput && item.state && setInputValue(stateInput, item.state)){
+      changedInputs.add(stateInput);
+    }
+    if (postalInput && item.postal_code && setInputValue(postalInput, item.postal_code)){
+      changedInputs.add(postalInput);
+    }
     hideSuggestions();
-    line1Input.dispatchEvent(new Event('change', { bubbles: true }));
+    const seen = new Set();
+    changedInputs.forEach((input) => {
+      if (input && !seen.has(input)){
+        emitInputEvent(input);
+        seen.add(input);
+      }
+    });
+    if (!seen.has(line1Input)) emitInputEvent(line1Input);
     verifySelection(item);
   }
 
@@ -656,11 +687,30 @@ function setupAddressAutocomplete({ modal, container }){
       if (!res.ok) return;
       const data = await res.json();
       const candidate = data.candidate || {};
-      if (candidate.delivery_line_1) line1Input.value = candidate.delivery_line_1;
-      if (line2Input && candidate.delivery_line_2) line2Input.value = candidate.delivery_line_2;
-      if (cityInput && candidate.city) cityInput.value = candidate.city;
-      if (stateInput && candidate.state) stateInput.value = candidate.state;
-      if (postalInput && candidate.postal_code) postalInput.value = candidate.postal_code;
+      const changedInputs = new Set();
+      if (candidate.delivery_line_1 && setInputValue(line1Input, candidate.delivery_line_1)){
+        changedInputs.add(line1Input);
+      }
+      if (line2Input && candidate.delivery_line_2 && setInputValue(line2Input, candidate.delivery_line_2)){
+        changedInputs.add(line2Input);
+      }
+      if (cityInput && candidate.city && setInputValue(cityInput, candidate.city)){
+        changedInputs.add(cityInput);
+      }
+      if (stateInput && candidate.state && setInputValue(stateInput, candidate.state)){
+        changedInputs.add(stateInput);
+      }
+      if (postalInput && candidate.postal_code && setInputValue(postalInput, candidate.postal_code)){
+        changedInputs.add(postalInput);
+      }
+      const seen = new Set();
+      changedInputs.forEach((input) => {
+        if (input && !seen.has(input)){
+          emitInputEvent(input);
+          seen.add(input);
+        }
+      });
+      if (!seen.has(line1Input)) emitInputEvent(line1Input);
     } catch (err) {
       console.warn('Address verification failed', err);
     }
