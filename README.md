@@ -35,12 +35,13 @@ stores data, and Docker Compose makes it easy to run everything locally.
 * **Custom client attributes** – Extend client records with bespoke fields and
   manage the allowed keys via the API, backed by `custom_attributes.json` on
   disk.【F:app/routers/clients.py†L20-L140】【F:app/services/custom_attributes.py†L24-L111】
-* **Geoapify address autocomplete** – Client address fields can be
-  auto-completed with Geoapify's geocoding suggestions when an API key
-  is configured.
-* **Client location preview** – Display a pinned Google Map in the client
-  editor whenever a mailing address is available, making it easy to verify
-  on-site details before scheduling work.【F:app/templates/clients.html†L688-L785】
+* **Google address autocomplete & validation** – Client address fields are
+  powered by Google Places Autocomplete and the Address Validation API, filling
+  in city/state/ZIP details and coordinates when a Maps API key is configured.
+* **Client location preview & overview map** – Display a pinned Google Map in
+  the client editor and a consolidated map at the bottom of the Clients page
+  that pins every mappable customer, making it easy to verify on-site details
+  and plan visits at a glance.【F:app/templates/clients.html†L43-L60】【F:app/templates/clients.html†L250-L470】【F:app/templates/clients.html†L964-L1126】
 * **Responsive UI** – HTML pages served with Jinja2 templates and static
   resources provide a simple front‑end for managing tickets, hardware and
   clients.  Sessions and login keep your changes protected.
@@ -604,15 +605,16 @@ Content-Type: application/json
 
 ### Address autocomplete & verification API – `/api/v1/address`
 
-These endpoints proxy to Geoapify and are guarded by the same API key/session
-requirement as other headless routes.【F:app/routers/address.py†L5-L51】  When the
-Geoapify credentials are missing, `/suggest` returns an empty `suggestions`
+These endpoints call Google Places Autocomplete and the Address Validation API
+using the shared Maps API key and are guarded by the same API token/session
+requirement as other headless routes.【F:app/routers/address.py†L5-L51】 When the
+Google credentials are missing, `/suggest` returns an empty `suggestions`
 array and `/verify` responds with `{ "candidate": null }` instead of an error
-so the UI can fall back to manual entry.【F:app/routers/address.py†L32-L50】【F:app/services/address.py†L16-L117】
+so the UI can fall back to manual entry.【F:app/routers/address.py†L32-L50】【F:app/services/address.py†L15-L231】
 
 | Method & path | Description | Query parameters | Notes |
 |---------------|-------------|------------------|-------|
-| `GET /api/v1/address/suggest` | Autocomplete address text. | `query` (required search string, alias `q`), optional `city`, `state`, `zip` (alias `postal_code`), `limit` (1–20, default 8). | Returns `{ "suggestions": [ … ] }` with Geoapify metadata and coordinates. |【F:app/routers/address.py†L19-L33】
+| `GET /api/v1/address/suggest` | Autocomplete address text. | `query` (required search string, alias `q`), optional `city`, `state`, `zip` (alias `postal_code`), `limit` (1–20, default 8). | Returns `{ "suggestions": [ … ] }` enriched with Google Place details and coordinates. |【F:app/routers/address.py†L19-L33】
 | `GET /api/v1/address/verify` | Verify a selected address. | Required `street` (alias `street_line`); optional `city`, `state`, `zip` (alias `postal_code`), `secondary`, `place_id`. | Returns `{ "candidate": { … } }` on success, `404` if the address cannot be verified. |【F:app/routers/address.py†L36-L51】
 
 **Example – autocomplete request**
@@ -628,18 +630,19 @@ Accept: application/json
 {
   "suggestions": [
     {
-      "street_line": "1600 Amphitheatre Parkway",
+      "street_line": "1600 Amphitheatre Pkwy",
       "secondary": "",
       "city": "Mountain View",
       "state": "CA",
       "postal_code": "94043",
-      "country": "United States",
-      "formatted": "1600 Amphitheatre Parkway, Mountain View, CA 94043, United States",
-      "place_id": "1234567890abcdef",
-      "result_type": "building",
-      "confidence": 0.9,
-      "lat": 37.422,
-      "lon": -122.084
+      "country": "US",
+      "formatted": "1600 Amphitheatre Pkwy, Mountain View, CA 94043, USA",
+      "place_id": "ChIJ2eUgeAK6j4ARbn5u_wAGqWA",
+      "result_type": "street_address",
+      "confidence": null,
+      "lat": 37.4220656,
+      "lon": -122.0840897,
+      "county": "Santa Clara County"
     }
   ]
 }
@@ -648,7 +651,7 @@ Accept: application/json
 **Example – verify address by place id**
 
 ```http
-GET /api/v1/address/verify?place_id=1234567890abcdef HTTP/1.1
+GET /api/v1/address/verify?place_id=ChIJ2eUgeAK6j4ARbn5u_wAGqWA HTTP/1.1
 Host: tracker.example.com
 X-API-Key: your-token
 Accept: application/json
@@ -663,14 +666,14 @@ Accept: application/json
     "city": "Mountain View",
     "state": "CA",
     "postal_code": "94043",
-    "country": "United States",
+    "country": "US",
     "county": "Santa Clara County",
     "dpv_match_code": null,
     "footnotes": null,
-    "latitude": 37.422,
-    "longitude": -122.084,
-    "place_id": "1234567890abcdef",
-    "confidence": 0.9
+    "latitude": 37.4220656,
+    "longitude": -122.0840897,
+    "place_id": "ChIJ2eUgeAK6j4ARbn5u_wAGqWA",
+    "confidence": null
   }
 }
 ```
@@ -691,47 +694,59 @@ The application reads configuration from environment variables defined in
 | `TZ`                | Time zone for timestamps                    | `America/Chicago`    |
 | `SESSION_COOKIE_NAME` | Name of the session cookie                | `tt_session`         |
 | `SESSION_MAX_AGE`   | Session lifetime in seconds                 | `2592000` (30 days)  |
-| `GEOAPIFY_API_KEY`  | Geoapify API key for autocomplete & verification | empty (disabled) |
-| `GEOAPIFY_AUTOCOMPLETE_URL` | Override for the Geoapify autocomplete endpoint | Geoapify default |
-| `GEOAPIFY_GEOCODE_URL` | Override for the Geoapify geocode search endpoint | Geoapify default |
-| `GEOAPIFY_PLACE_URL` | Override for the Geoapify place lookup endpoint | Geoapify default |
-| `GOOGLE_MAPS_API_KEY` | Google Maps API key for the client location preview | empty (disabled) |
+| `GOOGLE_MAPS_API_KEY` | Google Maps Platform API key for autocomplete, validation, and map embeds | empty (disabled) |
+| `GOOGLE_PLACES_AUTOCOMPLETE_URL` | Override for the Google Places Autocomplete REST endpoint | Google default |
+| `GOOGLE_PLACES_DETAILS_URL` | Override for the Google Places Details REST endpoint | Google default |
+| `GOOGLE_ADDRESS_VALIDATION_URL` | Override for the Google Address Validation REST endpoint | Google default |
+| `GOOGLE_ADDRESS_VALIDATION_REGION_CODE` | Default ISO region code sent to the Address Validation API | `US` |
 
 Refer to `app/core/config.py` and `docker-compose.yml` for the full list of
 environment variables and their defaults.
 
 ### Address autocomplete setup
 
-Address prefill in the client editor is powered by Geoapify's Geocoding API. To
-enable it:
+Address prefill in the client editor is powered by Google Places Autocomplete
+and the Address Validation API. To enable it:
 
-1. Create a (free) Geoapify account and generate an **API key** with Geocoding
-   API access.
-2. Set the `GEOAPIFY_API_KEY` environment variable for the application (for
-   example in `.env` or your Docker Compose file). Optional overrides for the
-   Geoapify endpoints are available via the other `GEOAPIFY_*` variables.
-3. Restart the application. When editing a client, typing into **Address Line 1**
-   will display Geoapify-powered suggestions. Selecting a suggestion
-   automatically fills the remaining city/state/ZIP fields after verification.
+1. **Create or reuse a Google Cloud project** with billing enabled, then turn on
+   the **Places API** and **Address Validation API** (the existing Maps
+   JavaScript API is also required if you use the embedded maps).
+2. **Generate a restricted API key** that is allowed to call the enabled
+   services and lock it to the domains/IPs where this app runs.
+3. **Set the `GOOGLE_MAPS_API_KEY` environment variable** for the application
+   (for example in `.env` or your Docker Compose file). Optionally override
+   `GOOGLE_ADDRESS_VALIDATION_REGION_CODE` if most lookups occur outside the
+   United States.
+4. Restart the application. When editing a client, typing into **Address Line 1**
+   displays Google-powered suggestions, and picking one automatically fills the
+   remaining city/state/ZIP fields once validated.
 
 If the credentials are omitted, the UI silently falls back to manual entry.
 
-### Google Maps location preview setup & maintenance
+### Google Maps client map setup & maintenance
 
-The client editor can embed a Google Map that pins the supplied mailing
-address. To enable and maintain this integration:
+The client editor modal and the Clients page can embed Google Maps whenever a
+mailing address is available. The editor shows a single-location preview for the
+client you're editing, while the list view aggregates every mappable client into
+pins at the bottom of the page so you can visualise coverage at a glance. To
+enable and maintain this integration:
 
 1. **Create or reuse a Google Cloud project** with billing enabled, then
-   activate the **Maps JavaScript API** and **Geocoding API**. Both services
-   are required to render the map and resolve address coordinates.
-2. **Generate a restricted API key** scoped to the enabled Maps services and
-   lock it to your production domains and/or IP addresses.
+   activate the **Maps JavaScript**, **Geocoding**, **Places**, and **Address
+   Validation** APIs. These cover map rendering, coordinate lookups, and the
+   autocomplete/verification flows described above.
+2. **Generate a restricted API key** scoped to the enabled Google Maps
+   Platform services and lock it to your production domains and/or IP
+   addresses.
 3. **Set the `GOOGLE_MAPS_API_KEY` environment variable** for the application
    (for example in `.env`, `docker-compose.yml`, or your hosting secrets). The
-   key is injected into the client editor template at render time.
+   key is injected into both the client editor and list templates at render
+   time.
 4. **Restart the application** so the new environment variable is picked up.
    Opening a client with a populated address now shows a pinned map inside the
-   modal. Edits to the address will live-update the map preview.
+   modal, and the Clients page automatically renders the overview map once
+   clients have mappable addresses. Edits to an address live-update the preview
+   and refreshed list data updates the pins.
 
 For long-term maintenance:
 
@@ -741,7 +756,8 @@ For long-term maintenance:
   traffic does not disable the embed.
 * If you need to temporarily disable the map (for example, during maintenance
   or cost controls), unset `GOOGLE_MAPS_API_KEY`; the UI automatically hides the
-  map preview and continues functioning with manual address entry only.【F:README.md†L719-L744】
+  modal preview and Clients page overview map while continuing to function with
+  manual address entry only.【F:README.md†L720-L752】
 
 ## Contributing
 

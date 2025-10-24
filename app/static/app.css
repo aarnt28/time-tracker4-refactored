@@ -202,6 +202,66 @@ body.dashboard{
   gap:14px;
   align-items:end;
 }
+
+/* Clients map */
+.clients-map{
+  margin-top:32px;
+  background:var(--panel);
+  border-radius:var(--radius);
+  box-shadow:var(--shadow);
+  border:1px solid rgba(0,145,234,0.08);
+  padding:24px;
+  display:flex;
+  flex-direction:column;
+  gap:16px;
+}
+
+.clients-map__header{
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+}
+
+.clients-map__title{
+  margin:0;
+  font-size:20px;
+  font-weight:600;
+  color:var(--ink);
+}
+
+.clients-map__status{
+  margin:0;
+  color:var(--muted);
+  font-size:14px;
+  line-height:1.4;
+}
+
+.clients-map__canvas{
+  width:100%;
+  min-height:360px;
+  border-radius:var(--radius);
+  border:1px solid var(--line);
+  background:var(--brand-ghost);
+  overflow:hidden;
+}
+
+.clients-map--disabled .clients-map__canvas{
+  display:none;
+}
+
+.clients-map__infowindow strong{
+  display:block;
+  margin-bottom:4px;
+}
+
+@media (max-width: 720px){
+  .clients-map{
+    padding:18px;
+  }
+  .clients-map__title{
+    font-size:18px;
+  }
+}
 .field{ display:flex; flex-direction:column; gap:6px; grid-column: span 3; }
 .field--wide{ grid-column: span 6; }  
 .field--buttons{ grid-column: span 3; display:flex; gap:10px; align-items:center; }

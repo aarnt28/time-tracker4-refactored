@@ -32,22 +32,23 @@ class Settings:
     HOST = os.getenv("HOST", "0.0.0.0")
     PORT = int(os.getenv("PORT", "8089"))
 
-    # Address autocomplete & geocoding (Geoapify)
-    GEOAPIFY_API_KEY = os.getenv("GEOAPIFY_API_KEY", "")
-    GEOAPIFY_AUTOCOMPLETE_URL = os.getenv(
-        "GEOAPIFY_AUTOCOMPLETE_URL",
-        "https://api.geoapify.com/v1/geocode/autocomplete",
-    )
-    GEOAPIFY_GEOCODE_URL = os.getenv(
-        "GEOAPIFY_GEOCODE_URL",
-        "https://api.geoapify.com/v1/geocode/search",
-    )
-    GEOAPIFY_PLACE_URL = os.getenv(
-        "GEOAPIFY_PLACE_URL",
-        "https://api.geoapify.com/v1/geocode/retrieve",
-    )
-
-    # Google Maps JavaScript/Geocoding API (client location preview)
+    # Google Maps JavaScript & Places APIs (client location preview + address tools)
     GOOGLE_MAPS_API_KEY = os.getenv("GOOGLE_MAPS_API_KEY", "")
+    GOOGLE_PLACES_AUTOCOMPLETE_URL = os.getenv(
+        "GOOGLE_PLACES_AUTOCOMPLETE_URL",
+        "https://maps.googleapis.com/maps/api/place/autocomplete/json",
+    )
+    GOOGLE_PLACES_DETAILS_URL = os.getenv(
+        "GOOGLE_PLACES_DETAILS_URL",
+        "https://maps.googleapis.com/maps/api/place/details/json",
+    )
+    GOOGLE_ADDRESS_VALIDATION_URL = os.getenv(
+        "GOOGLE_ADDRESS_VALIDATION_URL",
+        "https://addressvalidation.googleapis.com/v1:validateAddress",
+    )
+    GOOGLE_ADDRESS_VALIDATION_REGION_CODE = os.getenv(
+        "GOOGLE_ADDRESS_VALIDATION_REGION_CODE",
+        "US",
+    )
 
 settings = Settings()
