@@ -370,17 +370,14 @@ def create_entry(db: Session, payload: dict) -> Ticket:
         hardware = db.get(Hardware, t.hardware_id)
         unit_sale = _money_to_float(t.hardware_sales_price)
         unit_cost = _money_to_float(hardware.acquisition_cost) if hardware else None
-        quantity = t.hardware_quantity or 1
-        sale_total = unit_sale * quantity if unit_sale is not None else None
-        cost_total = unit_cost * quantity if unit_cost is not None else None
         ensure_ticket_usage_event(
             db,
             ticket_id=t.id,
             hardware_id=t.hardware_id,
             quantity=t.hardware_quantity or 1,
             note=t.note,
-            sale_price=sale_total,
-            acquisition_cost=cost_total,
+            sale_price=unit_sale,
+            acquisition_cost=unit_cost,
         )
     return t
 
@@ -425,17 +422,14 @@ def update_ticket(db: Session, t: Ticket, payload: dict) -> Ticket:
         hardware = db.get(Hardware, t.hardware_id)
         unit_sale = _money_to_float(t.hardware_sales_price)
         unit_cost = _money_to_float(hardware.acquisition_cost) if hardware else None
-        quantity = t.hardware_quantity or 1
-        sale_total = unit_sale * quantity if unit_sale is not None else None
-        cost_total = unit_cost * quantity if unit_cost is not None else None
         ensure_ticket_usage_event(
             db,
             ticket_id=t.id,
             hardware_id=t.hardware_id,
             quantity=t.hardware_quantity or 1,
             note=t.note,
-            sale_price=sale_total,
-            acquisition_cost=cost_total,
+            sale_price=unit_sale,
+            acquisition_cost=unit_cost,
         )
     else:
         delete_ticket_event(db, t.id)
