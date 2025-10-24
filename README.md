@@ -38,6 +38,9 @@ stores data, and Docker Compose makes it easy to run everything locally.
 * **Geoapify address autocomplete** – Client address fields can be
   auto-completed with Geoapify's geocoding suggestions when an API key
   is configured.
+* **Client location preview** – Display a pinned Google Map in the client
+  editor whenever a mailing address is available, making it easy to verify
+  on-site details before scheduling work.【F:app/templates/clients.html†L688-L785】
 * **Responsive UI** – HTML pages served with Jinja2 templates and static
   resources provide a simple front‑end for managing tickets, hardware and
   clients.  Sessions and login keep your changes protected.
@@ -692,6 +695,7 @@ The application reads configuration from environment variables defined in
 | `GEOAPIFY_AUTOCOMPLETE_URL` | Override for the Geoapify autocomplete endpoint | Geoapify default |
 | `GEOAPIFY_GEOCODE_URL` | Override for the Geoapify geocode search endpoint | Geoapify default |
 | `GEOAPIFY_PLACE_URL` | Override for the Geoapify place lookup endpoint | Geoapify default |
+| `GOOGLE_MAPS_API_KEY` | Google Maps API key for the client location preview | empty (disabled) |
 
 Refer to `app/core/config.py` and `docker-compose.yml` for the full list of
 environment variables and their defaults.
@@ -711,6 +715,33 @@ enable it:
    automatically fills the remaining city/state/ZIP fields after verification.
 
 If the credentials are omitted, the UI silently falls back to manual entry.
+
+### Google Maps location preview setup & maintenance
+
+The client editor can embed a Google Map that pins the supplied mailing
+address. To enable and maintain this integration:
+
+1. **Create or reuse a Google Cloud project** with billing enabled, then
+   activate the **Maps JavaScript API** and **Geocoding API**. Both services
+   are required to render the map and resolve address coordinates.
+2. **Generate a restricted API key** scoped to the enabled Maps services and
+   lock it to your production domains and/or IP addresses.
+3. **Set the `GOOGLE_MAPS_API_KEY` environment variable** for the application
+   (for example in `.env`, `docker-compose.yml`, or your hosting secrets). The
+   key is injected into the client editor template at render time.
+4. **Restart the application** so the new environment variable is picked up.
+   Opening a client with a populated address now shows a pinned map inside the
+   modal. Edits to the address will live-update the map preview.
+
+For long-term maintenance:
+
+* Rotate the API key on a regular cadence and update the corresponding
+  environment variable before revoking the old key.
+* Monitor usage and quota alerts in the Google Cloud console so unexpected
+  traffic does not disable the embed.
+* If you need to temporarily disable the map (for example, during maintenance
+  or cost controls), unset `GOOGLE_MAPS_API_KEY`; the UI automatically hides the
+  map preview and continues functioning with manual address entry only.【F:README.md†L719-L744】
 
 ## Contributing
 

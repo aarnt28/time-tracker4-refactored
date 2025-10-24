@@ -21,6 +21,9 @@ services:
       # --- Geoapify address autocomplete ---
       GEOAPIFY_API_KEY: ${GEOAPIFY_API_KEY:-c91e2e13a8304ba8a3fcbbaae651e00e}
 
+      # --- Google Maps client preview ---
+      GOOGLE_MAPS_API_KEY: ${GOOGLE_MAPS_API_KEY:-}
+
     volumes:
       - ./data:/data
     ports:

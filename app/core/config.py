@@ -47,4 +47,7 @@ class Settings:
         "https://api.geoapify.com/v1/geocode/retrieve",
     )
 
+    # Google Maps JavaScript/Geocoding API (client location preview)
+    GOOGLE_MAPS_API_KEY = os.getenv("GOOGLE_MAPS_API_KEY", "")
+
 settings = Settings()
