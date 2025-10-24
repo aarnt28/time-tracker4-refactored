@@ -284,6 +284,12 @@ input[type="text"], input[type="date"], select{
   font-weight:600;
   box-shadow:0 6px 16px rgba(0,145,234,0.2);
 }
+.btn[disabled],
+.btn:disabled{
+  cursor:not-allowed;
+  opacity:0.6;
+  box-shadow:none;
+}
 .btn:hover{ filter:brightness(.97); box-shadow:0 8px 18px rgba(76,175,80,0.2); }
 .btn-primary{
   background:var(--vip-gradient-main);
