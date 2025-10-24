@@ -510,7 +510,7 @@ function formatAddressMeta(item){
   if (item.postal_code) parts.push(item.postal_code);
   if (item.country) parts.push(item.country);
   if (!parts.length && item.formatted) parts.push(item.formatted);
-  if (!parts.length) parts.push('Geoapify');
+  if (!parts.length) parts.push('Google Maps');
   return parts.join(' · ');
 }
 
