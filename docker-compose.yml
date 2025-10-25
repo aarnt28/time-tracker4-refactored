@@ -1,31 +1,34 @@
 services:
-  tracker:
-    build: .
-    container_name: time-tracker-dev
+  app:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    env_file:
+      - .env
     environment:
-      # --- Headless API key (kept as-is; required by /api/*) ---
-      API_TOKEN: ${API_TOKEN:-CaRpoauTdDYdxQwWhWeXUQy}
-
-      # --- Database / runtime (kept as-is) ---
-      DB_URL: sqlite:////data/data.db
-      TZ: America/Chicago
-
-      # --- UI session login ---
-      APP_SECRET: 'FzkMuTuMmGWcenTFHkvEQZB'
-      UI_USERNAME: 'admin'
-      # Escape `$` for docker-compose by doubling each one: $$ -> container sees single $
-      UI_PASSWORD_HASH: '$$2b$$12$$ZYEsVpnd7SRb8.E5ug/RQuPFjnGvEV9W8wvUi70BAYJptEsuB6cte'
-      SESSION_COOKIE_NAME: 'tt_session'
-      SESSION_MAX_AGE: '2592000'  # 30 days in seconds
-
-      # --- Geoapify address autocomplete ---
-      GEOAPIFY_API_KEY: ${GEOAPIFY_API_KEY:-c91e2e13a8304ba8a3fcbbaae651e00e}
-
-      # --- Google Maps client preview ---
-      GOOGLE_MAPS_API_KEY: ${GOOGLE_MAPS_API_KEY:-AIzaSyB80DIl9DXydASEcy3m06k79ej5BHHdkQk}
-
-    volumes:
-      - ./data:/data
+      - DB_URL=${DB_URL:-sqlite+aiosqlite:///./dev.db}
     ports:
       - "8089:8089"
-    restart: unless-stopped
+    depends_on:
+      - db
+    volumes:
+      - ./:/app:delegated
+
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: tracker
+      POSTGRES_PASSWORD: tracker
+      POSTGRES_DB: tracker
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  # Optional future worker/redis
+  # redis:
+  #   image: redis:7-alpine
+  #   ports: ["6379:6379"]
+
+volumes:
+  pgdata:

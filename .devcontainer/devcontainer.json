@@ -1,0 +1,11 @@
+{
+  "name": "time-tracker",
+  "build": {
+    "dockerfile": "../docker/Dockerfile",
+    "context": ".."
+  },
+  "remoteUser": "appuser",
+  "forwardPorts": [8089],
+  "runArgs": ["--env-file", ".env"],
+  "postCreateCommand": "pip install -e .[dev] && pre-commit install"
+}
