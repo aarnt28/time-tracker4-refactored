@@ -11,7 +11,7 @@ from starlette.responses import Response
 
 request_id_ctx_var: ContextVar[str | None] = ContextVar("request_id", default=None)
 principal_ctx_var: ContextVar[str | None] = ContextVar("principal_id", default=None)
-logger = logging.getLogger("uvicorn.access")
+logger = logging.getLogger("app.request")
 
 
 class RequestIdMiddleware(BaseHTTPMiddleware):
