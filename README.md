@@ -128,7 +128,8 @@ By default a SQLite database will be created in `data/data.db`.  Set
 ## Headless API reference
 
 The FastAPI application exposes every headless capability under the
-`/api/v1/…` prefix.  Unless noted otherwise, callers must include either an `X‑API‑Key` header whose value matches the configured API key or an `Authorization: Bearer` header containing a valid access token.  Interactive browser
+`/api/v1/…` prefix.  Unless noted otherwise, callers must include an
+`X‑API‑Key` header whose value matches `API_TOKEN`.  Interactive browser
 sessions that are already logged in via the UI may call the same endpoints
 without the header because the shared dependency accepts either an API key or
 an authenticated UI session.【F:app/deps/auth.py†L1-L29】
@@ -684,17 +685,12 @@ The application reads configuration from environment variables defined in
 
 | Variable            | Description                                | Default              |
 |---------------------|--------------------------------------------|----------------------|
-| `API_TOKEN` / `API_KEY` | API key required via `X‑API‑Key` header or to mint JWTs | empty (disabled) |
-| `JWT_SECRET`        | Symmetric secret used to sign JWT access/refresh tokens | `change-me` |
-| `JWT_ACCESS_TTL_MIN` | Access token lifetime in minutes            | `15` |
-| `JWT_REFRESH_TTL_DAYS` | Refresh token lifetime in days           | `7` |
-| `ALLOWED_ORIGINS`   | Comma separated CORS allowlist              | empty (disabled) |
-| `RATE_LIMIT`        | Default rate limit definition (SlowAPI syntax) | `60/minute` |
+| `API_TOKEN`         | API key required via `X‑API‑Key` header     | empty (disabled)     |
 | `APP_SECRET`        | Secret key for session cookies              | `dev-insecure-secret-change-me` |
 | `UI_USERNAME`       | Username for the browser UI                 | `admin`              |
 | `UI_PASSWORD`       | Password for the browser UI (plaintext)     | `change-me`          |
 | `UI_PASSWORD_HASH`  | Bcrypt hash of the UI password (takes precedence) | empty                |
-| `DB_URL`            | SQLAlchemy database URL                    | `sqlite:///data/data.db`  |
+| `DB_URL`            | SQLAlchemy database URL                    | `sqlite:///data.db`  |
 | `TZ`                | Time zone for timestamps                    | `America/Chicago`    |
 | `SESSION_COOKIE_NAME` | Name of the session cookie                | `tt_session`         |
 | `SESSION_MAX_AGE`   | Session lifetime in seconds                 | `2592000` (30 days)  |
@@ -704,11 +700,8 @@ The application reads configuration from environment variables defined in
 | `GOOGLE_ADDRESS_VALIDATION_URL` | Override for the Google Address Validation REST endpoint | Google default |
 | `GOOGLE_ADDRESS_VALIDATION_REGION_CODE` | Default ISO region code sent to the Address Validation API | `US` |
 
-Refer to `app/core/config.py` and `docker-compose.yml` for the full list of environment variables. Object storage credentials (`S3_BUCKET`/`R2_BUCKET`, `S3_REGION`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`) and `SENTRY_DSN` are optional and default to empty values.
-
-### API tokens and JWTs
-
-Programmatic clients may continue sending an `X-API-Key` header when `API_KEY`/`API_TOKEN` is configured. New integrations can exchange the same key for short-lived JWTs by calling `POST /api/v1/auth/token` and refresh them via `POST /api/v1/auth/refresh`. Both flows return access/refresh tokens signed with `JWT_SECRET`.
+Refer to `app/core/config.py` and `docker-compose.yml` for the full list of
+environment variables and their defaults.
 
 ### Address autocomplete setup
 

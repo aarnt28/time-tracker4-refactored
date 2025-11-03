@@ -18,10 +18,6 @@ RUN pip install --no-cache-dir \
     jinja2 \
     python-multipart \
     pydantic \
-    pydantic-settings \
-    slowapi \
-    prometheus-fastapi-instrumentator \
-    python-jose[cryptography] \
     httpx \
     itsdangerous \
     bcrypt
