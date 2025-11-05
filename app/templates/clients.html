@@ -28,6 +28,7 @@
         <button class="btn" id="customize-columns">Customize Columns</button>
         <button class="btn" id="manage-attributes">Manage Custom Attributes</button>
         <button class="btn" id="create-client">New Client</button>
+        <button class="btn" id="open-route-planner">Route Planner</button>
       </div>
       <nav class="links">
         <a href="/" class="pill">Dashboard</a>
@@ -57,6 +58,40 @@
         </p>
       </div>
       <div id="clients-map-canvas" class="clients-map__canvas" role="presentation" style="display:none;"></div>
+    </section>
+    <section id="route-planner" class="route-planner" aria-live="polite">
+      <header class="route-planner__header">
+        <h2 class="route-planner__title">Route Planner</h2>
+        <p class="route-planner__subtitle">
+          Plan visits starting from <span id="route-origin" class="route-planner__origin"></span>.
+        </p>
+      </header>
+      <div class="route-planner__layout">
+        <div class="route-planner__controls">
+          <label class="route-planner__field" for="route-client-select">
+            <span class="route-planner__label">Select clients to visit</span>
+            <select id="route-client-select" class="route-planner__select" multiple size="10" aria-describedby="route-planner-status"></select>
+          </label>
+          <div class="route-planner__buttons">
+            <button class="btn" type="button" id="route-add">Add to Route</button>
+            <button class="btn btn-ghost" type="button" id="route-clear">Clear Route</button>
+          </div>
+          <p id="route-planner-status" class="route-planner__status">Loading clients…</p>
+        </div>
+        <div class="route-planner__stops">
+          <div class="route-planner__stops-header">
+            <h3 class="route-planner__stops-title">Stops</h3>
+            <p class="route-planner__stops-note">Reorder stops to adjust the visit sequence.</p>
+          </div>
+          <div id="route-selection" class="route-planner__list" role="group" aria-label="Selected route stops"></div>
+          <div class="route-planner__actions">
+            <button class="btn" type="button" id="route-build">Build Route</button>
+            <button class="btn btn-ghost" type="button" id="route-optimize">Optimize Order</button>
+          </div>
+          <div id="route-summary" class="route-planner__summary" aria-live="polite"></div>
+        </div>
+      </div>
+      <div id="route-map" class="route-planner__map" role="presentation" style="display:none;"></div>
     </section>
   </main>
 
@@ -155,6 +190,50 @@ let clientsMapInfoWindow = null;
 let clientsMapGeocoder = null;
 let clientsMapRequestId = 0;
 const clientsMapGeocodeCache = new Map();
+const ROUTE_PLANNER_ORIGIN = '1409 Parkview St, Longview, TX 75601';
+const ROUTE_PLANNER_ORIGIN_COORDS = { lat: 32.5086, lng: -94.7424 };
+const routePlannerSection = document.getElementById('route-planner');
+const routeOriginDisplay = document.getElementById('route-origin');
+const routeClientSelect = document.getElementById('route-client-select');
+const routeAddButton = document.getElementById('route-add');
+const routeClearButton = document.getElementById('route-clear');
+const routeSelectionList = document.getElementById('route-selection');
+const routeBuildButton = document.getElementById('route-build');
+const routeOptimizeButton = document.getElementById('route-optimize');
+const routeSummary = document.getElementById('route-summary');
+const routeStatus = document.getElementById('route-planner-status');
+const routeMapCanvas = document.getElementById('route-map');
+const openRoutePlannerBtn = document.getElementById('open-route-planner');
+const routeSelectableClients = new Map();
+let routeSelection = [];
+let routeMapInstance = null;
+let routeDirectionsService = null;
+let routeDirectionsRenderer = null;
+let routeRequestId = 0;
+let routeHighlightTimer = null;
+
+if (routeBuildButton) routeBuildButton.disabled = true;
+if (routeOptimizeButton) routeOptimizeButton.disabled = true;
+if (routeClearButton) routeClearButton.disabled = true;
+
+if (routeOriginDisplay){
+  routeOriginDisplay.textContent = ROUTE_PLANNER_ORIGIN;
+}
+
+if (openRoutePlannerBtn && routePlannerSection){
+  openRoutePlannerBtn.addEventListener('click', () => {
+    if (routeHighlightTimer){
+      clearTimeout(routeHighlightTimer);
+      routeHighlightTimer = null;
+    }
+    routePlannerSection.classList.add('route-planner--highlight');
+    routePlannerSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    routeHighlightTimer = setTimeout(() => {
+      routePlannerSection.classList.remove('route-planner--highlight');
+      routeHighlightTimer = null;
+    }, 1200);
+  });
+}
 
 function getApiToken(){ return window.localStorage.getItem('api_token') || ''; }
 function setApiToken(t){ if (t) window.localStorage.setItem('api_token', t); }
@@ -825,6 +904,7 @@ function setupAddressAutocomplete({ modal, container }){
 
 function renderTable(data){
   latestTablePayload = data;
+  updateRoutePlannerOptions(data);
   const tableData = data.clients || {};
   const head = document.getElementById('clients-head');
   const body = document.getElementById('clients-body');
@@ -1460,6 +1540,403 @@ function renderColumnsOptions(){
     label.appendChild(checkbox);
     label.appendChild(span);
     columnsOptions.appendChild(label);
+  });
+}
+
+function normalizeRouteField(value){
+  if (value == null) return '';
+  if (typeof value === 'string') return value.trim();
+  return String(value).trim();
+}
+
+function buildRoutePlannerAddress(entry){
+  if (!entry || typeof entry !== 'object') return null;
+  const line1 = normalizeRouteField(entry.address_line1);
+  const line2 = normalizeRouteField(entry.address_line2);
+  const city = normalizeRouteField(entry.city);
+  const state = normalizeRouteField(entry.state);
+  const postal = normalizeRouteField(entry.postal_code);
+  const country = normalizeRouteField(entry.country);
+  if (!line1 || !(city || state || postal)) return null;
+  const parts = [line1];
+  if (line2) parts.push(line2);
+  const cityState = [city, state].filter(Boolean).join(', ');
+  if (cityState) parts.push(cityState);
+  if (postal) parts.push(postal);
+  if (country && !/^us(a)?$/i.test(country)) parts.push(country);
+  return parts.join(', ');
+}
+
+function cancelPendingRoute(){
+  routeRequestId += 1;
+}
+
+function resetRouteVisualization(){
+  if (routeDirectionsRenderer){
+    routeDirectionsRenderer.set('directions', null);
+  }
+  if (routeSummary){
+    routeSummary.innerHTML = '';
+  }
+  if (routeMapCanvas && !routeSelection.length){
+    routeMapCanvas.style.display = 'none';
+  }
+}
+
+function updateRoutePlannerOptions(data){
+  if (!routeClientSelect) return;
+  const previousLength = routeSelection.length;
+  routeSelectableClients.clear();
+  routeClientSelect.innerHTML = '';
+  const clients = (data && data.clients) || {};
+  const options = [];
+  Object.entries(clients).forEach(([clientKey, entry]) => {
+    const address = buildRoutePlannerAddress(entry);
+    if (!address) return;
+    const name = normalizeRouteField(entry.name) || clientKey;
+    routeSelectableClients.set(clientKey, { clientKey, name, address });
+    options.push({ clientKey, name, address });
+  });
+  options.sort((a, b) => a.name.localeCompare(b.name));
+  options.forEach((opt) => {
+    const option = document.createElement('option');
+    option.value = opt.clientKey;
+    option.textContent = `${opt.name} — ${opt.address}`;
+    routeClientSelect.appendChild(option);
+  });
+  routeSelection = routeSelection.filter((stop) => routeSelectableClients.has(stop.clientKey));
+  if (routeSelection.length !== previousLength){
+    cancelPendingRoute();
+    resetRouteVisualization();
+  }
+  if (routeStatus){
+    if (!GOOGLE_MAPS_API_KEY){
+      routeStatus.textContent = 'Set the GOOGLE_MAPS_API_KEY environment variable to enable the route planner.';
+    } else if (!options.length){
+      routeStatus.textContent = 'Add client addresses to populate the route planner.';
+    } else if (!routeSelection.length){
+      routeStatus.textContent = 'Select clients and add them to the route.';
+    }
+  }
+  renderRouteSelection();
+}
+
+function createRouteStopElement(stop, index, total){
+  const row = document.createElement('div');
+  row.className = 'route-stop';
+  const order = document.createElement('span');
+  order.className = 'route-stop__index';
+  order.textContent = String(index + 1);
+  row.appendChild(order);
+
+  const meta = document.createElement('div');
+  meta.className = 'route-stop__meta';
+  const nameEl = document.createElement('span');
+  nameEl.className = 'route-stop__name';
+  nameEl.textContent = stop.name;
+  const addressEl = document.createElement('span');
+  addressEl.className = 'route-stop__address';
+  addressEl.textContent = stop.address;
+  meta.appendChild(nameEl);
+  meta.appendChild(addressEl);
+  row.appendChild(meta);
+
+  const controls = document.createElement('div');
+  controls.className = 'route-stop__controls';
+
+  const upBtn = document.createElement('button');
+  upBtn.type = 'button';
+  upBtn.className = 'route-stop__btn';
+  upBtn.textContent = '↑';
+  upBtn.setAttribute('aria-label', `Move ${stop.name} up`);
+  upBtn.dataset.action = 'up';
+  upBtn.dataset.index = String(index);
+  if (index === 0) upBtn.disabled = true;
+  controls.appendChild(upBtn);
+
+  const downBtn = document.createElement('button');
+  downBtn.type = 'button';
+  downBtn.className = 'route-stop__btn';
+  downBtn.textContent = '↓';
+  downBtn.setAttribute('aria-label', `Move ${stop.name} down`);
+  downBtn.dataset.action = 'down';
+  downBtn.dataset.index = String(index);
+  if (index === total - 1) downBtn.disabled = true;
+  controls.appendChild(downBtn);
+
+  const removeBtn = document.createElement('button');
+  removeBtn.type = 'button';
+  removeBtn.className = 'route-stop__btn route-stop__btn--remove';
+  removeBtn.textContent = '×';
+  removeBtn.setAttribute('aria-label', `Remove ${stop.name} from the route`);
+  removeBtn.dataset.action = 'remove';
+  removeBtn.dataset.index = String(index);
+  controls.appendChild(removeBtn);
+
+  row.appendChild(controls);
+  return row;
+}
+
+function renderRouteSelection(){
+  if (!routeSelectionList) return;
+  routeSelectionList.innerHTML = '';
+  if (!routeSelection.length){
+    const empty = document.createElement('p');
+    empty.className = 'route-planner__empty';
+    empty.textContent = 'No stops added yet. Select clients and click “Add to Route.”';
+    routeSelectionList.appendChild(empty);
+  } else {
+    routeSelection.forEach((stop, index) => {
+      routeSelectionList.appendChild(createRouteStopElement(stop, index, routeSelection.length));
+    });
+  }
+  if (routeBuildButton) routeBuildButton.disabled = !routeSelection.length;
+  if (routeOptimizeButton) routeOptimizeButton.disabled = routeSelection.length < 2;
+  if (routeClearButton) routeClearButton.disabled = !routeSelection.length;
+}
+
+async function ensureRouteMap(){
+  if (!GOOGLE_MAPS_API_KEY || !routeMapCanvas) return null;
+  const maps = await loadGoogleMaps();
+  if (!routeMapInstance){
+    routeMapInstance = new maps.Map(routeMapCanvas, {
+      center: ROUTE_PLANNER_ORIGIN_COORDS,
+      zoom: 11,
+      mapTypeControl: false,
+      streetViewControl: false,
+      fullscreenControl: false,
+    });
+  }
+  if (!routeDirectionsService){
+    routeDirectionsService = new maps.DirectionsService();
+  }
+  if (!routeDirectionsRenderer){
+    routeDirectionsRenderer = new maps.DirectionsRenderer({
+      map: routeMapInstance,
+      suppressMarkers: false,
+      polylineOptions: { strokeColor: '#0091EA', strokeWeight: 5 },
+    });
+  } else if (routeDirectionsRenderer.getMap() !== routeMapInstance){
+    routeDirectionsRenderer.setMap(routeMapInstance);
+  }
+  routeMapCanvas.style.display = 'block';
+  return maps;
+}
+
+function formatDistance(meters){
+  if (typeof meters !== 'number' || !Number.isFinite(meters) || meters <= 0) return '';
+  const miles = meters / 1609.344;
+  if (miles >= 10) return `${Math.round(miles)} mi`;
+  if (miles >= 1) return `${miles.toFixed(1)} mi`;
+  const yards = meters * 1.09361;
+  if (yards >= 100) return `${Math.round(yards)} yd`;
+  return `${Math.round(meters)} m`;
+}
+
+function formatDuration(seconds){
+  if (typeof seconds !== 'number' || !Number.isFinite(seconds) || seconds <= 0) return '';
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.round((seconds % 3600) / 60);
+  if (hours && minutes){
+    return `${hours}h ${minutes}m`;
+  }
+  if (hours){
+    return `${hours}h`;
+  }
+  return `${minutes || 1}m`;
+}
+
+function renderRouteSummary(result){
+  if (!routeSummary) return;
+  const route = result && result.routes && result.routes[0];
+  const legs = route && Array.isArray(route.legs) ? route.legs : [];
+  if (!legs.length){
+    routeSummary.innerHTML = '';
+    return;
+  }
+  let totalDistance = 0;
+  let totalDuration = 0;
+  const list = document.createElement('ol');
+  list.className = 'route-summary__legs';
+  legs.forEach((leg, index) => {
+    const item = document.createElement('li');
+    item.className = 'route-summary__leg';
+    const heading = document.createElement('div');
+    heading.className = 'route-summary__leg-heading';
+    const start = leg.start_address || `Stop ${index}`;
+    const end = leg.end_address || `Stop ${index + 1}`;
+    heading.textContent = `${start} → ${end}`;
+    const meta = document.createElement('div');
+    meta.className = 'route-summary__leg-meta';
+    const legDistance = leg.distance && leg.distance.value;
+    const legDuration = leg.duration && leg.duration.value;
+    if (typeof legDistance === 'number'){ totalDistance += legDistance; }
+    if (typeof legDuration === 'number'){ totalDuration += legDuration; }
+    const distanceText = leg.distance && leg.distance.text ? leg.distance.text : formatDistance(legDistance);
+    const durationText = leg.duration && leg.duration.text ? leg.duration.text : formatDuration(legDuration);
+    meta.textContent = `${distanceText || '—'} • ${durationText || '—'}`;
+    item.appendChild(heading);
+    item.appendChild(meta);
+    list.appendChild(item);
+  });
+
+  const totals = document.createElement('div');
+  totals.className = 'route-summary__totals';
+  const totalDistanceText = formatDistance(totalDistance) || '—';
+  const totalDurationText = formatDuration(totalDuration) || '—';
+  totals.innerHTML = `<span>Total distance: <strong>${totalDistanceText}</strong></span><span>Total drive time: <strong>${totalDurationText}</strong></span>`;
+
+  routeSummary.innerHTML = '';
+  routeSummary.appendChild(totals);
+  routeSummary.appendChild(list);
+}
+
+function applyOptimizedOrder(route){
+  if (!routeSelection.length) return;
+  const waypointOrder = Array.isArray(route.waypoint_order) ? route.waypoint_order : [];
+  if (!waypointOrder.length) return;
+  const stops = routeSelection.slice(0, -1);
+  const finalStop = routeSelection[routeSelection.length - 1];
+  if (!stops.length) return;
+  const optimizedStops = waypointOrder.map((index) => stops[index]).filter(Boolean);
+  routeSelection = optimizedStops.concat(finalStop ? [finalStop] : []);
+  renderRouteSelection();
+}
+
+async function requestRoute(optimize){
+  if (!routeSelection.length){
+    if (routeStatus) routeStatus.textContent = 'Add at least one client to build a route.';
+    return;
+  }
+  if (!GOOGLE_MAPS_API_KEY){
+    if (routeStatus) routeStatus.textContent = 'Set the GOOGLE_MAPS_API_KEY environment variable to calculate routes.';
+    return;
+  }
+  try {
+    const maps = await ensureRouteMap();
+    if (!maps || !routeDirectionsService){
+      throw new Error('Google Maps unavailable');
+    }
+    const stops = routeSelection.map((stop) => stop.address);
+    const origin = ROUTE_PLANNER_ORIGIN;
+    const destination = stops[stops.length - 1] || origin;
+    const waypoints = stops.slice(0, -1).map((address) => ({ location: address, stopover: true }));
+    const request = {
+      origin,
+      destination,
+      travelMode: maps.TravelMode.DRIVING,
+    };
+    if (waypoints.length){
+      request.waypoints = waypoints;
+      if (optimize) request.optimizeWaypoints = true;
+    }
+    if (routeStatus){
+      routeStatus.textContent = optimize ? 'Requesting optimized route…' : 'Building route…';
+    }
+    const requestId = ++routeRequestId;
+    routeDirectionsService.route(request, (result, status) => {
+      if (routeRequestId !== requestId) return;
+      if (status === 'OK' && result){
+        routeDirectionsRenderer.setDirections(result);
+        renderRouteSummary(result);
+        if (optimize && result.routes && result.routes.length){
+          applyOptimizedOrder(result.routes[0]);
+          if (routeStatus) routeStatus.textContent = 'Optimized route ready. Adjust manually if needed.';
+        } else if (routeStatus){
+          routeStatus.textContent = 'Route ready.';
+        }
+        if (routeMapCanvas) routeMapCanvas.style.display = 'block';
+      } else {
+        resetRouteVisualization();
+        if (routeStatus) routeStatus.textContent = 'Google Maps could not compute a route for the selected stops.';
+      }
+    });
+  } catch (err) {
+    console.warn('Route planner failed', err);
+    resetRouteVisualization();
+    if (routeStatus) routeStatus.textContent = 'Route planner is unavailable. Check your Google Maps configuration.';
+  }
+}
+
+if (routeAddButton && routeClientSelect){
+  routeAddButton.addEventListener('click', () => {
+    const selectedOptions = Array.from(routeClientSelect.selectedOptions || []);
+    if (!selectedOptions.length){
+      if (routeStatus) routeStatus.textContent = 'Select clients in the list before adding them to the route.';
+      return;
+    }
+    let added = 0;
+    selectedOptions.forEach((option) => {
+      const clientKey = option.value;
+      if (!clientKey || !routeSelectableClients.has(clientKey)) return;
+      if (routeSelection.some((stop) => stop.clientKey === clientKey)) return;
+      const base = routeSelectableClients.get(clientKey);
+      if (!base) return;
+      routeSelection.push({ clientKey: base.clientKey, name: base.name, address: base.address });
+      added += 1;
+    });
+    if (added){
+      cancelPendingRoute();
+      resetRouteVisualization();
+      renderRouteSelection();
+      if (routeStatus) routeStatus.textContent = `Added ${added} stop${added === 1 ? '' : 's'} to the route.`;
+    } else if (routeStatus){
+      routeStatus.textContent = 'All selected clients are already in the route.';
+    }
+  });
+}
+
+if (routeClearButton){
+  routeClearButton.addEventListener('click', () => {
+    if (!routeSelection.length) return;
+    routeSelection = [];
+    cancelPendingRoute();
+    resetRouteVisualization();
+    renderRouteSelection();
+    if (routeStatus) routeStatus.textContent = 'Route cleared.';
+  });
+}
+
+if (routeSelectionList){
+  routeSelectionList.addEventListener('click', (event) => {
+    const button = event.target.closest('button[data-action]');
+    if (!button) return;
+    const index = Number(button.dataset.index);
+    if (!Number.isInteger(index) || index < 0 || index >= routeSelection.length) return;
+    const action = button.dataset.action;
+    if (action === 'remove'){
+      routeSelection.splice(index, 1);
+      cancelPendingRoute();
+      resetRouteVisualization();
+      renderRouteSelection();
+      if (routeStatus) routeStatus.textContent = 'Stop removed from the route.';
+    } else if (action === 'up' && index > 0){
+      const [stop] = routeSelection.splice(index, 1);
+      routeSelection.splice(index - 1, 0, stop);
+      cancelPendingRoute();
+      resetRouteVisualization();
+      renderRouteSelection();
+      if (routeStatus) routeStatus.textContent = 'Stop order updated. Rebuild the route to view changes.';
+    } else if (action === 'down' && index < routeSelection.length - 1){
+      const [stop] = routeSelection.splice(index, 1);
+      routeSelection.splice(index + 1, 0, stop);
+      cancelPendingRoute();
+      resetRouteVisualization();
+      renderRouteSelection();
+      if (routeStatus) routeStatus.textContent = 'Stop order updated. Rebuild the route to view changes.';
+    }
+  });
+}
+
+if (routeBuildButton){
+  routeBuildButton.addEventListener('click', () => {
+    requestRoute(false);
+  });
+}
+
+if (routeOptimizeButton){
+  routeOptimizeButton.addEventListener('click', () => {
+    requestRoute(true);
   });
 }
 
