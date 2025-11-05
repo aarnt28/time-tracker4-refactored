@@ -408,5 +408,24 @@
     "former_practices": "",
     "owner": "Sharron Simmons",
     "support_rate": "150"
+  },
+  "traceenichols": {
+    "name": "Tracee Nichols",
+    "address_line1": "9909 Crestline Avenue",
+    "address_line2": "",
+    "city": "Dallas",
+    "state": "TX",
+    "postal_code": "75220",
+    "support_hours_allowance": "",
+    "primary_contact_name": "Tracee Nichols",
+    "primary_contact_phone": "3233099574",
+    "primary_contact_email": "traceenichols77@gmail.com",
+    "office_manager_name": "",
+    "office_manager_phone": "",
+    "office_manager_email": "",
+    "contract": "",
+    "former_practices": "",
+    "owner": "Residence",
+    "support_rate": "130"
   }
 }
