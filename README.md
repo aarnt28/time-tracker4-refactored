@@ -42,6 +42,10 @@ stores data, and Docker Compose makes it easy to run everything locally.
   the client editor and a consolidated map at the bottom of the Clients page
   that pins every mappable customer, making it easy to verify on-site details
   and plan visits at a glance.【F:app/templates/clients.html†L43-L60】【F:app/templates/clients.html†L250-L470】【F:app/templates/clients.html†L964-L1126】
+* **Route planner** – Build multi-stop visit plans from saved client addresses,
+  reorder stops, request Google Maps directions with optional waypoint
+  optimisation, and review total drive distance and time without leaving the
+  Clients page.【F:app/templates/clients.html†L62-L94】【F:app/templates/clients.html†L1552-L1940】
 * **Responsive UI** – HTML pages served with Jinja2 templates and static
   resources provide a simple front‑end for managing tickets, hardware and
   clients.  Sessions and login keep your changes protected.
@@ -757,7 +761,33 @@ For long-term maintenance:
 * If you need to temporarily disable the map (for example, during maintenance
   or cost controls), unset `GOOGLE_MAPS_API_KEY`; the UI automatically hides the
   modal preview and Clients page overview map while continuing to function with
-  manual address entry only.【F:README.md†L720-L752】
+  manual address entry only.【F:app/templates/clients.html†L423-L444】
+
+### Route planner setup & usage
+
+The Clients page also embeds a route planner that lets you queue customer stops
+and request driving directions without leaving the dashboard. The planner loads
+every client that has a mailable address, anchors the trip from the configured
+service origin, and exposes buttons to add, clear, reorder, optimise and build
+the route.【F:app/templates/clients.html†L62-L95】【F:app/templates/clients.html†L1552-L1940】
+
+To configure and operate the planner:
+
+1. **Provide a Google Maps Platform key.** Set `GOOGLE_MAPS_API_KEY` so the UI
+   can load the Maps JavaScript and Directions APIs. Without it, the planner
+   remains disabled and prompts you to supply credentials.【F:app/templates/clients.html†L1612-L1813】
+2. **Maintain accurate client addresses.** Only clients with a populated street
+   line plus city/state/ZIP appear in the selection list, ensuring every stop
+   can be geocoded.【F:app/templates/clients.html†L1552-L1606】
+3. **Update the service origin as needed.** The default departure point and map
+   centre are defined by `ROUTE_PLANNER_ORIGIN` and
+   `ROUTE_PLANNER_ORIGIN_COORDS` inside `app/templates/clients.html`; adjust
+   them to match your real-world starting location.【F:app/templates/clients.html†L193-L220】【F:app/templates/clients.html†L1703-L1827】
+4. **Plan the trip.** Use the multi-select list to choose clients, click **Add
+   to Route**, then drag via the arrow controls or **Optimize Order** to refine
+   the sequence before running **Build Route**. The planner renders the route on
+   a Google Map and summarises per-leg distances, total drive time, and other
+   status messages alongside the stop list.【F:app/templates/clients.html†L62-L95】【F:app/templates/clients.html†L1624-L1940】【F:app/templates/clients.html†L1773-L1857】
 
 ## Contributing
 
