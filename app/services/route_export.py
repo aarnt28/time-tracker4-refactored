@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 from datetime import datetime, timezone
 from io import BytesIO
+from pathlib import Path
 from typing import List, Optional, Tuple
 
 import httpx
@@ -15,6 +16,34 @@ from ..schemas.route import LatLng, RouteExportRequest
 LOGGER = logging.getLogger(__name__)
 
 STATIC_MAP_URL = "https://maps.googleapis.com/maps/api/staticmap"
+ROUTE_PDF_FONT_FAMILY = "DejaVu"
+ROUTE_PDF_FONT_FILES = {
+    "": "DejaVuSans.ttf",
+    "B": "DejaVuSans-Bold.ttf",
+    "I": "DejaVuSans-Oblique.ttf",
+}
+
+
+def _font_path(filename: str) -> Path:
+    return (
+        Path(__file__)
+        .resolve()
+        .parent
+        .parent
+        .joinpath("static", "fonts", filename)
+    )
+
+
+def _register_route_fonts(pdf: FPDF) -> None:
+    for style, filename in ROUTE_PDF_FONT_FILES.items():
+        font_key = f"{ROUTE_PDF_FONT_FAMILY.lower()}{style.upper()}"
+        if font_key in pdf.fonts:
+            continue
+        font_file = _font_path(filename)
+        if not font_file.exists():
+            LOGGER.error("Route export font missing: %s", font_file)
+            raise FileNotFoundError(font_file)
+        pdf.add_font(ROUTE_PDF_FONT_FAMILY, style=style, fname=str(font_file), uni=True)
 
 
 def _format_distance(meters: Optional[float], fallback: Optional[str] = None) -> str:
@@ -119,13 +148,15 @@ def render_route_overview_pdf(
     pdf = FPDF(unit="mm", format="A4")
     pdf.set_auto_page_break(auto=True, margin=15)
     pdf.add_page()
+    _register_route_fonts(pdf)
+
     effective_width = pdf.w - pdf.l_margin - pdf.r_margin
 
-    pdf.set_font("Helvetica", "B", 16)
+    pdf.set_font(ROUTE_PDF_FONT_FAMILY, "B", 16)
     pdf.cell(effective_width, 10, "Route Overview", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
 
     generated_at = datetime.now(timezone.utc).astimezone()
-    pdf.set_font("Helvetica", size=10)
+    pdf.set_font(ROUTE_PDF_FONT_FAMILY, size=10)
     pdf.cell(
         effective_width,
         5,
@@ -136,7 +167,7 @@ def render_route_overview_pdf(
     pdf.ln(2)
 
     origin_display = payload.origin_display or payload.origin_name
-    pdf.set_font("Helvetica", "", 11)
+    pdf.set_font(ROUTE_PDF_FONT_FAMILY, "", 11)
     pdf.multi_cell(effective_width, 5.5, f"Origin: {origin_display}")
 
     total_distance = _format_distance(payload.total_distance_meters)
@@ -147,14 +178,14 @@ def render_route_overview_pdf(
 
     image_buffer = BytesIO(map_image) if map_image else None
     if image_buffer:
-        pdf.set_font("Helvetica", "B", 12)
+        pdf.set_font(ROUTE_PDF_FONT_FAMILY, "B", 12)
         pdf.cell(effective_width, 6, "Route map", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
         pdf.ln(1)
         image_buffer.seek(0)
         pdf.image(image_buffer, w=effective_width)
         pdf.ln(4)
     else:
-        pdf.set_font("Helvetica", "I", 10)
+        pdf.set_font(ROUTE_PDF_FONT_FAMILY, "I", 10)
         pdf.multi_cell(
             effective_width,
             5,
@@ -163,33 +194,33 @@ def render_route_overview_pdf(
         pdf.ln(4)
 
     if payload.stops:
-        pdf.set_font("Helvetica", "B", 12)
+        pdf.set_font(ROUTE_PDF_FONT_FAMILY, "B", 12)
         pdf.cell(effective_width, 6, "Stops", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
-        pdf.set_font("Helvetica", "", 11)
+        pdf.set_font(ROUTE_PDF_FONT_FAMILY, "", 11)
         for stop in payload.stops:
             label = f"{stop.order}. {stop.name or stop.address}"
             pdf.multi_cell(effective_width, 5, label)
             if stop.address:
-                pdf.set_font("Helvetica", size=10)
+                pdf.set_font(ROUTE_PDF_FONT_FAMILY, size=10)
                 pdf.multi_cell(effective_width, 4.5, f"   {stop.address}")
-                pdf.set_font("Helvetica", "", 11)
+                pdf.set_font(ROUTE_PDF_FONT_FAMILY, "", 11)
         pdf.ln(2)
 
-    pdf.set_font("Helvetica", "B", 12)
+    pdf.set_font(ROUTE_PDF_FONT_FAMILY, "B", 12)
     pdf.cell(effective_width, 6, "Leg breakdown", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
-    pdf.set_font("Helvetica", "", 11)
+    pdf.set_font(ROUTE_PDF_FONT_FAMILY, "", 11)
     for index, leg in enumerate(payload.legs, start=1):
         header = f"Leg {index}: {leg.start_address or 'N/A'} -> {leg.end_address or 'N/A'}"
         pdf.multi_cell(effective_width, 5, header)
         distance_text = _format_distance(leg.distance_meters, leg.distance_text)
         duration_text = _format_duration(leg.duration_seconds, leg.duration_text)
-        pdf.set_font("Helvetica", size=10)
+        pdf.set_font(ROUTE_PDF_FONT_FAMILY, size=10)
         pdf.multi_cell(
             effective_width,
             4.5,
             f"   Distance: {distance_text} | Duration: {duration_text}",
         )
-        pdf.set_font("Helvetica", "", 11)
+        pdf.set_font(ROUTE_PDF_FONT_FAMILY, "", 11)
         pdf.ln(1)
 
     output = pdf.output(dest="S")
