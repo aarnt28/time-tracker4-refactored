@@ -20,7 +20,8 @@ RUN pip install --no-cache-dir \
     pydantic \
     httpx \
     itsdangerous \
-    bcrypt
+    bcrypt \
+    fpdf2
 
 # Keep your original copy layout (copy the app/ dir into /app/app)
 COPY app /app/app

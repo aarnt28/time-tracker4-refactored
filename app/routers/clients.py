@@ -1,18 +1,24 @@
 from __future__ import annotations
-from fastapi import APIRouter, Depends, HTTPException, Query
-from typing import Dict, Any
+
+from datetime import datetime, timezone
+from typing import Any, Dict
+
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
+
+from ..deps.auth import require_ui_or_token
+from ..schemas.route import RouteExportRequest
 from ..services.clientsync import (
-    load_client_table,
-    save_client_table,
     get_client_entry,
+    load_client_table,
     resolve_client_key,
+    save_client_table,
 )
 from ..services.custom_attributes import (
     add_custom_attribute_key,
     load_custom_attribute_keys,
     remove_custom_attribute_key,
 )
-from ..deps.auth import require_ui_or_token
+from ..services.route_export import generate_route_overview_pdf
 
 router = APIRouter(prefix="/api/v1/clients", tags=["clients"])
 
@@ -138,3 +144,12 @@ def delete_custom_attribute(attribute_key: str):
         save_client_table(table)
 
     return {"status": "deleted", "attribute_keys": keys}
+
+
+@router.post("/route/export", dependencies=[Depends(require_ui_or_token)])
+async def export_route_overview(payload: RouteExportRequest) -> Response:
+    pdf_bytes = await generate_route_overview_pdf(payload)
+    timestamp = datetime.now(timezone.utc).astimezone().strftime("%Y%m%d-%H%M")
+    filename = f"route-overview-{timestamp}.pdf"
+    headers = {"Content-Disposition": f'attachment; filename="{filename}"'}
+    return Response(content=pdf_bytes, media_type="application/pdf", headers=headers)
