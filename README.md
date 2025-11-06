@@ -736,9 +736,10 @@ pins at the bottom of the page so you can visualise coverage at a glance. To
 enable and maintain this integration:
 
 1. **Create or reuse a Google Cloud project** with billing enabled, then
-   activate the **Maps JavaScript**, **Geocoding**, **Places API (New)**, and **Address
-   Validation** APIs. These cover map rendering, coordinate lookups, and the
-   autocomplete/verification flows described above.
+   activate the **Maps JavaScript**, **Geocoding**, **Static Maps**, **Places API (New)**,
+   and **Address Validation** APIs. These cover map rendering, coordinate
+   lookups, the PDF export map snapshot, and the autocomplete/verification
+   flows described above.
 2. **Generate a restricted API key** scoped to the enabled Google Maps
    Platform services and lock it to your production domains and/or IP
    addresses.
@@ -788,6 +789,9 @@ To configure and operate the planner:
    the sequence before running **Build Route**. The planner renders the route on
    a Google Map and summarises per-leg distances, total drive time, and other
    status messages alongside the stop list.【F:app/templates/clients.html†L62-L95】【F:app/templates/clients.html†L1624-L1940】【F:app/templates/clients.html†L1773-L1857】
+5. **Export the route.** After the map renders, click **Export PDF** to
+   download a snapshot that includes the map, ordered stops, and per-leg
+   details for offline sharing or printing.【F:app/templates/clients.html†L74-L95】【F:app/templates/clients.html†L1806-L1894】
 
 ## Contributing
 

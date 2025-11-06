@@ -87,6 +87,7 @@
           <div class="route-planner__actions">
             <button class="btn" type="button" id="route-build">Build Route</button>
             <button class="btn btn-ghost" type="button" id="route-optimize">Optimize Order</button>
+            <button class="btn btn-ghost" type="button" id="route-export" disabled>Export PDF</button>
           </div>
           <div id="route-summary" class="route-planner__summary" aria-live="polite"></div>
         </div>
@@ -191,6 +192,7 @@ let clientsMapGeocoder = null;
 let clientsMapRequestId = 0;
 const clientsMapGeocodeCache = new Map();
 const ROUTE_PLANNER_ORIGIN = '1409 Parkview St, Longview, TX 75601';
+const ROUTE_PLANNER_ORIGIN_NAME = 'Service Origin';
 const ROUTE_PLANNER_ORIGIN_COORDS = { lat: 32.5086, lng: -94.7424 };
 const ROUTE_PLANNER_STATIC_STOPS = [
   { clientKey: '__vendor_buccees__', name: 'Buc-ee\u2019s', address: '506 I-20, Terrell, TX 75160' },
@@ -205,6 +207,7 @@ const routeClearButton = document.getElementById('route-clear');
 const routeSelectionList = document.getElementById('route-selection');
 const routeBuildButton = document.getElementById('route-build');
 const routeOptimizeButton = document.getElementById('route-optimize');
+const routeExportButton = document.getElementById('route-export');
 const routeSummary = document.getElementById('route-summary');
 const routeStatus = document.getElementById('route-planner-status');
 const routeMapCanvas = document.getElementById('route-map');
@@ -216,6 +219,8 @@ let routeDirectionsService = null;
 let routeDirectionsRenderer = null;
 let routeRequestId = 0;
 let routeHighlightTimer = null;
+let latestRouteExportPayload = null;
+let routeExportInFlight = false;
 
 if (routeBuildButton) routeBuildButton.disabled = true;
 if (routeOptimizeButton) routeOptimizeButton.disabled = true;
@@ -1572,6 +1577,14 @@ function buildRoutePlannerAddress(entry){
   return parts.join(', ');
 }
 
+function invalidateRouteExport(){
+  latestRouteExportPayload = null;
+  if (routeExportButton){
+    routeExportButton.disabled = true;
+    routeExportButton.removeAttribute('aria-busy');
+  }
+}
+
 function cancelPendingRoute(){
   routeRequestId += 1;
 }
@@ -1583,6 +1596,7 @@ function resetRouteVisualization(){
   if (routeSummary){
     routeSummary.innerHTML = '';
   }
+  invalidateRouteExport();
   if (routeMapCanvas && !routeSelection.length){
     routeMapCanvas.style.display = 'none';
   }
@@ -1760,16 +1774,87 @@ function formatDuration(seconds){
   return `${minutes || 1}m`;
 }
 
+function serializeLatLng(value){
+  if (!value) return null;
+  try {
+    const lat = typeof value.lat === 'function' ? value.lat() : value.lat;
+    const lng = typeof value.lng === 'function' ? value.lng() : value.lng;
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+    return { lat, lng };
+  } catch (err) {
+    return null;
+  }
+}
+
+function getOrderedStopsForExport(route){
+  if (!routeSelection.length) return [];
+  const baseStops = routeSelection.map((stop) => ({
+    name: stop.name || stop.address || '',
+    address: stop.address || '',
+  }));
+  const waypointOrder = Array.isArray(route.waypoint_order) ? route.waypoint_order : [];
+  if (waypointOrder.length && baseStops.length){
+    const intermediate = baseStops.slice(0, -1);
+    const finalStop = baseStops[baseStops.length - 1] || null;
+    const ordered = waypointOrder.map((index) => intermediate[index]).filter(Boolean);
+    if (finalStop){
+      ordered.push(finalStop);
+    }
+    return ordered.map((stop, index) => ({
+      order: index + 1,
+      name: stop.name,
+      address: stop.address,
+    }));
+  }
+  return baseStops.map((stop, index) => ({
+    order: index + 1,
+    name: stop.name,
+    address: stop.address,
+  }));
+}
+
+function buildRouteExportPayload(route, legSummaries, totalDistance, totalDuration){
+  if (!route || !Array.isArray(legSummaries) || !legSummaries.length){
+    return null;
+  }
+  const stops = getOrderedStopsForExport(route);
+  const totalDistanceMeters = Number.isFinite(totalDistance) ? totalDistance : null;
+  const totalDurationSeconds = Number.isFinite(totalDuration) ? totalDuration : null;
+  const originDisplayText = routeOriginDisplay ? (routeOriginDisplay.textContent || ROUTE_PLANNER_ORIGIN) : ROUTE_PLANNER_ORIGIN;
+  const overviewPolyline = route.overview_polyline && route.overview_polyline.points ? route.overview_polyline.points : null;
+  return {
+    origin_name: ROUTE_PLANNER_ORIGIN_NAME,
+    origin_address: ROUTE_PLANNER_ORIGIN,
+    origin_display: originDisplayText,
+    stops,
+    legs: legSummaries.map((leg) => ({
+      start_address: leg.start_address || '',
+      end_address: leg.end_address || '',
+      distance_text: leg.distance_text || '',
+      distance_meters: Number.isFinite(leg.distance_meters) ? leg.distance_meters : null,
+      duration_text: leg.duration_text || '',
+      duration_seconds: Number.isFinite(leg.duration_seconds) ? leg.duration_seconds : null,
+      start_location: leg.start_location || null,
+      end_location: leg.end_location || null,
+    })),
+    overview_polyline: overviewPolyline,
+    total_distance_meters: totalDistanceMeters,
+    total_duration_seconds: totalDurationSeconds,
+  };
+}
+
 function renderRouteSummary(result){
   if (!routeSummary) return;
   const route = result && result.routes && result.routes[0];
   const legs = route && Array.isArray(route.legs) ? route.legs : [];
   if (!legs.length){
     routeSummary.innerHTML = '';
+    invalidateRouteExport();
     return;
   }
   let totalDistance = 0;
   let totalDuration = 0;
+  const legSummaries = [];
   const list = document.createElement('ol');
   list.className = 'route-summary__legs';
   legs.forEach((leg, index) => {
@@ -1792,6 +1877,16 @@ function renderRouteSummary(result){
     item.appendChild(heading);
     item.appendChild(meta);
     list.appendChild(item);
+    legSummaries.push({
+      start_address: start,
+      end_address: end,
+      distance_text: distanceText || '',
+      distance_meters: typeof legDistance === 'number' && Number.isFinite(legDistance) ? legDistance : null,
+      duration_text: durationText || '',
+      duration_seconds: typeof legDuration === 'number' && Number.isFinite(legDuration) ? legDuration : null,
+      start_location: serializeLatLng(leg.start_location),
+      end_location: serializeLatLng(leg.end_location),
+    });
   });
 
   const totals = document.createElement('div');
@@ -1803,6 +1898,11 @@ function renderRouteSummary(result){
   routeSummary.innerHTML = '';
   routeSummary.appendChild(totals);
   routeSummary.appendChild(list);
+
+  latestRouteExportPayload = buildRouteExportPayload(route, legSummaries, totalDistance, totalDuration);
+  if (routeExportButton){
+    routeExportButton.disabled = !latestRouteExportPayload;
+  }
 }
 
 function applyOptimizedOrder(route){
@@ -1822,6 +1922,7 @@ async function requestRoute(optimize){
     if (routeStatus) routeStatus.textContent = 'Add at least one stop to build a route.';
     return;
   }
+  invalidateRouteExport();
   if (!GOOGLE_MAPS_API_KEY){
     if (routeStatus) routeStatus.textContent = 'Set the GOOGLE_MAPS_API_KEY environment variable to calculate routes.';
     return;
@@ -1951,6 +2052,85 @@ if (routeBuildButton){
 if (routeOptimizeButton){
   routeOptimizeButton.addEventListener('click', () => {
     requestRoute(true);
+  });
+}
+
+function parseFilenameFromDisposition(disposition){
+  if (!disposition) return null;
+  const match = disposition.match(/filename\*?=([^;]+)/i);
+  if (match && match[1]){
+    const value = match[1].trim();
+    if (value.startsWith("UTF-8''")){
+      return decodeURIComponent(value.slice(7));
+    }
+    return value.replace(/^"|"$/g, '');
+  }
+  return null;
+}
+
+if (routeExportButton){
+  routeExportButton.addEventListener('click', async () => {
+    if (!latestRouteExportPayload || routeExportInFlight){
+      if (routeStatus) routeStatus.textContent = 'Build a route before exporting it.';
+      return;
+    }
+    routeExportInFlight = true;
+    routeExportButton.disabled = true;
+    routeExportButton.setAttribute('aria-busy', 'true');
+    if (routeStatus) routeStatus.textContent = 'Preparing PDF export…';
+    try {
+      const headers = apiHeaders(true);
+      headers.Accept = 'application/pdf';
+      const res = await safeFetch('/api/v1/clients/route/export', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(latestRouteExportPayload)
+      });
+      if (!res.ok){
+        let message = 'Failed to export the route.';
+        try {
+          const raw = await res.text();
+          if (raw){
+            try {
+              const data = JSON.parse(raw);
+              if (data && data.detail) message = data.detail;
+              else message = raw;
+            } catch (parseErr) {
+              message = raw;
+            }
+          }
+        } catch (readErr) {
+          console.warn('Route export error response parse failed', readErr);
+        }
+        if (routeStatus) routeStatus.textContent = message;
+        return;
+      }
+      const blob = await res.blob();
+      const disposition = res.headers.get('Content-Disposition');
+      let filename = parseFilenameFromDisposition(disposition) || '';
+      if (!filename){
+        const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+        filename = `route-overview-${stamp}.pdf`;
+      }
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.setTimeout(() => window.URL.revokeObjectURL(url), 1000);
+      if (routeStatus) routeStatus.textContent = 'Route overview PDF downloaded.';
+    } catch (err) {
+      console.warn('Route export failed', err);
+      if (routeStatus) routeStatus.textContent = 'Route export failed. Try again.';
+    } finally {
+      routeExportInFlight = false;
+      if (routeExportButton){
+        routeExportButton.removeAttribute('aria-busy');
+        routeExportButton.disabled = !latestRouteExportPayload;
+      }
+    }
   });
 }
 
