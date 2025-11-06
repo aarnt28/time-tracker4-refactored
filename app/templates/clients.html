@@ -69,14 +69,14 @@
       <div class="route-planner__layout">
         <div class="route-planner__controls">
           <label class="route-planner__field" for="route-client-select">
-            <span class="route-planner__label">Select clients to visit</span>
+            <span class="route-planner__label">Select stops to visit</span>
             <select id="route-client-select" class="route-planner__select" multiple size="10" aria-describedby="route-planner-status"></select>
           </label>
           <div class="route-planner__buttons">
             <button class="btn" type="button" id="route-add">Add to Route</button>
             <button class="btn btn-ghost" type="button" id="route-clear">Clear Route</button>
           </div>
-          <p id="route-planner-status" class="route-planner__status">Loading clients…</p>
+          <p id="route-planner-status" class="route-planner__status">Loading stops…</p>
         </div>
         <div class="route-planner__stops">
           <div class="route-planner__stops-header">
@@ -192,6 +192,10 @@ let clientsMapRequestId = 0;
 const clientsMapGeocodeCache = new Map();
 const ROUTE_PLANNER_ORIGIN = '1409 Parkview St, Longview, TX 75601';
 const ROUTE_PLANNER_ORIGIN_COORDS = { lat: 32.5086, lng: -94.7424 };
+const ROUTE_PLANNER_STATIC_STOPS = [
+  { clientKey: '__vendor_buccees__', name: 'Buc-ee\u2019s', address: '506 I-20, Terrell, TX 75160' },
+  { clientKey: '__vendor_microcenter__', name: 'Microcenter', address: '13929 N Central Expy, Dallas, TX 75243' }
+];
 const routePlannerSection = document.getElementById('route-planner');
 const routeOriginDisplay = document.getElementById('route-origin');
 const routeClientSelect = document.getElementById('route-client-select');
@@ -1597,6 +1601,15 @@ function updateRoutePlannerOptions(data){
     routeSelectableClients.set(clientKey, { clientKey, name, address });
     options.push({ clientKey, name, address });
   });
+  ROUTE_PLANNER_STATIC_STOPS.forEach((stop) => {
+    if (!stop || !stop.clientKey || !stop.name || !stop.address) return;
+    routeSelectableClients.set(stop.clientKey, {
+      clientKey: stop.clientKey,
+      name: stop.name,
+      address: stop.address
+    });
+    options.push({ clientKey: stop.clientKey, name: stop.name, address: stop.address });
+  });
   options.sort((a, b) => a.name.localeCompare(b.name));
   options.forEach((opt) => {
     const option = document.createElement('option');
@@ -1613,9 +1626,9 @@ function updateRoutePlannerOptions(data){
     if (!GOOGLE_MAPS_API_KEY){
       routeStatus.textContent = 'Set the GOOGLE_MAPS_API_KEY environment variable to enable the route planner.';
     } else if (!options.length){
-      routeStatus.textContent = 'Add client addresses to populate the route planner.';
+      routeStatus.textContent = 'Add client addresses to populate the route planner with customer stops.';
     } else if (!routeSelection.length){
-      routeStatus.textContent = 'Select clients and add them to the route.';
+      routeStatus.textContent = 'Select stops and add them to the route.';
     }
   }
   renderRouteSelection();
@@ -1683,7 +1696,7 @@ function renderRouteSelection(){
   if (!routeSelection.length){
     const empty = document.createElement('p');
     empty.className = 'route-planner__empty';
-    empty.textContent = 'No stops added yet. Select clients and click “Add to Route.”';
+    empty.textContent = 'No stops added yet. Select stops and click “Add to Route.”';
     routeSelectionList.appendChild(empty);
   } else {
     routeSelection.forEach((stop, index) => {
@@ -1805,7 +1818,7 @@ function applyOptimizedOrder(route){
 
 async function requestRoute(optimize){
   if (!routeSelection.length){
-    if (routeStatus) routeStatus.textContent = 'Add at least one client to build a route.';
+    if (routeStatus) routeStatus.textContent = 'Add at least one stop to build a route.';
     return;
   }
   if (!GOOGLE_MAPS_API_KEY){
@@ -1862,7 +1875,7 @@ if (routeAddButton && routeClientSelect){
   routeAddButton.addEventListener('click', () => {
     const selectedOptions = Array.from(routeClientSelect.selectedOptions || []);
     if (!selectedOptions.length){
-      if (routeStatus) routeStatus.textContent = 'Select clients in the list before adding them to the route.';
+      if (routeStatus) routeStatus.textContent = 'Select stops in the list before adding them to the route.';
       return;
     }
     let added = 0;
@@ -1881,7 +1894,7 @@ if (routeAddButton && routeClientSelect){
       renderRouteSelection();
       if (routeStatus) routeStatus.textContent = `Added ${added} stop${added === 1 ? '' : 's'} to the route.`;
     } else if (routeStatus){
-      routeStatus.textContent = 'All selected clients are already in the route.';
+      routeStatus.textContent = 'All selected stops are already in the route.';
     }
   });
 }
