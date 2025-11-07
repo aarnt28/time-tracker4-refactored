@@ -1,3 +1,5 @@
+"""Inventory CRUD helpers with step-by-step commentary."""
+
 from __future__ import annotations
 
 from datetime import datetime
@@ -11,6 +13,8 @@ from ..models.hardware import Hardware
 
 
 def list_inventory_events(db: Session, limit: int = 100, offset: int = 0) -> list[InventoryEvent]:
+    """Fetch a page of inventory history records ordered by recency."""
+
     stmt = (
         select(InventoryEvent)
         .order_by(desc(InventoryEvent.created_at), desc(InventoryEvent.id))
@@ -21,6 +25,8 @@ def list_inventory_events(db: Session, limit: int = 100, offset: int = 0) -> lis
 
 
 def get_inventory_summary(db: Session) -> list[dict[str, object]]:
+    """Aggregate inventory events per hardware item for dashboard displays."""
+
     stmt = (
         select(
             InventoryEvent.hardware_id,
@@ -47,6 +53,8 @@ def get_inventory_summary(db: Session) -> list[dict[str, object]]:
 
 
 def _normalize_amount(value: object) -> float | None:
+    """Convert user-entered currency values to a float or ``None`` if invalid."""
+
     if value is None:
         return None
     if isinstance(value, (int, float)):
@@ -66,6 +74,8 @@ def _normalize_amount(value: object) -> float | None:
 
 
 def _total_value(unit: float | None, change: int) -> float | None:
+    """Multiply a unit price by the quantity change to get a total."""
+
     if unit is None:
         return None
     quantity = abs(change)
@@ -87,6 +97,8 @@ def record_inventory_event(
     actual_cost: float | None = None,
     sale_price: float | None = None,
 ) -> InventoryEvent:
+    """Persist a new inventory event, calculating totals and cleaning inputs."""
+
     if not change:
         raise ValueError("change must be non-zero")
     name = (counterparty_name or "").strip() or None
@@ -116,16 +128,22 @@ def record_inventory_event(
 
 
 def get_event_by_ticket(db: Session, ticket_id: int) -> InventoryEvent | None:
+    """Return the inventory event tied to the given ticket, if one exists."""
+
     stmt = select(InventoryEvent).where(InventoryEvent.ticket_id == ticket_id)
     return db.execute(stmt).scalars().first()
 
 
 def delete_event(db: Session, event: InventoryEvent) -> None:
+    """Remove an inventory event permanently."""
+
     db.delete(event)
     db.commit()
 
 
 def delete_ticket_event(db: Session, ticket_id: int) -> None:
+    """Convenience wrapper to delete the event linked to a ticket."""
+
     existing = get_event_by_ticket(db, ticket_id)
     if existing:
         delete_event(db, existing)
@@ -155,6 +173,7 @@ def ensure_ticket_usage_event(
     cost_total = _total_value(unit_cost, change)
 
     if existing:
+        # Updating reuses the existing row so linked ticket history remains intact.
         existing.hardware_id = hardware_id
         existing.change = change
         existing.source = "ticket"

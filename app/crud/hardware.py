@@ -1,4 +1,5 @@
-# app/crud/hardware.py
+"""CRUD helpers for hardware records explained in everyday language."""
+
 from __future__ import annotations
 
 from datetime import datetime
@@ -133,6 +134,9 @@ def _attach_inventory_metrics(db: Session, items: list[Hardware]) -> None:
     hardware_map = {item.id: item for item in items}
     if not hardware_map:
         return
+    # ``common_vendors`` and ``average_unit_cost`` are computed attributes we
+    # attach on-the-fly so templates can display richer context without extra
+    # queries elsewhere.
     for item in hardware_map.values():
         setattr(item, "common_vendors", [])
         setattr(item, "average_unit_cost", None)
@@ -168,6 +172,8 @@ def _attach_inventory_metrics(db: Session, items: list[Hardware]) -> None:
         if info["vendors"]:
             setattr(item, "common_vendors", info["vendors"])
         if info["unit_costs"]:
+            # Average the recorded unit costs so the UI shows a useful guide price
+            # instead of a long history of numbers.
             avg = sum(info["unit_costs"]) / len(info["unit_costs"])
             setattr(item, "average_unit_cost", avg)
 
@@ -189,10 +195,14 @@ def _normalize_existing_barcodes(db: Session, items: list[Hardware]) -> None:
         conflict = db.execute(conflict_stmt).scalars().first()
         if conflict:
             continue
+        # Only update the database if we can safely upgrade the stored barcode
+        # to the cleaner format.
         item.barcode = normalized
         dirty = True
 
     if dirty:
+        # ``commit`` writes the corrected barcode values back to the database and
+        # ``refresh`` pulls the new values into each ORM instance.
         db.commit()
         for item in items:
             db.refresh(item)

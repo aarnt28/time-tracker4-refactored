@@ -1,15 +1,31 @@
+"""Beginner-friendly overview for this module.
+
+WHAT: Handles the logic defined in "app/crud/tickets.py" for the Time Tracker app.
+WHEN: Invoked when its functions or classes are imported and called.
+WHY: Provides supporting behaviour so the service runs smoothly.
+HOW: Read the inline comments and docstrings below for the step-by-step flow.
+
+File: app/crud/tickets.py
+"""
+
+
 from __future__ import annotations
+"""Ticket CRUD helpers with plenty of beginner-friendly narration."""
+
 from datetime import datetime
 import shutil
 from pathlib import Path
 from uuid import uuid4
 from typing import IO
+
+from decimal import Decimal, InvalidOperation
+
 from sqlalchemy.orm import Session
 from sqlalchemy import select, desc, or_
+
 from ..models.ticket import Ticket
 from ..models.hardware import Hardware
 from .inventory import ensure_ticket_usage_event, delete_ticket_event
-from decimal import Decimal, InvalidOperation
 
 from ..services.timecalc import compute_minutes, round_minutes
 from ..services.clientsync import resolve_client_name, load_client_table
@@ -23,6 +39,8 @@ CONTRACT_CLIENT_NOTE_PREFIX = "*** Reminder: This is a contract client, if the v
 ELITE_CLIENT_NOTE_PREFIX = "~~~ This Clinic is Owned by Elite MMG - Everything other than standard contract costs is billed to 'Elite - Hardware' in Quickbooks; Please do not add to individual clinic! ~~~\n\n"
 
 def _coerce_bool(value: object) -> bool:
+    """Interpret various truthy/falsy user inputs as a Python ``bool``."""
+
     if isinstance(value, bool):
         return value
     if isinstance(value, (int, float)):
@@ -34,6 +52,8 @@ def _coerce_bool(value: object) -> bool:
 
 
 def _is_contract_client(client_key: str | None, table: dict | None = None) -> bool:
+    """Return ``True`` when the client lookup marks this key as contract."""
+
     if not client_key:
         return False
     if table is None:
@@ -44,6 +64,8 @@ def _is_contract_client(client_key: str | None, table: dict | None = None) -> bo
     return _coerce_bool(entry.get("contract"))
 
 def _is_elite_client(client_key: str | None, table: dict | None = None) -> bool:
+    """Special-case brand list used to control note prefixes."""
+
     if not client_key:
         return False
     if table is None:
@@ -55,6 +77,8 @@ def _is_elite_client(client_key: str | None, table: dict | None = None) -> bool:
     return isElite
 
 def _prepend_contract_note(note: str | None, *, contract_client: bool) -> str | None:
+    """Add the contract reminder banner above any existing note text."""
+
     if not contract_client:
         return note
     existing = note or ""
@@ -65,6 +89,8 @@ def _prepend_contract_note(note: str | None, *, contract_client: bool) -> str | 
     return CONTRACT_CLIENT_NOTE_PREFIX
 
 def _prepend_elite_note(note: str | None, *, client_key: str) -> str | None:
+    """Add the Elite reminder banner above any existing note text."""
+
     if not client_key:
         return note
     existing = note or ""
@@ -75,10 +101,14 @@ def _prepend_elite_note(note: str | None, *, client_key: str) -> str | None:
     return ELITE_CLIENT_NOTE_PREFIX
 
 def _attachments_root() -> Path:
+    """Base folder where ticket attachments are stored on disk."""
+
     return settings.DATA_DIR / ATTACHMENTS_DIR_NAME
 
 
 def _ticket_attachment_dir(ticket_id: int, *, ensure: bool = False) -> Path:
+    """Return (and optionally create) the folder for a specific ticket."""
+
     path = _attachments_root() / str(ticket_id)
     if ensure:
         path.mkdir(parents=True, exist_ok=True)
@@ -86,6 +116,8 @@ def _ticket_attachment_dir(ticket_id: int, *, ensure: bool = False) -> Path:
 
 
 def list_tickets(db: Session, limit: int = 100, offset: int = 0):
+    """Return paginated tickets while keeping derived fields in sync."""
+
     rows = db.execute(
         select(Ticket).order_by(desc(Ticket.created_at)).limit(limit).offset(offset)
     ).scalars().all()
@@ -100,6 +132,8 @@ def list_tickets(db: Session, limit: int = 100, offset: int = 0):
 
 
 def list_active_tickets(db: Session, client_key: str | None = None, limit: int = 100, offset: int = 0):
+    """List tickets that are still open, optionally narrowing to a client."""
+
     stmt = select(Ticket).where(
         Ticket.end_iso.is_(None),
         or_(Ticket.entry_type.is_(None), Ticket.entry_type == "time"),
@@ -118,10 +152,14 @@ def list_active_tickets(db: Session, client_key: str | None = None, limit: int =
     return rows
 
 def get_ticket(db: Session, entry_id: int) -> Ticket | None:
+    """Lightweight fetch helper wrapping ``Session.get``."""
+
     return db.get(Ticket, entry_id)
 
 
 def _money_to_float(value: object) -> float | None:
+    """Normalize currency-like input into a ``float`` for math operations."""
+
     if value is None:
         return None
     if isinstance(value, (int, float)):
@@ -141,6 +179,8 @@ def _money_to_float(value: object) -> float | None:
 
 
 def _to_decimal(value: object) -> Decimal | None:
+    """Convert supported number formats into a ``Decimal`` for precision."""
+
     if value is None:
         return None
     if isinstance(value, Decimal):
@@ -160,6 +200,8 @@ def _to_decimal(value: object) -> Decimal | None:
 
 
 def _format_decimal(value: Decimal | None) -> str | None:
+    """Format a ``Decimal`` with two decimal places as a string."""
+
     if value is None:
         return None
     quantized = value.quantize(Decimal("0.01"))
@@ -167,6 +209,8 @@ def _format_decimal(value: Decimal | None) -> str | None:
 
 
 def _normalize_currency_input(value: object) -> str | None:
+    """Clean incoming currency text so it can be stored consistently."""
+
     if value is None:
         return None
     decimal_value = _to_decimal(value)
@@ -179,6 +223,8 @@ def _normalize_currency_input(value: object) -> str | None:
 
 
 def _support_rate_for_client(client_key: str | None, table: dict | None = None) -> Decimal | None:
+    """Look up the hourly support rate for a client, if defined."""
+
     if not client_key:
         return None
     if table is None:
@@ -190,6 +236,8 @@ def _support_rate_for_client(client_key: str | None, table: dict | None = None) 
 
 
 def _calculate_ticket_amount(ticket: Ticket, table: dict | None = None) -> Decimal | None:
+    """Compute the invoiceable amount for a ticket based on its type."""
+
     entry_type = (ticket.entry_type or "time").lower()
     if entry_type == "hardware":
         unit_price = _to_decimal(ticket.hardware_sales_price)
@@ -230,6 +278,8 @@ def _calculate_ticket_amount(ticket: Ticket, table: dict | None = None) -> Decim
 
 
 def _ensure_calculated_fields(ticket: Ticket, *, initialize_invoice: bool = False, client_table: dict | None = None) -> bool:
+    """Keep derived monetary fields aligned with the latest ticket data."""
+
     amount = _calculate_ticket_amount(ticket, table=client_table)
     formatted = _format_decimal(amount)
     updated = False
@@ -245,6 +295,8 @@ def _ensure_calculated_fields(ticket: Ticket, *, initialize_invoice: bool = Fals
 
 
 def _resolve_hardware(db: Session, payload: dict, fallback_id: int | None) -> Hardware | None:
+    """Look up a hardware item using barcode first and ID as a fallback."""
+
     hw_id = payload.get("hardware_id", fallback_id)
     barcode = payload.get("hardware_barcode")
 
@@ -261,6 +313,8 @@ def _resolve_hardware(db: Session, payload: dict, fallback_id: int | None) -> Ha
 
 
 def _apply_time_math(t: Ticket, payload: dict) -> None:
+    """Calculate elapsed/rounded minutes based on provided timestamps."""
+
     tz = getattr(settings, "TZ", "America/Chicago")
     start_iso = payload.get("start_iso", t.start_iso)
     end_iso = payload.get("end_iso", t.end_iso)
@@ -316,6 +370,8 @@ def _apply_hardware_link(db: Session, t: Ticket, payload: dict) -> None:
 
 
 def _apply_flat_rate_fields(t: Ticket, payload: dict) -> None:
+    """Handle deployment flat-rate tickets by normalizing cost and quantity."""
+
     if payload.get("entry_type", t.entry_type) != "deployment_flat_rate":
         t.flat_rate_amount = None
         t.flat_rate_quantity = None
@@ -341,6 +397,8 @@ def _apply_flat_rate_fields(t: Ticket, payload: dict) -> None:
 
 
 def _apply_client_link(t: Ticket, payload: dict) -> None:
+    """Attach the correct client key/name pair to the ticket."""
+
     client_key = payload.get("client_key", t.client_key)
     if not client_key:
         raise ValueError("client_key is required")
@@ -352,6 +410,8 @@ def _apply_client_link(t: Ticket, payload: dict) -> None:
 
 
 def create_entry(db: Session, payload: dict) -> Ticket:
+    """Create a new ticket from raw payload data, handling validation."""
+
     if "client_key" not in payload or not payload["client_key"]:
         raise ValueError("client_key is required")
     invoice_total_value = _normalize_currency_input(payload.get("invoiced_total"))
@@ -359,8 +419,8 @@ def create_entry(db: Session, payload: dict) -> Ticket:
     if _is_contract_client(payload.get("client_key")):
         note_value = _prepend_contract_note(note_value, contract_client=True)
     if _is_elite_client(payload.get("client_key")):
-      key = payload.get("client_key")
-      note_value = _prepend_elite_note(note_value, client_key=key)
+        key = payload.get("client_key")
+        note_value = _prepend_elite_note(note_value, client_key=key)
     t = Ticket(
         client="",  # populated below
         client_key=payload["client_key"],
@@ -406,6 +466,8 @@ def create_entry(db: Session, payload: dict) -> Ticket:
 
 
 def update_ticket(db: Session, t: Ticket, payload: dict) -> Ticket:
+    """Apply partial updates to an existing ticket and recompute derived data."""
+
     if "client_key" in payload or "client" in payload:
         _apply_client_link(t, payload)
     data = dict(payload)
@@ -464,6 +526,8 @@ def update_ticket(db: Session, t: Ticket, payload: dict) -> Ticket:
 
 
 def _sanitized_attachment(record: dict[str, object]) -> dict[str, object]:
+    """Remove internal-only fields from attachment metadata before returning it."""
+
     clean = {k: v for k, v in record.items() if k != "storage_filename"}
     if "id" in clean and clean["id"] is not None:
         clean["id"] = str(clean["id"])
@@ -471,6 +535,8 @@ def _sanitized_attachment(record: dict[str, object]) -> dict[str, object]:
 
 
 def list_ticket_attachments(ticket: Ticket) -> list[dict[str, object]]:
+    """Return attachment metadata while hiding storage filenames."""
+
     return [_sanitized_attachment(record) for record in ticket._attachment_records()]
 
 
@@ -481,6 +547,8 @@ def add_ticket_attachment(
     content_type: str | None,
     file_data: IO[bytes],
 ) -> dict[str, object]:
+    """Persist a file upload to disk and mirror its metadata on the ticket."""
+
     safe_name = Path(filename or "attachment").name
     if not safe_name:
         safe_name = "attachment"
@@ -513,6 +581,8 @@ def add_ticket_attachment(
 
 
 def get_ticket_attachment(ticket: Ticket, attachment_id: str) -> tuple[dict[str, object], Path] | None:
+    """Locate an attachment's sanitized metadata and storage path."""
+
     record = ticket.get_attachment_record(attachment_id)
     if not record:
         return None
@@ -522,6 +592,8 @@ def get_ticket_attachment(ticket: Ticket, attachment_id: str) -> tuple[dict[str,
 
 
 def delete_ticket(db: Session, ticket: Ticket) -> None:
+    """Remove a ticket and its associated inventory usage record."""
+
     delete_ticket_event(db, ticket.id)
     db.delete(ticket)
     db.commit()

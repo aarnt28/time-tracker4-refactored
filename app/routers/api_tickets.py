@@ -1,3 +1,14 @@
+"""Beginner-friendly overview for this module.
+
+WHAT: Handles the logic defined in "app/routers/api_tickets.py" for the Time Tracker app.
+WHEN: Invoked when its functions or classes are imported and called.
+WHY: Provides supporting behaviour so the service runs smoothly.
+HOW: Read the inline comments and docstrings below for the step-by-step flow.
+
+File: app/routers/api_tickets.py
+"""
+
+
 from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
 from fastapi.responses import FileResponse

@@ -1,5 +1,9 @@
+"""Tiny home-grown migration helpers with plain-language explanations."""
+
 from __future__ import annotations
+
 from typing import Iterable
+
 from sqlalchemy import text
 from sqlalchemy.engine import Engine
 
@@ -8,11 +12,15 @@ from sqlalchemy.engine import Engine
 
 
 def _table_columns(engine: Engine, table: str) -> list[dict[str, object]]:
+    """Fetch SQLite's description of a table so we know what columns exist."""
+
     with engine.connect() as conn:
         return conn.execute(text(f"PRAGMA table_info({table})")).mappings().all()
 
 
 def _column_names(engine: Engine, table: str) -> set[str]:
+    """Return a convenience set of just the column names from ``_table_columns``."""
+
     return {row["name"] for row in _table_columns(engine, table)}
 
 
@@ -23,6 +31,8 @@ def _add_column_sqlite(engine: Engine, table: str, col_def: str) -> None:
 
 
 def _create_index_if_not_exists(engine: Engine, table: str, name: str, cols: Iterable[str], unique: bool = False) -> None:
+    """Build an index only if it hasn't already been defined."""
+
     cols_sql = ", ".join(cols)
     unique_sql = "UNIQUE " if unique else ""
     with engine.begin() as conn:
@@ -30,10 +40,11 @@ def _create_index_if_not_exists(engine: Engine, table: str, name: str, cols: Ite
 
 
 def _rebuild_hardware_table(engine: Engine) -> None:
-    """
-    Recreate the hardware table without legacy client/client_key/completed columns.
-    Existing rows are copied over, filling barcodes when missing.
-    """
+    """Recreate the hardware table without the legacy columns in a safe manner."""
+
+    # We build a new table, copy data across, then swap it into place. This
+    # copy-and-rename dance avoids destructive ALTER TABLE operations that
+    # SQLite cannot perform directly.
     with engine.begin() as conn:
         conn.execute(
             text(
@@ -69,9 +80,10 @@ def _rebuild_hardware_table(engine: Engine) -> None:
 
 
 def run_migrations(engine: Engine) -> None:
-    """
-    Adds ticket columns introduced by the dynamic tickets feature and keeps hardware schema current.
-    """
+    """Bring the SQLite schema up-to-date with the expectations of the code."""
+
+    # ``ticket_needed`` lists new ticket columns the application expects. The
+    # migration is additive so existing data is preserved.
     ticket_needed: dict[str, str] = {
         "hardware_id": "INTEGER",
         "hardware_description": "TEXT",
