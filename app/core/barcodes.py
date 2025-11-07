@@ -1,5 +1,5 @@
-"""Utilities for normalizing and comparing hardware barcodes."""
 from __future__ import annotations
+"""Utilities for normalizing and comparing hardware barcodes."""
 
 import re
 """Barcode normalisation helpers explained for newcomers.
