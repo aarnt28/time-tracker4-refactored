@@ -10,8 +10,6 @@ inventory lookups), *why* they matter (to avoid duplicates), and *how* the code
 arrives at consistent results.
 """
 
-from __future__ import annotations
-
 import re
 from typing import List
 
