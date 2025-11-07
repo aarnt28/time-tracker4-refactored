@@ -20,7 +20,7 @@ SIXTY = Decimal("60")
 ATTACHMENTS_DIR_NAME = "attachments"
 CONTRACT_CLIENT_NOTE_PREFIX = "*** Reminder: This is a contract client, if the value on this item is zero, it's intentional; Add to invoice - but set price in QB to zero ***"
 
-BW_CLIENT_NOTE_PREFIX = "*** BW TEST ***"
+ELITE_CLIENT_NOTE_PREFIX = "~~~ This Clinic is Owned by Elite MMG - Everything other than standard contract costs is billed to 'Elite - Hardware' in Quickbooks; Please do not add to individual clinic! ~~~\n\n"
 
 def _coerce_bool(value: object) -> bool:
     if isinstance(value, bool):
@@ -43,7 +43,7 @@ def _is_contract_client(client_key: str | None, table: dict | None = None) -> bo
         return False
     return _coerce_bool(entry.get("contract"))
 
-def _is_bw_client(client_key: str | None, table: dict | None = None) -> bool:
+def _is_elite_client(client_key: str | None, table: dict | None = None) -> bool:
     if not client_key:
         return False
     if table is None:
@@ -51,8 +51,8 @@ def _is_bw_client(client_key: str | None, table: dict | None = None) -> bool:
     entry = table.get(client_key) if isinstance(table, dict) else None
     if not isinstance(entry, dict):
         return False
-    isBW = client_key == "brightway" 
-    return isBW
+    isElite = client_key in {'brightway', 'pru', 'pure', 'asana'} 
+    return isElite
 
 def _prepend_contract_note(note: str | None, *, contract_client: bool) -> str | None:
     if not contract_client:
@@ -64,15 +64,15 @@ def _prepend_contract_note(note: str | None, *, contract_client: bool) -> str | 
         return f"{CONTRACT_CLIENT_NOTE_PREFIX}\n{existing}"
     return CONTRACT_CLIENT_NOTE_PREFIX
 
-def _prepend_bw_note(note: str | None, *, client_key: str) -> str | None:
+def _prepend_elite_note(note: str | None, *, client_key: str) -> str | None:
     if not client_key:
         return note
     existing = note or ""
     if existing:
-        if existing.lstrip().startswith(BW_CLIENT_NOTE_PREFIX):
+        if existing.lstrip().startswith(ELITE_CLIENT_NOTE_PREFIX):
             return existing
-        return f"{BW_CLIENT_NOTE_PREFIX}\n{existing}"
-    return BW_CLIENT_NOTE_PREFIX
+        return f"{ELITE_CLIENT_NOTE_PREFIX}\n{existing}"
+    return ELITE_CLIENT_NOTE_PREFIX
 
 def _attachments_root() -> Path:
     return settings.DATA_DIR / ATTACHMENTS_DIR_NAME
@@ -358,8 +358,9 @@ def create_entry(db: Session, payload: dict) -> Ticket:
     note_value = payload.get("note")
     if _is_contract_client(payload.get("client_key")):
         note_value = _prepend_contract_note(note_value, contract_client=True)
-    if "brightway" == payload.get("client_key"):
-        note_value = _prepend_bw_note(note_value, client_key='brightway')
+    if _is_elite_client(payload.get("client_key")):
+      key = payload.get("client_key")
+      note_value = _prepend_elite_note(note_value, client_key=key)
     t = Ticket(
         client="",  # populated below
         client_key=payload["client_key"],
@@ -411,10 +412,12 @@ def update_ticket(db: Session, t: Ticket, payload: dict) -> Ticket:
     if "invoiced_total" in data:
         data["invoiced_total"] = _normalize_currency_input(data.get("invoiced_total"))
     contract_client = _is_contract_client(data.get("client_key", t.client_key))
+    elite_client = _is_elite_client(data.get("client_key", t.client_key))
     if "note" in data and contract_client:
         data["note"] = _prepend_contract_note(data.get("note"), contract_client=True)
-    if "note" in data and client_key == "brightway":
-        data["note"] = _prepend_bw_note(data.get("note"), client_key='brightway')
+    if "note" in data and elite_client:
+        key = data.get("client_key", t.client_key)
+        data["note"] = _prepend_elite_note(data.get("note"), client_key=key)
     for k, v in data.items():
         if k in {"client", "client_key"}:
             continue
