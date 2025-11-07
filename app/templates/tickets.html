@@ -263,6 +263,60 @@
       color: #b91c1c;
     }
 
+    #ticket-modal .modal-card {
+      max-height: calc(100vh - 96px);
+      display: flex;
+      flex-direction: column;
+    }
+
+    #ticket-modal .modal-head {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      background: var(--panel);
+      margin-bottom: 12px;
+      padding-bottom: 12px;
+    }
+
+    #ticket-modal .modal-form {
+      display: flex;
+      flex-direction: column;
+      flex: 1 1 auto;
+      min-height: 0;
+    }
+
+    #ticket-modal .modal-body {
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      padding-right: 4px;
+    }
+
+    #ticket-modal .modal-actions {
+      position: sticky;
+      bottom: 0;
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+      margin-top: 16px;
+      padding-top: 16px;
+      padding-bottom: 4px;
+      background: var(--panel);
+      border-top: 1px solid #e2e8f0;
+    }
+
+    #ticket-modal .modal-actions .btn {
+      flex: 0 0 auto;
+    }
+
+    #ticket-modal #hardware-barcode-wrap select {
+      width: 100%;
+      max-width: 100%;
+    }
+
   </style>
 
 </head>
@@ -403,125 +457,130 @@
 
       </header>
 
-      <form id="ticket-form">
+      <form id="ticket-form" class="modal-form">
 
         <input type="hidden" name="id" />
 
-        <div class="form-grid flexible">
+        <div class="modal-body">
 
-          <label>Client<input name="client" class="mono" readonly /></label>
+          <div class="form-grid flexible">
 
-          <label>Client Key
+            <label>Client<input name="client" class="mono" readonly /></label>
 
-            <select name="client_key" required class="mono">
+            <label>Client Key
 
-              <option value="">Select a client…</option>
+              <select name="client_key" required class="mono">
 
-            </select>
+                <option value="">Select a client…</option>
 
-          </label>
+              </select>
 
-          <label>Entry Type
+            </label>
 
-            <select name="entry_type">
+            <label>Entry Type
 
-              <option value="time">time</option>
+              <select name="entry_type">
 
-              <option value="hardware">hardware</option>
+                <option value="time">time</option>
 
-              <option value="deployment_flat_rate">Deployment Flat Rate</option>
+                <option value="hardware">hardware</option>
 
-            </select>
+                <option value="deployment_flat_rate">Deployment Flat Rate</option>
 
-          </label>
+              </select>
 
-          <label id="hardware-barcode-wrap" style="display:none;">Hardware Item
+            </label>
 
-            <select name="hardware_barcode" class="mono">
+            <label id="hardware-barcode-wrap" style="display:none;">Hardware Item
 
-              <option value="">Select hardware…</option>
+              <select name="hardware_barcode" class="mono">
 
-            </select>
+                <option value="">Select hardware…</option>
 
-          </label>
+              </select>
 
-          <input type="hidden" name="hardware_id" />
+            </label>
 
-          <label id="hardware-description-wrap" style="display:none;">Hardware Description<input name="hardware_description" /></label>
+            <input type="hidden" name="hardware_id" />
 
-          <label id="hardware-sales-price-wrap" style="display:none;">Hardware Sales Price<input name="hardware_sales_price" class="mono" /></label>
-          <label id="hardware-quantity-wrap" style="display:none;">Quantity<input name="hardware_quantity" type="number" min="1" class="mono" value="1" /></label>
+            <label id="hardware-description-wrap" style="display:none;">Hardware Description<input name="hardware_description" /></label>
 
-          <label id="flat-rate-amount-wrap" style="display:none;">Flat Rate Amount<input name="flat_rate_amount" class="mono" /></label>
-          <label id="flat-rate-quantity-wrap" style="display:none;">Flat Rate Quantity<input name="flat_rate_quantity" type="number" min="1" class="mono" value="1" /></label>
+            <label id="hardware-sales-price-wrap" style="display:none;">Hardware Sales Price<input name="hardware_sales_price" class="mono" /></label>
+            <label id="hardware-quantity-wrap" style="display:none;">Quantity<input name="hardware_quantity" type="number" min="1" class="mono" value="1" /></label>
 
-          <label>Start<input name="start_iso" type="datetime-local" class="mono" required /></label>
+            <label id="flat-rate-amount-wrap" style="display:none;">Flat Rate Amount<input name="flat_rate_amount" class="mono" /></label>
+            <label id="flat-rate-quantity-wrap" style="display:none;">Flat Rate Quantity<input name="flat_rate_quantity" type="number" min="1" class="mono" value="1" /></label>
 
-          <label id="end-time-wrap">End<input name="end_iso" type="datetime-local" class="mono" /></label>
+            <label id="start-field-wrap" data-time-label="Start" data-date-label="Date"><span id="start-field-label">Start</span><input name="start_iso" type="datetime-local" class="mono" required /></label>
 
-          <label>Invoice #<input name="invoice_number" class="mono" /></label>
-          <label>Invoiced Total<input name="invoiced_total" class="mono" /></label>
+            <label id="end-time-wrap" data-time-only="true">End<input name="end_iso" type="datetime-local" class="mono" /></label>
 
-          <label>Added to QB
+            <label data-time-only="true">Elapsed Minutes<input name="elapsed_minutes" class="mono" readonly /></label>
 
-            <select name="completed">
+            <label data-time-only="true">Rounded Minutes<input name="rounded_minutes" class="mono" readonly /></label>
 
-              <option value="0">Open</option>
+            <label data-time-only="true">Rounded Hours<input name="rounded_hours" class="mono" readonly /></label>
 
-              <option value="1">Added to QB</option>
+            <label>Calculated Value<input name="calculated_value" class="mono" readonly /></label>
 
-            </select>
+            <label>Invoice #<input name="invoice_number" class="mono" /></label>
+            <label>Invoiced Total<input name="invoiced_total" class="mono" /></label>
 
-          </label>
+            <label>Added to QB
 
-          <label>Sent
+              <select name="completed">
 
-            <select name="sent">
+                <option value="0">Open</option>
 
-              <option value="0">Not Sent</option>
+                <option value="1">Added to QB</option>
 
-              <option value="1">Sent</option>
+              </select>
 
-            </select>
+            </label>
 
-          </label>
+            <label>Sent
 
-          <label>Elapsed Minutes<input name="elapsed_minutes" class="mono" readonly /></label>
+              <select name="sent">
 
-          <label>Rounded Minutes<input name="rounded_minutes" class="mono" readonly /></label>
+                <option value="0">Not Sent</option>
 
-          <label>Rounded Hours<input name="rounded_hours" class="mono" readonly /></label>
-          <label>Calculated Value<input name="calculated_value" class="mono" readonly /></label>
+                <option value="1">Sent</option>
 
-          <label>Created<input name="created_at" class="mono" readonly /></label>
+              </select>
+
+            </label>
+
+            <label>Created<input name="created_at" class="mono" readonly /></label>
+
+          </div>
+
+          <label class="form-block">Notes<textarea name="note" rows="4"></textarea></label>
+
+          <div id="hardware-snapshot" class="hardware-snapshot" style="display:none;"></div>
+
+          <section id="ticket-attachments-section" class="attachments-section">
+            <div class="attachments-header">
+              <h3>Attachments</h3>
+              <p class="attachments-help">Upload screenshots or other images that belong with this ticket.</p>
+            </div>
+            <ul id="ticket-attachments-list" class="attachment-list" aria-live="polite"></ul>
+            <p id="ticket-attachments-empty" class="attachment-empty">Save the ticket to add attachments.</p>
+            <p id="ticket-attachments-error" class="attachment-error" role="alert" style="display:none;"></p>
+            <div class="attachment-actions">
+              <label class="attachment-upload-label is-disabled" id="ticket-attachment-trigger">
+                <input type="file" id="ticket-attachment-input" accept="image/*" multiple />
+                Add Attachment
+              </label>
+            </div>
+          </section>
 
         </div>
 
-        <label class="form-block">Notes<textarea name="note" rows="4"></textarea></label>
-
-        <div id="hardware-snapshot" class="hardware-snapshot" style="display:none;"></div>
-
-        <section id="ticket-attachments-section" class="attachments-section">
-          <div class="attachments-header">
-            <h3>Attachments</h3>
-            <p class="attachments-help">Upload screenshots or other images that belong with this ticket.</p>
-          </div>
-          <ul id="ticket-attachments-list" class="attachment-list" aria-live="polite"></ul>
-          <p id="ticket-attachments-empty" class="attachment-empty">Save the ticket to add attachments.</p>
-          <p id="ticket-attachments-error" class="attachment-error" role="alert" style="display:none;"></p>
-          <div class="attachment-actions">
-            <label class="attachment-upload-label is-disabled" id="ticket-attachment-trigger">
-              <input type="file" id="ticket-attachment-input" accept="image/*" multiple />
-              Add Attachment
-            </label>
-          </div>
-        </section>
-
-        <div class="form-actions wrap">
-
-          <button class="btn" type="submit">Save</button>
+        <div class="modal-actions">
 
           <button class="btn" type="button" id="ticket-mark-done">Toggle Added to QB</button>
+
+          <button class="btn" type="submit">Save</button>
 
         </div>
 
@@ -653,9 +712,15 @@
 
     const startField = form.elements.start_iso;
 
+    const startFieldWrap = document.getElementById('start-field-wrap');
+
+    const startFieldLabel = document.getElementById('start-field-label');
+
     const endField = form.elements.end_iso;
 
     const endTimeWrap = document.getElementById('end-time-wrap');
+
+    const timeOnlyElements = Array.from(form.querySelectorAll('[data-time-only="true"]'));
 
     const attachmentsSection = document.getElementById('ticket-attachments-section');
 
@@ -707,6 +772,8 @@
     ];
 
     const COLUMN_STORAGE_KEY = 'tickets_table_columns_v1';
+
+    let lastEntryType = entryTypeField.value || 'time';
 
     let visibleColumnKeys = new Set();
 
@@ -1469,13 +1536,15 @@
 
     }
 
-    function updateEntryTypeFieldVisibility(){
+    function updateEntryTypeFieldVisibility({ previousType = null, resetStartValue = false } = {}){
 
-      const entryType = entryTypeField.value;
+      const entryType = entryTypeField.value || 'time';
 
       const isHardware = entryType === 'hardware';
 
       const isFlatRate = entryType === 'deployment_flat_rate';
+
+      const isTimeEntry = entryType === 'time';
 
       const hardwareDisplay = isHardware ? '' : 'none';
 
@@ -1534,22 +1603,109 @@
         }
       }
 
+      const previous = previousType || lastEntryType || entryType;
+
+      if (startField){
+
+        if (startFieldWrap && startFieldLabel){
+
+          const timeLabel = startFieldWrap.dataset.timeLabel || 'Start';
+
+          const dateLabel = startFieldWrap.dataset.dateLabel || 'Date';
+
+          startFieldLabel.textContent = isTimeEntry ? timeLabel : dateLabel;
+
+        }
+
+        let isoValue;
+
+        if (resetStartValue){
+
+          isoValue = startField.dataset.initialIso || startField.dataset.lastIso || '';
+
+        } else {
+
+          const parsed = parseStartInputValue(previous, startField.value);
+
+          if (isTimeEntry && previous !== 'time'){
+
+            isoValue = startField.dataset.lastIso || parsed || startField.dataset.initialIso || '';
+
+          } else {
+
+            isoValue = parsed || startField.dataset.lastIso || startField.dataset.initialIso || '';
+
+          }
+
+        }
+
+        startField.type = isTimeEntry ? 'datetime-local' : 'date';
+
+        const formatted = formatStartInputValue(entryType, isoValue);
+
+        if (formatted !== undefined){
+
+          startField.value = formatted || '';
+
+        }
+
+        startField.dataset.lastIso = isoValue || '';
+
+      }
+
       if (endTimeWrap){
-        endTimeWrap.style.display = isFlatRate ? 'none' : '';
+
+        endTimeWrap.style.display = isTimeEntry ? '' : 'none';
+
       }
 
       if (endField){
-        if (isFlatRate){
-          endField.disabled = true;
-          if (startField && startField.value){
-            endField.value = startField.value;
-          } else {
-            endField.value = '';
-          }
-        } else {
+
+        if (isTimeEntry){
+
           endField.disabled = false;
+
+          let endIso;
+
+          if (resetStartValue){
+
+            endIso = endField.dataset.initialIso || endField.dataset.lastIso || '';
+
+          } else {
+
+            endIso = fromLocalDateTimeInput(endField.value) || endField.dataset.lastIso || endField.dataset.initialIso || '';
+
+          }
+
+          endField.value = toLocalDateTimeInput(endIso) || '';
+
+          endField.dataset.lastIso = endIso || '';
+
+        } else {
+
+          const existing = fromLocalDateTimeInput(endField.value);
+
+          if (existing){
+
+            endField.dataset.lastIso = existing;
+
+          }
+
+          endField.value = '';
+
+          endField.disabled = true;
+
         }
+
       }
+
+      timeOnlyElements.forEach((el) => {
+
+        el.style.display = isTimeEntry ? '' : 'none';
+
+      });
+
+      lastEntryType = entryType;
 
     }
 
@@ -1710,7 +1866,7 @@
       renderAttachmentList();
     }
 
-    function toLocalInput(iso){
+    function toLocalDateTimeInput(iso){
 
       if (!iso) return '';
 
@@ -1724,7 +1880,7 @@
 
     }
 
-    function fromLocalInput(value){
+    function fromLocalDateTimeInput(value){
 
       if (!value) return null;
 
@@ -1733,6 +1889,56 @@
       if (Number.isNaN(dt.getTime())) return null;
 
       return dt.toISOString();
+
+    }
+
+    function toLocalDateInput(iso){
+
+      if (!iso) return '';
+
+      if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) return iso;
+
+      const dt = new Date(iso);
+
+      if (Number.isNaN(dt.getTime())) return '';
+
+      const year = dt.getFullYear();
+
+      const month = String(dt.getMonth() + 1).padStart(2, '0');
+
+      const day = String(dt.getDate()).padStart(2, '0');
+
+      return `${year}-${month}-${day}`;
+
+    }
+
+    function parseStartInputValue(type, value){
+
+      if (!value) return null;
+
+      if (type === 'time'){
+
+        return fromLocalDateTimeInput(value);
+
+      }
+
+      if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+
+      return null;
+
+    }
+
+    function formatStartInputValue(type, iso){
+
+      if (!iso) return '';
+
+      if (type === 'time'){
+
+        return toLocalDateTimeInput(iso);
+
+      }
+
+      return toLocalDateInput(iso);
 
     }
 
@@ -1822,9 +2028,23 @@
         }
       }
 
-      elements.start_iso.value = toLocalInput(data.start_iso) || '';
+      const currentEntryType = elements.entry_type.value || 'time';
 
-      elements.end_iso.value = toLocalInput(data.end_iso) || '';
+      const startIso = data.start_iso || '';
+
+      if (startField){
+        startField.dataset.initialIso = startIso || '';
+        startField.dataset.lastIso = startIso || '';
+        startField.value = formatStartInputValue(currentEntryType, startIso) || '';
+      }
+
+      const endIso = data.end_iso || '';
+
+      if (endField){
+        endField.dataset.initialIso = endIso || '';
+        endField.dataset.lastIso = endIso || '';
+        endField.value = currentEntryType === 'time' ? toLocalDateTimeInput(endIso) || '' : '';
+      }
 
       elements.invoice_number.value = data.invoice_number || '';
 
@@ -1880,7 +2100,7 @@
 
       renderAttachmentList();
 
-      updateEntryTypeFieldVisibility();
+      updateEntryTypeFieldVisibility({ resetStartValue: true });
 
       applyHardwareSelection({ preserveDetails: true });
 
@@ -1944,7 +2164,7 @@
 
         });
 
-        updateEntryTypeFieldVisibility();
+        updateEntryTypeFieldVisibility({ resetStartValue: true });
 
         updateHardwareSnapshot();
 
@@ -2114,7 +2334,9 @@
 
     entryTypeField.addEventListener('change', async ()=>{
 
-      updateEntryTypeFieldVisibility();
+      const previousType = lastEntryType;
+
+      updateEntryTypeFieldVisibility({ previousType });
 
       if (entryTypeField.value === 'hardware'){
 
@@ -2130,8 +2352,28 @@
 
     if (startField && endField){
       startField.addEventListener('input', ()=>{
-        if (entryTypeField.value === 'deployment_flat_rate'){
+        if (entryTypeField.value === 'deployment_flat_rate' && !endField.disabled){
           endField.value = startField.value;
+        }
+      });
+    }
+
+    if (startField){
+      startField.addEventListener('change', ()=>{
+        const iso = parseStartInputValue(entryTypeField.value || 'time', startField.value);
+        if (iso !== null){
+          startField.dataset.lastIso = iso;
+        }
+      });
+    }
+
+    if (endField){
+      endField.addEventListener('change', ()=>{
+        if (entryTypeField.value === 'time'){
+          const iso = fromLocalDateTimeInput(endField.value);
+          if (iso){
+            endField.dataset.lastIso = iso;
+          }
         }
       });
     }
@@ -2281,13 +2523,40 @@
 
       }
 
-      const startIso = fromLocalInput(elements.start_iso.value);
+      const startIso = parseStartInputValue(entryType, elements.start_iso.value);
 
-      const endIso = fromLocalInput(elements.end_iso.value);
+      if (startIso){
+        payload.start_iso = startIso;
+        if (startField){
+          startField.dataset.lastIso = startIso;
+        }
+      }
 
-      if (startIso) payload.start_iso = startIso;
+      if (entryType === 'time'){
 
-      if (endIso) payload.end_iso = endIso;
+        const endIso = fromLocalDateTimeInput(elements.end_iso.value);
+
+        if (endIso){
+
+          payload.end_iso = endIso;
+
+          if (endField){
+
+            endField.dataset.lastIso = endIso;
+
+          }
+
+        } else {
+
+          payload.end_iso = null;
+
+        }
+
+      } else {
+
+        payload.end_iso = null;
+
+      }
 
       const method = id ? 'PATCH' : 'POST';
 
