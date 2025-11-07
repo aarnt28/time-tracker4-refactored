@@ -18,8 +18,9 @@ from ..core.barcodes import barcode_aliases, normalize_barcode
 
 SIXTY = Decimal("60")
 ATTACHMENTS_DIR_NAME = "attachments"
-CONTRACT_CLIENT_NOTE_PREFIX = "Add to monthly - but do not assign value"
+CONTRACT_CLIENT_NOTE_PREFIX = "*** Reminder: This is a contract client, if the value on this item is zero, it's intentional; Add to invoice - but set price in QB to zero ***"
 
+BW_CLIENT_NOTE_PREFIX = "*** BW TEST ***"
 
 def _coerce_bool(value: object) -> bool:
     if isinstance(value, bool):
@@ -42,6 +43,16 @@ def _is_contract_client(client_key: str | None, table: dict | None = None) -> bo
         return False
     return _coerce_bool(entry.get("contract"))
 
+def _is_bw_client(client_key: str | None, table: dict | None = None) -> bool:
+    if not client_key:
+        return False
+    if table is None:
+        table = load_client_table()
+    entry = table.get(client_key) if isinstance(table, dict) else None
+    if not isinstance(entry, dict):
+        return False
+    isBW = client_key == "brightway" 
+    return isBW
 
 def _prepend_contract_note(note: str | None, *, contract_client: bool) -> str | None:
     if not contract_client:
@@ -53,6 +64,15 @@ def _prepend_contract_note(note: str | None, *, contract_client: bool) -> str | 
         return f"{CONTRACT_CLIENT_NOTE_PREFIX}\n{existing}"
     return CONTRACT_CLIENT_NOTE_PREFIX
 
+def _prepend_bw_note(note: str | None, *, client_key: str) -> str | None:
+    if not client_key:
+        return note
+    existing = note or ""
+    if existing:
+        if existing.lstrip().startswith(BW_CLIENT_NOTE_PREFIX):
+            return existing
+        return f"{BW_CLIENT_NOTE_PREFIX}\n{existing}"
+    return BW_CLIENT_NOTE_PREFIX
 
 def _attachments_root() -> Path:
     return settings.DATA_DIR / ATTACHMENTS_DIR_NAME
@@ -338,6 +358,8 @@ def create_entry(db: Session, payload: dict) -> Ticket:
     note_value = payload.get("note")
     if _is_contract_client(payload.get("client_key")):
         note_value = _prepend_contract_note(note_value, contract_client=True)
+    if "brightway" == payload.get("client_key"):
+        note_value = _prepend_bw_note(note_value, client_key='brightway')
     t = Ticket(
         client="",  # populated below
         client_key=payload["client_key"],
@@ -391,6 +413,8 @@ def update_ticket(db: Session, t: Ticket, payload: dict) -> Ticket:
     contract_client = _is_contract_client(data.get("client_key", t.client_key))
     if "note" in data and contract_client:
         data["note"] = _prepend_contract_note(data.get("note"), contract_client=True)
+    if "note" in data and client_key == "brightway":
+        data["note"] = _prepend_bw_note(data.get("note"), client_key='brightway')
     for k, v in data.items():
         if k in {"client", "client_key"}:
             continue
