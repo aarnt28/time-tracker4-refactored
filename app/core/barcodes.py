@@ -2,6 +2,17 @@
 from __future__ import annotations
 
 import re
+"""Barcode normalisation helpers explained for newcomers.
+
+Many data sources use slightly different formats for the same barcode. These
+functions reveal *what* transformations happen, *when* we apply them (during
+inventory lookups), *why* they matter (to avoid duplicates), and *how* the code
+arrives at consistent results.
+"""
+
+from __future__ import annotations
+
+import re
 from typing import List
 
 __all__ = ["normalize_barcode", "barcode_aliases"]
@@ -12,6 +23,8 @@ _DIGIT_ONLY_RE = re.compile(r"\D")
 
 
 def _strip_and_collapse(value: str) -> str:
+    """Trim surrounding whitespace and squash repeated spaces into one."""
+
     value = value.strip()
     # Collapse internal whitespace to single spaces to avoid mismatched spacing
     value = re.sub(r"\s+", " ", value)
@@ -58,6 +71,8 @@ def barcode_aliases(raw: str | None) -> list[str]:
     seen: set[str] = set()
 
     def add(candidate: str | None) -> None:
+        """Safely append a candidate alias to the list if it is new and non-empty."""
+
         if not candidate:
             return
         if candidate in seen:
