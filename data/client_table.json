@@ -208,7 +208,7 @@
     "contract": "true",
     "owner": "Dr. Sukraj Khassa",
     "support_rate": "150",
-    "name": "Brightway Dental (Elite)",
+    "name": "Brightway Dental",
     "address_line1": "3501 Shepherd Ln",
     "address_line2": "",
     "city": "Balch Springs",
@@ -220,13 +220,14 @@
     "primary_contact_email": "",
     "office_manager_name": "",
     "office_manager_phone": "",
-    "office_manager_email": ""
+    "office_manager_email": "",
+    "former_practices": ""
   },
   "asana": {
     "contract": "true",
     "owner": "Dr. Sukraj Khassa",
     "support_rate": "150",
-    "name": "Asana Dental (Elite)",
+    "name": "Asana Dental",
     "address_line1": "12000 US Highway 380 East",
     "address_line2": "#114",
     "city": "Cross Roads",
@@ -238,13 +239,14 @@
     "primary_contact_email": "",
     "office_manager_name": "",
     "office_manager_phone": "",
-    "office_manager_email": ""
+    "office_manager_email": "",
+    "former_practices": ""
   },
   "pure": {
     "contract": "true",
     "owner": "Dr. Sukraj Khassa",
     "support_rate": "150",
-    "name": "Pure Theory Dental (Elite)",
+    "name": "Pure Theory Dental",
     "address_line1": "6600 North Freeway",
     "address_line2": "Suite 109",
     "city": "Fort Worth",
@@ -263,7 +265,7 @@
     "contract": "true",
     "owner": "Dr. Sukraj Khassa",
     "support_rate": "150",
-    "name": "Prudent Family Dentistry (Elite)",
+    "name": "Prudent Family Dentistry",
     "address_line1": "3501 Shepherd Ln",
     "address_line2": "",
     "city": "Balch Springs",

@@ -151,6 +151,16 @@
 
     }
 
+    .special-notes {
+      background: #f8f802ff;
+      border: 1px solid #2223259e;
+      border-radius: 6px;
+      padding: 12px;
+      margin-bottom: 16px;
+      font-size: 0.875rem;
+      color: #d01414ff;
+    }
+
     @media (min-width: 2560px) {
 
       .tickets-table .note { max-width: 480px; }
@@ -1752,11 +1762,12 @@
     function updateSpecialNotes(){
       const eliteClients = ["brightway", "pru", "pure", "asana"]
       const isEliteClient = eliteClients.includes(clientKeyField.value?.toLowerCase());
-      if isEliteClient {
-        specialNotesField.textContent = `${clientKeyField.value} is under management of Elite Medical Management - They request that all invoices in excess of monthly contract dues be billed to a single account regardless of location. If this ticket has a value, create an invoice (or append an existing one) with the specified item. If the value is zero, still add an invoice item with a the description and the unit price, but set the qty to zero.`;
+      if (isEliteClient) {
+        specialNotesField.textContent = `${clientField.value} is under management of Elite Medical Management - They request that all invoices in excess of monthly contract dues be billed to a single account regardless of location. If this ticket has a value, create an invoice (or append an existing one) with the specified item. If the value is zero, still add an invoice item with a the description and the unit price, but set the qty to zero.`;
         specialNotesField.style.display = 'block';
       } else {
-        specialNotesField.value = '';
+        specialNotesField.textContent = '';
+        specialNotesField.style.display = 'none';
       }
     }
 
@@ -2119,6 +2130,8 @@
 
       applyHardwareSelection({ preserveDetails: true });
 
+      updateSpecialNotes();
+
       updateHardwareSnapshot();
 
       btnToggleDone.disabled = !data.id;
@@ -2180,6 +2193,8 @@
         });
 
         updateEntryTypeFieldVisibility({ resetStartValue: true });
+
+        updateSpecialNotes();
 
         updateHardwareSnapshot();
 
@@ -2361,6 +2376,8 @@
 
       applyHardwareSelection();
 
+      updateSpecialNotes();
+
       updateHardwareSnapshot();
 
     });
@@ -2397,9 +2414,13 @@
 
       applyHardwareSelection();
 
+      updateSpecialNotes();
+
       updateHardwareSnapshot();
 
     });
+
+    clientKeyField.addEventListener('input', updateSpecialNotes);
 
     hardwareDescriptionField.addEventListener('input', updateHardwareSnapshot);
 
