@@ -36,7 +36,7 @@ SIXTY = Decimal("60")
 ATTACHMENTS_DIR_NAME = "attachments"
 CONTRACT_CLIENT_NOTE_PREFIX = "*** Reminder: This is a contract client, if the value on this item is zero, it's intentional; Add to invoice - but set price in QB to zero ***"
 
-ELITE_CLIENT_NOTE_PREFIX = "~~~ This Clinic is Owned by Elite MMG - Everything other than standard contract costs is billed to 'Elite - Hardware' in Quickbooks; Please do not add to individual clinic! ~~~\n\n"
+ELITE_CLIENT_NOTE_PREFIX = "~~~ This Clinic is Owned by Elite MMG - Everything other than standard contract costs is billed to 'Elite - Hardware' in Quickbooks; Please do not add to individual clinic! ~~~\n"
 
 def _coerce_bool(value: object) -> bool:
     """Interpret various truthy/falsy user inputs as a Python ``bool``."""

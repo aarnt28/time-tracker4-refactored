@@ -553,6 +553,8 @@
             <label>Created<input name="created_at" class="mono" readonly /></label>
 
           </div>
+          
+          <div id="special-notes" class="special-notes" style="display:none;"></div>
 
           <label class="form-block">Notes<textarea name="note" rows="4"></textarea></label>
 
@@ -671,6 +673,8 @@
     const btnClose = document.getElementById('ticket-modal-close');
 
     const btnToggleDone = document.getElementById('ticket-mark-done');
+
+    const specialNotes = document.getElementById('special-notes');
 
     const hardwareSnapshot = document.getElementById('hardware-snapshot');
 
@@ -1743,6 +1747,16 @@
 
       }
 
+    }
+
+    function updateSpecialNotes(){
+      const eliteClients = ["brightway", "pru", "pure", "asana"]
+      const isEliteClient = eliteClients.includes(clientKeyField.value?.toLowerCase());
+      if clientKeyField.value {
+        specialNotesField.value = `Client Key: ${clientKeyField.value}`;
+      } else {
+        specialNotesField.value = '';
+      }
     }
 
     function updateHardwareSnapshot(){
