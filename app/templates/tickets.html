@@ -409,9 +409,9 @@
 
           </thead>
 
-          <tbody id="ticket-rows">
+          <tbody id="ticket-records">
 
-            {% include "_rows.html" with context %}
+            {% include "_records.html" with context %}
 
           </tbody>
 
@@ -668,7 +668,7 @@
 
 
 
-    const ticketRows = document.getElementById('ticket-rows');
+    const ticketRecordsBody = document.getElementById('ticket-records');
 
     const body = document.body;
 
@@ -1111,8 +1111,8 @@
       return String(a).localeCompare(String(b));
     }
 
-    function applyDefaultOrdering(rows){
-      const list = Array.isArray(rows) ? rows : Array.from(ticketRows.querySelectorAll('tr.row'));
+    function applyDefaultOrdering(recordNodes){
+      const list = Array.isArray(recordNodes) ? recordNodes : Array.from(ticketRecordsBody.querySelectorAll('tr.row'));
       if (!list.length) return;
       const open = [];
       const done = [];
@@ -1125,7 +1125,7 @@
       });
       const frag = document.createDocumentFragment();
       open.concat(done).forEach((row) => frag.appendChild(row));
-      ticketRows.appendChild(frag);
+      ticketRecordsBody.appendChild(frag);
     }
 
     function updateSortIndicators(){
@@ -1161,13 +1161,13 @@
     }
 
     function applySort(){
-      const rows = Array.from(ticketRows.querySelectorAll('tr.row'));
-      if (!rows.length){
+      const recordNodes = Array.from(ticketRecordsBody.querySelectorAll('tr.row'));
+      if (!recordNodes.length){
         updateSortIndicators();
         return;
       }
       if (!currentSortKey){
-        applyDefaultOrdering(rows);
+        applyDefaultOrdering(recordNodes);
         updateSortIndicators();
         return;
       }
@@ -1179,14 +1179,14 @@
       }
       const sortType = def.sortType || 'text';
       const factor = currentSortDirection === 'asc' ? 1 : -1;
-      rows.sort((a, b) => {
+      recordNodes.sort((a, b) => {
         const valueA = getSortValue(a, currentSortKey, sortType);
         const valueB = getSortValue(b, currentSortKey, sortType);
         return compareSortValues(valueA, valueB, sortType) * factor;
       });
       const frag = document.createDocumentFragment();
-      rows.forEach((row) => frag.appendChild(row));
-      ticketRows.appendChild(frag);
+      recordNodes.forEach((row) => frag.appendChild(row));
+      ticketRecordsBody.appendChild(frag);
       updateSortIndicators();
     }
 
@@ -1833,7 +1833,7 @@
 
       const limit = previewLimit();
 
-      document.querySelectorAll('#ticket-rows .note').forEach(cell => {
+      document.querySelectorAll('#ticket-records .note').forEach(cell => {
 
         if (cell.dataset.isHardware === '1' || cell.dataset.isFlatRate === '1') return;
 
@@ -1865,7 +1865,7 @@
 
       if (res.ok){
 
-        ticketRows.innerHTML = await res.text();
+        ticketRecordsBody.innerHTML = await res.text();
         applyColumnVisibility();
         applySort();
         applyNotePreviews();
@@ -2656,7 +2656,7 @@
 
     });
 
-    ticketRows.addEventListener('click', async (e)=>{
+    ticketRecordsBody.addEventListener('click', async (e)=>{
 
       const del = e.target.closest('.js-delete-ticket');
 
@@ -2773,7 +2773,7 @@
 
     });
 
-    ticketRows.addEventListener('change', async (e)=>{
+    ticketRecordsBody.addEventListener('change', async (e)=>{
 
       const checkbox = e.target.closest('.js-complete-checkbox');
 
@@ -2908,7 +2908,6 @@
   })();
 
 </script>
-
 
 
 

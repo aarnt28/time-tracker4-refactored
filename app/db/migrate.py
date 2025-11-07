@@ -19,9 +19,9 @@ def _table_columns(engine: Engine, table: str) -> list[dict[str, object]]:
 
 
 def _column_names(engine: Engine, table: str) -> set[str]:
-    """Return a convenience set of just the column names from ``_table_columns``."""
+    """Return a convenience set of just the field names from ``_table_columns``."""
 
-    return {row["name"] for row in _table_columns(engine, table)}
+    return {record["name"] for record in _table_columns(engine, table)}
 
 
 def _add_column_sqlite(engine: Engine, table: str, col_def: str) -> None:
@@ -117,7 +117,7 @@ def run_migrations(engine: Engine) -> None:
     if "barcode" not in hcols:
         _add_column_sqlite(engine, "hardware", "barcode TEXT")
 
-    # Ensure all rows have a barcode value
+    # Ensure all records have a barcode value
     with engine.begin() as conn:
         conn.execute(
             text("UPDATE hardware SET barcode = CASE WHEN barcode IS NULL OR barcode = '' THEN 'HW-' || id ELSE barcode END")
@@ -128,7 +128,7 @@ def run_migrations(engine: Engine) -> None:
     # Inventory event enrichments (vendor/client + costing)
     inventory_table = _table_columns(engine, "inventory_events")
     if inventory_table:
-        inventory_cols = {row["name"] for row in inventory_table}
+        inventory_cols = {record["name"] for record in inventory_table}
         new_cols = {
             "counterparty_name": "TEXT",
             "counterparty_type": "TEXT",

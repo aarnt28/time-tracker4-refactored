@@ -77,8 +77,8 @@ def index_page(request: Request, db: Session = Depends(get_db)):
 
 @router.get("/tickets", response_class=HTMLResponse)
 def tickets_page(request: Request, db: Session = Depends(get_db)):
-    rows = list_tickets(db, limit=200)
-    return templates.TemplateResponse("tickets.html", {"request": request, "rows": rows})
+    records = list_tickets(db, limit=200)
+    return templates.TemplateResponse("tickets.html", {"request": request, "records": records})
 
 @router.get("/clients", response_class=HTMLResponse)
 def clients_page(request: Request):
@@ -90,8 +90,8 @@ def clients_page(request: Request):
 
 @router.get("/hardware", response_class=HTMLResponse)
 def hardware_page(request: Request, db: Session = Depends(get_db)):
-    rows = list_hardware(db, limit=200)
-    return templates.TemplateResponse("hardware.html", {"request": request, "rows": rows})
+    records = list_hardware(db, limit=200)
+    return templates.TemplateResponse("hardware.html", {"request": request, "records": records})
 
 
 @router.get("/inventory", response_class=HTMLResponse)
@@ -119,15 +119,15 @@ def reports_page(request: Request, db: Session = Depends(get_db)):
 
 @router.get("/ui/hardware_table", response_class=HTMLResponse)
 def hardware_table_partial(request: Request, db: Session = Depends(get_db)):
-    rows = list_hardware(db, limit=200)
-    return templates.TemplateResponse("_hardware_rows.html", {"request": request, "rows": rows})
+    records = list_hardware(db, limit=200)
+    return templates.TemplateResponse("_hardware_records.html", {"request": request, "records": records})
 
 
 @router.get("/ui/inventory_summary", response_class=HTMLResponse)
 def inventory_summary_partial(request: Request, db: Session = Depends(get_db)):
     summary = get_inventory_summary(db)
     return templates.TemplateResponse(
-        "_inventory_summary_rows.html", {"request": request, "summary": summary}
+        "_inventory_summary_records.html", {"request": request, "summary": summary}
     )
 
 
@@ -135,14 +135,14 @@ def inventory_summary_partial(request: Request, db: Session = Depends(get_db)):
 def inventory_events_partial(request: Request, db: Session = Depends(get_db)):
     events = list_inventory_events(db, limit=200)
     return templates.TemplateResponse(
-        "_inventory_event_rows.html", {"request": request, "events": events}
+        "_inventory_event_records.html", {"request": request, "events": events}
     )
 
 
 @router.get("/ui/ticket_table", response_class=HTMLResponse)
 def ticket_table_partial(request: Request, db: Session = Depends(get_db)):
-    rows = list_tickets(db, limit=200)
-    return templates.TemplateResponse("_rows.html", {"request": request, "rows": rows})
+    records = list_tickets(db, limit=200)
+    return templates.TemplateResponse("_records.html", {"request": request, "records": records})
 
 @router.post("/ui/tickets/{entry_id}/toggle-completed", response_class=HTMLResponse)
 @router.post("/ui/tickets/{entry_id}/toggle", response_class=HTMLResponse)  # compat
@@ -153,7 +153,7 @@ def ui_toggle_ticket(entry_id: int, db: Session = Depends(get_db)):
     r.completed = 0 if r.completed else 1
     update_ticket(db, r, {"completed": r.completed})
     updated = [r]
-    return templates.TemplateResponse("_rows.html", {"request": {}, "rows": updated})
+    return templates.TemplateResponse("_records.html", {"request": {}, "records": updated})
 
 @router.post("/ui/tickets/{entry_id}/delete", response_class=HTMLResponse)
 def ui_delete_ticket(entry_id: int, db: Session = Depends(get_db)):
@@ -178,7 +178,7 @@ def ui_set_invoice_hardware(item_id: int, invoice_number: str = Form(""), db: Se
         raise HTTPException(404, "Not found")
     r.invoice_number = (invoice_number or "").strip() or None
     update_hardware(db, r, {"invoice_number": r.invoice_number})
-    return templates.TemplateResponse("_hardware_rows.html", {"request": {}, "rows": [r]})
+    return templates.TemplateResponse("_hardware_records.html", {"request": {}, "records": [r]})
 
 
 @router.post("/inventory/adjust", response_class=HTMLResponse)

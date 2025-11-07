@@ -39,16 +39,16 @@ def get_inventory_summary(db: Session) -> list[dict[str, object]]:
         .group_by(InventoryEvent.hardware_id, Hardware.barcode, Hardware.description)
         .order_by(Hardware.description)
     )
-    rows = db.execute(stmt).all()
+    records = db.execute(stmt).all()
     return [
         {
-            "hardware_id": row.hardware_id,
-            "barcode": row.barcode,
-            "description": row.description,
-            "quantity": int(row.quantity or 0),
-            "last_activity": row.last_activity,
+            "hardware_id": record.hardware_id,
+            "barcode": record.barcode,
+            "description": record.description,
+            "quantity": int(record.quantity or 0),
+            "last_activity": record.last_activity,
         }
-        for row in rows
+        for record in records
     ]
 
 

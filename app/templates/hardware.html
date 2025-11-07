@@ -53,8 +53,8 @@
               <th class="th-action">Actions</th>
             </tr>
           </thead>
-          <tbody id="hardware-rows">
-            {% include "_hardware_rows.html" with context %}
+          <tbody id="hardware-records">
+            {% include "_hardware_records.html" with context %}
           </tbody>
         </table>
       </div>
@@ -129,7 +129,7 @@
     const closeBtn = document.getElementById('hardware-modal-close');
     const form = document.getElementById('hardware-form');
     const btnNew = document.getElementById('new-hardware');
-    const hardwareRows = document.getElementById('hardware-rows');
+    const hardwareRecordsBody = document.getElementById('hardware-records');
     const scanBtn = form.querySelector('#hardware-scan');
     const scanStatus = form.querySelector('#hardware-scan-status');
     const scannerOverlay = document.getElementById('hardware-scanner-overlay');
@@ -423,12 +423,12 @@
     }
 
     async function refreshHardwareRows(){
-      if (!hardwareRows) return;
+      if (!hardwareRecordsBody) return;
       try {
         const res = await fetch('/ui/hardware_table', { credentials: 'same-origin' });
         if (!res.ok) throw new Error('refresh failed');
         const html = await res.text();
-        hardwareRows.innerHTML = html;
+        hardwareRecordsBody.innerHTML = html;
       } catch (err) {
         console.error('hardware refresh failed', err);
         window.alert('Failed to refresh hardware list. Please reload the page.');
@@ -485,8 +485,8 @@
       setScanStatus(message, true);
     };
 
-    if (hardwareRows){
-      hardwareRows.addEventListener('click', function(e){
+    if (hardwareRecordsBody){
+      hardwareRecordsBody.addEventListener('click', function(e){
         const row = e.target.closest('tr.row');
         if (!row) return;
         if (e.target.closest('button, input, textarea, select, label')) return;
@@ -497,7 +497,7 @@
         loadHardware(id);
       });
 
-      hardwareRows.addEventListener('submit', async function(e){
+      hardwareRecordsBody.addEventListener('submit', async function(e){
         const formEl = e.target.closest('form');
         if (!formEl || !formEl.classList.contains('inline')) return;
         e.preventDefault();

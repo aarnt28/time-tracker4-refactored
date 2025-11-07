@@ -116,19 +116,19 @@ def _ticket_attachment_dir(ticket_id: int, *, ensure: bool = False) -> Path:
 
 
 def list_tickets(db: Session, limit: int = 100, offset: int = 0):
-    """Return paginated tickets while keeping derived fields in sync."""
+    """Return paginated ticket records while keeping derived fields in sync."""
 
-    rows = db.execute(
+    records = db.execute(
         select(Ticket).order_by(desc(Ticket.created_at)).limit(limit).offset(offset)
     ).scalars().all()
     changed = False
     client_table = load_client_table()
-    for ticket in rows:
+    for ticket in records:
         if _ensure_calculated_fields(ticket, initialize_invoice=True, client_table=client_table):
             changed = True
     if changed:
         db.commit()
-    return rows
+    return records
 
 
 def list_active_tickets(db: Session, client_key: str | None = None, limit: int = 100, offset: int = 0):
@@ -141,15 +141,15 @@ def list_active_tickets(db: Session, client_key: str | None = None, limit: int =
     if client_key:
         stmt = stmt.where(Ticket.client_key == client_key)
     stmt = stmt.order_by(desc(Ticket.created_at)).limit(limit).offset(offset)
-    rows = db.execute(stmt).scalars().all()
+    records = db.execute(stmt).scalars().all()
     changed = False
     client_table = load_client_table()
-    for ticket in rows:
+    for ticket in records:
         if _ensure_calculated_fields(ticket, initialize_invoice=True, client_table=client_table):
             changed = True
     if changed:
         db.commit()
-    return rows
+    return records
 
 def get_ticket(db: Session, entry_id: int) -> Ticket | None:
     """Lightweight fetch helper wrapping ``Session.get``."""

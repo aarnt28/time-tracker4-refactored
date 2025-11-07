@@ -415,7 +415,7 @@ details[open] .note-toggle{ transform:rotate(90deg); }
 /* Row state */
 .row.is-done td{ opacity:.88; }
 .row.is-open td{ background:#fff; }
-body.hide-sent #ticket-rows tr[data-sent="1"]{
+body.hide-sent #ticket-records tr[data-sent="1"]{
   display:none;
 }
 

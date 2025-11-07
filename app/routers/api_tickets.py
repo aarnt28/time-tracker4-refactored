@@ -62,14 +62,14 @@ def _serialize_ticket(ticket) -> EntryOut:
 
 @router.get("/active", response_model=list[EntryOut], dependencies=[Depends(require_ui_or_token)])
 def api_list_active(client_key: str | None = Query(default=None), db: Session = Depends(get_db)):
-    rows = list_active_tickets(db, client_key=client_key)
-    return [_serialize_ticket(row) for row in rows]
+    records = list_active_tickets(db, client_key=client_key)
+    return [_serialize_ticket(record) for record in records]
 
 
 @router.get("", response_model=list[EntryOut], dependencies=[Depends(require_ui_or_token)])
 def api_list(db: Session = Depends(get_db)):
-    rows = list_tickets(db)
-    return [_serialize_ticket(row) for row in rows]
+    records = list_tickets(db)
+    return [_serialize_ticket(record) for record in records]
 
 
 @router.get("/{entry_id}", response_model=EntryOut, dependencies=[Depends(require_ui_or_token)])

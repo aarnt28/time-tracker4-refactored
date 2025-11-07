@@ -241,10 +241,10 @@ def calculate_ticket_metrics(
             }
         )
 
-    tickets_by_client.sort(key=lambda row: row["total"], reverse=True)
-    revenue_by_client.sort(key=lambda row: row["total_revenue"], reverse=True)
+    tickets_by_client.sort(key=lambda record: record["total"], reverse=True)
+    revenue_by_client.sort(key=lambda record: record["total_revenue"], reverse=True)
 
-    hardware_rows = [
+    hardware_records = [
         {
             "description": item["description"],
             "quantity": item["quantity"],
@@ -252,7 +252,7 @@ def calculate_ticket_metrics(
         }
         for item in hardware_items.values()
     ]
-    hardware_rows.sort(key=lambda row: row["revenue"], reverse=True)
+    hardware_records.sort(key=lambda record: record["revenue"], reverse=True)
 
     totals.update(
         {
@@ -288,7 +288,7 @@ def calculate_ticket_metrics(
         "totals": totals,
         "tickets_by_client": tickets_by_client,
         "revenue_by_client": revenue_by_client,
-        "top_hardware_items": hardware_rows[:10],
+        "top_hardware_items": hardware_records[:10],
         "clients_missing_rates": sorted(clients_missing_rates),
     }
 

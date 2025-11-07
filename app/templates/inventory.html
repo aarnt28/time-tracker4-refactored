@@ -49,8 +49,8 @@
               <th class="mono">Last Activity</th>
             </tr>
           </thead>
-          <tbody id="inventory-summary-rows">
-            {% include "_inventory_summary_rows.html" with context %}
+          <tbody id="inventory-summary-records">
+            {% include "_inventory_summary_records.html" with context %}
           </tbody>
         </table>
       </div>
@@ -127,8 +127,8 @@
               <th class="th-action">Actions</th>
             </tr>
           </thead>
-          <tbody id="inventory-event-rows">
-            {% include "_inventory_event_rows.html" with context %}
+          <tbody id="inventory-event-records">
+            {% include "_inventory_event_records.html" with context %}
           </tbody>
         </table>
       </div>
@@ -137,8 +137,8 @@
   <script>
   (function(){
     const REFRESH_INTERVAL = 30000;
-    const summaryRows = document.getElementById('inventory-summary-rows');
-    const eventRows = document.getElementById('inventory-event-rows');
+    const summaryRecordsBody = document.getElementById('inventory-summary-records');
+    const eventRecordsBody = document.getElementById('inventory-event-records');
     const inventoryForm = document.querySelector('.inventory-form');
 
     async function fetchPartial(url){
@@ -148,20 +148,20 @@
     }
 
     async function refreshSummary(){
-      if (!summaryRows) return;
+      if (!summaryRecordsBody) return;
       try {
         const html = await fetchPartial('/ui/inventory_summary');
-        summaryRows.innerHTML = html;
+        summaryRecordsBody.innerHTML = html;
       } catch (err) {
         console.warn('inventory summary refresh failed', err);
       }
     }
 
     async function refreshEvents(){
-      if (!eventRows) return;
+      if (!eventRecordsBody) return;
       try {
         const html = await fetchPartial('/ui/inventory_events');
-        eventRows.innerHTML = html;
+        eventRecordsBody.innerHTML = html;
       } catch (err) {
         console.warn('inventory events refresh failed', err);
       }
@@ -261,8 +261,8 @@
       });
     }
 
-    if (eventRows){
-      eventRows.addEventListener('submit', async function(e){
+    if (eventRecordsBody){
+      eventRecordsBody.addEventListener('submit', async function(e){
         const form = e.target.closest('form.inline');
         if (!form) return;
         e.preventDefault();

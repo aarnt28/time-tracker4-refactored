@@ -156,8 +156,8 @@ def _attach_inventory_metrics(db: Session, items: list[Hardware]) -> None:
     )
 
     vendor_info: dict[int, dict[str, list]] = {}
-    rows = db.execute(stmt).all()
-    for hardware_id, counterparty_name, unit_cost in rows:
+    records = db.execute(stmt).all()
+    for hardware_id, counterparty_name, unit_cost in records:
         info = vendor_info.setdefault(hardware_id, {"vendors": [], "unit_costs": []})
         name = (counterparty_name or "").strip()
         if name and name not in info["vendors"]:
@@ -187,7 +187,7 @@ def _normalize_existing_barcodes(db: Session, items: list[Hardware]) -> None:
         normalized = normalize_barcode(item.barcode)
         if not normalized or normalized == item.barcode:
             continue
-        # Avoid collisions when two legacy rows normalize to the same value.
+        # Avoid collisions when two legacy records normalize to the same value.
         conflict_stmt = select(Hardware.id).where(
             Hardware.id != item.id,
             Hardware.barcode == normalized,

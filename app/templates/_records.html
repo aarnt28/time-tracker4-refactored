@@ -1,4 +1,4 @@
-{% for r in rows %}
+{% for r in records %}
 <tr class="row {{ 'is-done' if r.completed else 'is-open' }} {{ 'is-sent' if r.sent else 'is-unsent' }}" data-id="{{ r.id }}" data-sent="{{ 1 if r.sent else 0 }}">
   <td class="mono" data-column-key="id" data-label="ID" data-sort-value="{{ r.id }}">
     <a href="#" class="js-edit-ticket" data-id="{{ r.id }}" style="color:inherit; text-decoration:none;">{{ r.id }}</a>
