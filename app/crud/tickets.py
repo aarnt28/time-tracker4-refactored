@@ -477,9 +477,9 @@ def update_ticket(db: Session, t: Ticket, payload: dict) -> Ticket:
     elite_client = _is_elite_client(data.get("client_key", t.client_key))
     if "note" in data and contract_client:
         data["note"] = _prepend_contract_note(data.get("note"), contract_client=True)
-    if "note" in data and elite_client:
-        key = data.get("client_key", t.client_key)
-        data["note"] = _prepend_elite_note(data.get("note"), client_key=key)
+#    if "note" in data and elite_client:
+#        key = data.get("client_key", t.client_key)
+#        data["note"] = _prepend_elite_note(data.get("note"), client_key=key)
     for k, v in data.items():
         if k in {"client", "client_key"}:
             continue

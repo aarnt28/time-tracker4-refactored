@@ -674,7 +674,7 @@
 
     const btnToggleDone = document.getElementById('ticket-mark-done');
 
-    const specialNotes = document.getElementById('special-notes');
+    const specialNotesField = document.getElementById('special-notes');
 
     const hardwareSnapshot = document.getElementById('hardware-snapshot');
 
@@ -1752,8 +1752,9 @@
     function updateSpecialNotes(){
       const eliteClients = ["brightway", "pru", "pure", "asana"]
       const isEliteClient = eliteClients.includes(clientKeyField.value?.toLowerCase());
-      if clientKeyField.value {
-        specialNotesField.value = `Client Key: ${clientKeyField.value}`;
+      if isEliteClient {
+        specialNotesField.textContent = `${clientKeyField.value} is under management of Elite Medical Management - They request that all invoices in excess of monthly contract dues be billed to a single account regardless of location. If this ticket has a value, create an invoice (or append an existing one) with the specified item. If the value is zero, still add an invoice item with a the description and the unit price, but set the qty to zero.`;
+        specialNotesField.style.display = 'block';
       } else {
         specialNotesField.value = '';
       }
