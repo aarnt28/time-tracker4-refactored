@@ -30,6 +30,7 @@ from .db.migrate import run_migrations
 from .models import hardware as _hardware  # noqa: F401
 from .models import ticket as _ticket  # noqa: F401
 from .models import inventory as _inventory  # noqa: F401
+from .models import project as _project  # noqa: F401
 
 # ---------- App init ----------
 # The FastAPI instance is the beating heart of the project. Once created it
@@ -162,6 +163,10 @@ app.include_router(api_inventory_router.router, prefix="")
 from .routers import address as address_router  # type: ignore
 
 app.include_router(address_router.router, prefix="")
+
+from .routers import api_projects as api_projects_router  # type: ignore
+
+app.include_router(api_projects_router.router, prefix="")
 
 # ---------- Exception handling ----------
 # This catch-all handler ensures the browser-friendly login redirect happens

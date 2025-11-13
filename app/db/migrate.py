@@ -95,6 +95,8 @@ def run_migrations(engine: Engine) -> None:
         "invoiced_total": "TEXT",
         "calculated_value": "TEXT",
         "attachments": "TEXT",
+        "project_id": "INTEGER",
+        "project_posted": "INTEGER DEFAULT 0 NOT NULL",
     }
 
     # Tickets table incremental columns
@@ -102,6 +104,37 @@ def run_migrations(engine: Engine) -> None:
     for name, dtype in ticket_needed.items():
         if name not in tcols:
             _add_column_sqlite(engine, "tickets", f"{name} {dtype}")
+
+    # Projects container table
+    project_table = _table_columns(engine, "projects")
+    if not project_table:
+        with engine.begin() as conn:
+            conn.execute(
+                text(
+                    """
+                    CREATE TABLE IF NOT EXISTS projects (
+                        id INTEGER PRIMARY KEY,
+                        name TEXT NOT NULL,
+                        client TEXT NOT NULL,
+                        client_key TEXT NOT NULL,
+                        status TEXT,
+                        note TEXT,
+                        start_date TEXT,
+                        end_date TEXT,
+                        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+                        finalized_at TEXT
+                    )
+                    """
+                )
+            )
+            conn.execute(
+                text(
+                    "CREATE INDEX IF NOT EXISTS ix_projects_client_key ON projects (client_key)"
+                )
+            )
+
+    _create_index_if_not_exists(engine, "tickets", "ix_tickets_project_id", ["project_id"])
 
     # Hardware schema upgrades
     hcols = _column_names(engine, "hardware")

@@ -26,6 +26,7 @@ class EntryBase(BaseModel):
     hardware_sales_price: Optional[str] = None
     flat_rate_amount: Optional[str] = None
     flat_rate_quantity: Optional[int] = Field(default=None, ge=1)
+    project_id: Optional[int] = None
 
 
 class EntryCreate(EntryBase):
@@ -34,6 +35,7 @@ class EntryCreate(EntryBase):
     invoice_number: Optional[str] = None
     sent: Optional[int] = 0
     invoiced_total: Optional[str] = None
+    project_posted: Optional[bool] = None
 
 
 class EntryUpdate(BaseModel):
@@ -54,6 +56,8 @@ class EntryUpdate(BaseModel):
     hardware_sales_price: Optional[str] = None
     flat_rate_amount: Optional[str] = None
     flat_rate_quantity: Optional[int] = Field(default=None, ge=1)
+    project_id: Optional[int] = None
+    project_posted: Optional[bool] = None
 
 
 class TicketAttachment(BaseModel):
@@ -94,6 +98,8 @@ class EntryOut(BaseModel):
     flat_rate_quantity: Optional[int] = None
     calculated_value: Optional[str] = None
     attachments: list[TicketAttachment] = Field(default_factory=list)
+    project_id: Optional[int] = None
+    project_posted: int
 
     class Config:
         from_attributes = True

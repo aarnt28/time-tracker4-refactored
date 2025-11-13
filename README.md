@@ -15,6 +15,10 @@ stores data, and Docker Compose makes it easy to run everything locally.
 * **Ticket attachments** – Upload screenshots or other image files alongside
   a ticket for richer context directly from the UI or the API. Files are stored
   under the persistent data volume and exposed through secured download links.【F:app/routers/api_tickets.py†L15-L141】【F:app/templates/tickets.html†L302-L2115】
+* **Project containers** – Organise groups of related tickets under a single
+  client project, stage time, hardware and deployment items together, and push
+  them to the ticket dashboard once the work is ready. The Projects tab and
+  `/api/v1/projects` endpoints keep automation and mobile clients in sync.【F:app/templates/projects.html†L1-L189】【F:app/routers/api_projects.py†L1-L171】
 * **Invoice insights** – Tickets include invoiced totals and calculated value
   columns that auto-populate from hardware quantity × price or a client's
   rounded time × support rate, plus inline editing and sortable, hideable
@@ -222,6 +226,50 @@ changing.
 Upload new attachments by sending `multipart/form-data` with a single `file`
 part to `POST /api/v1/tickets/{id}/attachments`. Only PNG, JPEG, GIF and WEBP
 images are accepted.
+
+#### Project payloads
+
+Projects allow you to collect a batch of time, hardware and deployment entries
+for a single client before pushing them to the main tickets dashboard. The
+headless API mirrors the browser experience through `/api/v1/projects` and its
+nested ticket routes.【F:app/routers/api_projects.py†L1-L171】【F:app/schemas/project.py†L1-L51】
+
+**Create request (`POST /api/v1/projects`)** – body validated by
+`ProjectCreate`.
+
+| Field | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `name` | `String` | Yes | Display name for the project dashboard. |
+| `client_key` | `String` | Yes | The same lookup key used by tickets. |
+| `client` | `String?` | No | Optional override; the server will resolve the stored client name if omitted. |
+| `status` | `String?` | No | Free-form status label (e.g. `Draft`, `Finalised`). |
+| `note` | `String?` | No | Additional context rendered below the row in the Projects tab. |
+| `start_date` / `end_date` | `String?` | No | ISO 8601 dates to track the delivery window. |
+
+**Project response (`ProjectOut`)** – returned by list, create, update and
+finalise operations. Besides the base attributes above, it exposes ticket
+counters so automations can detect when a project still has staged work.
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `id` | `Int` | Primary key. |
+| `created_at` / `updated_at` | `String` | ISO 8601 audit timestamps. |
+| `finalized_at` | `String?` | Timestamp recorded once `/finalize` succeeds. |
+| `open_ticket_count` | `Int` | Number of staged tickets not yet posted. |
+| `posted_ticket_count` | `Int` | Number of tickets already pushed to the main console. |
+| `ticket_count` | `Int` | Total tickets linked to the project. |
+
+`GET /api/v1/projects/{id}` returns a `ProjectDetail` payload that embeds the
+full list of staged tickets using the same `EntryOut` schema that powers the
+ticket API. Finalising a project via `POST /api/v1/projects/{id}/finalize`
+marks each ticket as posted so it becomes visible in `/tickets` queries while
+preserving the project association.【F:app/routers/api_projects.py†L73-L114】
+
+Nested ticket routes – `POST /api/v1/projects/{id}/tickets` and
+`PATCH /api/v1/projects/{id}/tickets/{ticket_id}` – re-use the existing
+`EntryCreate`/`EntryUpdate` contracts. Tickets linked to a project remain hidden
+from the main ticket endpoints until `project_posted` flips to `1`, mirroring
+the behaviour of the Projects UI.【F:app/routers/api_projects.py†L116-L171】【F:app/crud/tickets.py†L108-L228】
 
 #### Hardware payloads
 
