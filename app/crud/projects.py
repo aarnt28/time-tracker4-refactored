@@ -127,4 +127,3 @@ def add_project_ticket(db: Session, project: Project, payload: dict):
     data["client_key"] = project.client_key
     data["client"] = project.client
     return create_entry(db, data)
-*** End File
