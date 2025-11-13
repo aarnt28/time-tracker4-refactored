@@ -1,0 +1,34 @@
+{% if projects %}
+  {% for project in projects %}
+    <tr class="row" data-project-id="{{ project.id }}">
+      <td class="mono">{{ project.id }}</td>
+      <td>{{ project.name }}</td>
+      <td>{{ project.client }}</td>
+      <td class="mono">{{ project.status or "Draft" }}</td>
+      <td class="mono">{{ project.open_ticket_count }}</td>
+      <td class="mono">{{ project.posted_ticket_count }}</td>
+      <td class="mono">{{ project.created_at|fmt_dt }}</td>
+      <td class="mono">{{ project.updated_at|fmt_dt }}</td>
+      <td class="th-action">
+        <div class="actions-inline">
+          <a class="btn-ghost" href="/api/v1/projects/{{ project.id }}" target="_blank" rel="noreferrer">JSON</a>
+          {% if project.open_ticket_count > 0 %}
+            <button class="btn" type="button" data-action="finalize-project" data-project-id="{{ project.id }}">Finalize</button>
+          {% else %}
+            <span class="badge">Complete</span>
+          {% endif %}
+        </div>
+      </td>
+    </tr>
+    {% if project.note %}
+      <tr class="row row-note">
+        <td></td>
+        <td colspan="8" class="note">{{ project.note }}</td>
+      </tr>
+    {% endif %}
+  {% endfor %}
+{% else %}
+  <tr>
+    <td colspan="9" class="empty">No projects yet. Use the New Project button to get started.</td>
+  </tr>
+{% endif %}

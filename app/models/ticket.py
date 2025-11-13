@@ -11,7 +11,8 @@ File: app/models/ticket.py
 
 from __future__ import annotations
 import json
-from sqlalchemy import Column, Integer, Text
+from sqlalchemy import Column, ForeignKey, Integer, Text
+from sqlalchemy.orm import relationship
 from ..db.session import Base
 
 
@@ -35,6 +36,9 @@ class Ticket(Base):
     minutes = Column(Integer, nullable=False, default=0)
     entry_type = Column(Text, nullable=False, default="time")
 
+    project_id = Column(Integer, ForeignKey("projects.id"), nullable=True, index=True)
+    project_posted = Column(Integer, nullable=False, default=0)
+
     # Link & snapshot when entry_type == 'hardware'
     hardware_id = Column(Integer, nullable=True, index=True)
     hardware_description = Column(Text, nullable=True)
@@ -47,6 +51,8 @@ class Ticket(Base):
     invoiced_total = Column(Text, nullable=True)
     calculated_value = Column(Text, nullable=True)
     attachments_blob = Column("attachments", Text, nullable=True)
+
+    project = relationship("Project", back_populates="tickets")
 
     @property
     def hardware_barcode(self) -> str | None:

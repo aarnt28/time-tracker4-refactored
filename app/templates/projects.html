@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Projects</title>
+  <link rel="stylesheet" href="/static/app.css" />
+  <link rel="icon" href="/static/favicon.ico" />
+</head>
+<body class="dashboard">
+  <header class="app-header">
+    <div class="container">
+      <div class="branding">
+        <img
+          src="/static/img/vip-full-hd-transparant-cropped-halfsize.png"
+          srcset="/static/img/vip-full-hd-transparant-cropped-halfsize.png 1x, /static/img/vip-full-hd-transparant-384x150.png 2x"
+          alt="VIP Clouds logo"
+          class="branding__logo"
+        />
+        <div class="branding__meta">
+          <span class="branding__kicker">VIP Clouds</span>
+          <h1 class="logo"><a href="/">Time Tracker</a></h1>
+        </div>
+      </div>
+      <h2 class="page-title">Projects</h2>
+      <div class="actions">
+        <button class="btn" type="button" id="new-project">New Project</button>
+        <button class="btn-ghost" type="button" id="refresh-projects">Refresh</button>
+      </div>
+      <nav class="links">
+        <a href="/" class="pill">Dashboard</a>
+        <a href="/tickets" class="pill">Tickets</a>
+        <a href="/projects" class="pill active" aria-current="page">Projects</a>
+        <a href="/hardware" class="pill">Hardware</a>
+        <a href="/inventory" class="pill">Inventory</a>
+        <a href="/clients" class="pill">Clients</a>
+        <a href="/reports" class="pill">Reports</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="table-wrap">
+      <div class="table-scroll">
+        <table class="table projects-table">
+          <thead>
+            <tr>
+              <th class="mono">ID</th>
+              <th>Project</th>
+              <th>Client</th>
+              <th class="mono">Status</th>
+              <th class="mono">Open Items</th>
+              <th class="mono">Posted</th>
+              <th class="mono">Created</th>
+              <th class="mono">Updated</th>
+              <th class="th-action">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="project-records">
+            {% include "_project_records.html" with context %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <div id="project-modal" class="modal-root" style="display:none;">
+    <div class="modal-card modal-card--medium">
+      <header class="modal-head">
+        <h2 class="modal-title">New Project</h2>
+        <button id="project-modal-close" class="btn" type="button">Close</button>
+      </header>
+      <form id="project-form" class="modal-form">
+        <div class="form-grid two-column">
+          <label>Project Name<input name="name" required /></label>
+          <label>Client Key<input name="client_key" required /></label>
+          <label>Client Name<input name="client" placeholder="Optional override" /></label>
+          <label>Status<input name="status" placeholder="Draft" /></label>
+          <label>Start Date<input name="start_date" type="date" /></label>
+          <label>End Date<input name="end_date" type="date" /></label>
+          <label class="full-width">Notes<textarea name="note" rows="4"></textarea></label>
+        </div>
+        <div class="form-actions">
+          <button class="btn" type="submit">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+  (function(){
+    const modal = document.getElementById('project-modal');
+    const openBtn = document.getElementById('new-project');
+    const closeBtn = document.getElementById('project-modal-close');
+    const form = document.getElementById('project-form');
+    const tableBody = document.getElementById('project-records');
+    const refreshBtn = document.getElementById('refresh-projects');
+
+    function getApiToken(){ return window.localStorage.getItem('api_token') || ''; }
+    function setApiToken(token){ if (token) window.localStorage.setItem('api_token', token); }
+    function apiHeaders(json=true){
+      const headers = {};
+      if (json) headers['Content-Type'] = 'application/json';
+      const token = getApiToken();
+      if (token) headers['X-API-Key'] = token;
+      return headers;
+    }
+
+    async function safeFetch(url, options={}, retry=true){
+      const opts = Object.assign({ credentials: 'same-origin' }, options);
+      const wantsJson = Boolean(opts.body) && !(opts.body instanceof FormData);
+      opts.headers = Object.assign({}, apiHeaders(wantsJson), options.headers || {});
+      const response = await fetch(url, opts);
+      if (response.status === 401 && retry){
+        const token = window.prompt('Enter API token');
+        if (!token) return response;
+        setApiToken(token);
+        const retryOpts = Object.assign({}, options);
+        retryOpts.headers = Object.assign({}, options.headers || {}, { 'X-API-Key': token });
+        return safeFetch(url, retryOpts, false);
+      }
+      return response;
+    }
+
+    function openModal(){ modal.style.display = 'flex'; }
+    function closeModal(){ modal.style.display = 'none'; form.reset(); }
+
+    async function refreshProjects(){
+      const res = await safeFetch('/ui/project_table');
+      if (res.ok){
+        tableBody.innerHTML = await res.text();
+      }
+    }
+
+    openBtn?.addEventListener('click', openModal);
+    closeBtn?.addEventListener('click', closeModal);
+    refreshBtn?.addEventListener('click', function(){ refreshProjects(); });
+
+    form?.addEventListener('submit', async function(ev){
+      ev.preventDefault();
+      const data = new FormData(form);
+      const payload = {};
+      data.forEach((value, key) => {
+        if (typeof value === 'string'){ const trimmed = value.trim(); if (trimmed) payload[key] = trimmed; }
+      });
+      const res = await safeFetch('/api/v1/projects', {
+        method: 'POST',
+        headers: apiHeaders(true),
+        body: JSON.stringify(payload),
+      });
+      if (res.ok){
+        closeModal();
+        await refreshProjects();
+      } else {
+        const detail = await res.json().catch(() => ({}));
+        window.alert(detail.detail || 'Unable to create project');
+      }
+    });
+
+    tableBody?.addEventListener('click', async function(ev){
+      const target = ev.target;
+      if (!(target instanceof HTMLElement)) return;
+      if (target.matches('[data-action="finalize-project"]')){
+        const projectId = target.getAttribute('data-project-id');
+        if (!projectId) return;
+        const confirmFinalize = window.confirm('Finalize this project and post its tickets to the main dashboard?');
+        if (!confirmFinalize) return;
+        const res = await safeFetch(`/api/v1/projects/${projectId}/finalize`, { method: 'POST' });
+        if (res.ok){
+          await refreshProjects();
+        } else {
+          const detail = await res.json().catch(() => ({}));
+          window.alert(detail.detail || 'Unable to finalize project');
+        }
+      }
+    });
+  })();
+  </script>
+</body>
+</html>

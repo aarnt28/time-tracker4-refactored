@@ -38,6 +38,30 @@ CONTRACT_CLIENT_NOTE_PREFIX = "*** Reminder: This is a contract client, if the v
 
 ELITE_CLIENT_NOTE_PREFIX = "~~~ This Clinic is Owned by Elite MMG - Everything other than standard contract costs is billed to 'Elite - Hardware' in Quickbooks; Please do not add to individual clinic! ~~~\n"
 
+
+def _visible_ticket_clause():
+    """SQL clause that hides project tickets until they are posted."""
+
+    return or_(Ticket.project_id.is_(None), Ticket.project_posted == 1)
+
+
+def _normalize_project_fields(payload: dict) -> tuple[int | None, int]:
+    """Parse project linkage fields into ``(project_id, project_posted)``."""
+
+    raw_project_id = payload.get("project_id")
+    project_id: int | None = None
+    if raw_project_id is not None:
+        try:
+            project_id = int(raw_project_id)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("project_id must be an integer") from exc
+
+    project_posted = 1 if project_id is None else 0
+    if "project_posted" in payload:
+        project_posted = 1 if _coerce_bool(payload.get("project_posted")) else 0
+
+    return project_id, project_posted
+
 def _coerce_bool(value: object) -> bool:
     """Interpret various truthy/falsy user inputs as a Python ``bool``."""
 
@@ -118,9 +142,14 @@ def _ticket_attachment_dir(ticket_id: int, *, ensure: bool = False) -> Path:
 def list_tickets(db: Session, limit: int = 100, offset: int = 0):
     """Return paginated ticket records while keeping derived fields in sync."""
 
-    records = db.execute(
-        select(Ticket).order_by(desc(Ticket.created_at)).limit(limit).offset(offset)
-    ).scalars().all()
+    stmt = (
+        select(Ticket)
+        .where(_visible_ticket_clause())
+        .order_by(desc(Ticket.created_at))
+        .limit(limit)
+        .offset(offset)
+    )
+    records = db.execute(stmt).scalars().all()
     changed = False
     client_table = load_client_table()
     for ticket in records:
@@ -137,6 +166,7 @@ def list_active_tickets(db: Session, client_key: str | None = None, limit: int =
     stmt = select(Ticket).where(
         Ticket.end_iso.is_(None),
         or_(Ticket.entry_type.is_(None), Ticket.entry_type == "time"),
+        _visible_ticket_clause(),
     )
     if client_key:
         stmt = stmt.where(Ticket.client_key == client_key)
@@ -414,6 +444,7 @@ def create_entry(db: Session, payload: dict) -> Ticket:
 
     if "client_key" not in payload or not payload["client_key"]:
         raise ValueError("client_key is required")
+    project_id, project_posted = _normalize_project_fields(payload)
     invoice_total_value = _normalize_currency_input(payload.get("invoiced_total"))
     note_value = payload.get("note")
     if _is_contract_client(payload.get("client_key")):
@@ -435,6 +466,8 @@ def create_entry(db: Session, payload: dict) -> Ticket:
         entry_type=payload.get("entry_type", "time"),
         hardware_id=payload.get("hardware_id"),
         calculated_value=None,
+        project_id=project_id,
+        project_posted=project_posted,
     )
     attachments_payload = payload.get("attachments")
     if isinstance(attachments_payload, list):
@@ -449,7 +482,7 @@ def create_entry(db: Session, payload: dict) -> Ticket:
     db.add(t)
     db.commit()
     db.refresh(t)
-    if t.entry_type == "hardware" and t.hardware_id:
+    if t.project_posted and t.entry_type == "hardware" and t.hardware_id:
         hardware = db.get(Hardware, t.hardware_id)
         unit_sale = _money_to_float(t.hardware_sales_price)
         unit_cost = _money_to_float(hardware.acquisition_cost) if hardware else None
@@ -471,6 +504,18 @@ def update_ticket(db: Session, t: Ticket, payload: dict) -> Ticket:
     if "client_key" in payload or "client" in payload:
         _apply_client_link(t, payload)
     data = dict(payload)
+    if "project_id" in data or "project_posted" in data:
+        normalized = {
+            "project_id": data.get("project_id", t.project_id),
+            "project_posted": data.get("project_posted", t.project_posted),
+        }
+        project_id, project_posted = _normalize_project_fields(normalized)
+        if "project_id" in data:
+            t.project_id = project_id
+        if "project_posted" in data or "project_id" in data:
+            t.project_posted = project_posted
+        data.pop("project_id", None)
+        data.pop("project_posted", None)
     if "invoiced_total" in data:
         data["invoiced_total"] = _normalize_currency_input(data.get("invoiced_total"))
     contract_client = _is_contract_client(data.get("client_key", t.client_key))
@@ -507,7 +552,7 @@ def update_ticket(db: Session, t: Ticket, payload: dict) -> Ticket:
     _ensure_calculated_fields(t, initialize_invoice=initialize_invoice)
     db.commit()
     db.refresh(t)
-    if t.entry_type == "hardware" and t.hardware_id:
+    if t.project_posted and t.entry_type == "hardware" and t.hardware_id:
         hardware = db.get(Hardware, t.hardware_id)
         unit_sale = _money_to_float(t.hardware_sales_price)
         unit_cost = _money_to_float(hardware.acquisition_cost) if hardware else None
@@ -589,6 +634,31 @@ def get_ticket_attachment(ticket: Ticket, attachment_id: str) -> tuple[dict[str,
     storage_name = record.get("storage_filename") or str(attachment_id)
     path = _ticket_attachment_dir(ticket.id) / storage_name
     return _sanitized_attachment(record), path
+
+
+def list_project_tickets(
+    db: Session,
+    project_id: int,
+    *,
+    include_posted: bool = True,
+    limit: int = 250,
+    offset: int = 0,
+):
+    """Return tickets that belong to a specific project."""
+
+    stmt = select(Ticket).where(Ticket.project_id == project_id)
+    if not include_posted:
+        stmt = stmt.where(Ticket.project_posted == 0)
+    stmt = stmt.order_by(desc(Ticket.created_at)).limit(limit).offset(offset)
+    records = db.execute(stmt).scalars().all()
+    changed = False
+    client_table = load_client_table()
+    for ticket in records:
+        if _ensure_calculated_fields(ticket, initialize_invoice=True, client_table=client_table):
+            changed = True
+    if changed:
+        db.commit()
+    return records
 
 
 def delete_ticket(db: Session, ticket: Ticket) -> None:

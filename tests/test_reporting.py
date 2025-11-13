@@ -30,6 +30,7 @@ from app.services.reporting import calculate_ticket_metrics
 
 # Ensure models are registered so metadata tables are created
 from app.models import ticket as ticket_model  # noqa: F401
+from app.models import project as project_model  # noqa: F401
 
 
 @pytest.fixture()

@@ -24,6 +24,7 @@ from ..crud.inventory import (
     list_inventory_events,
     record_inventory_event,
 )
+from ..crud.projects import list_projects, get_project, finalize_project
 from ..core.config import settings
 from ..services.clientsync import load_client_table
 from ..services.reporting import calculate_ticket_metrics
@@ -36,6 +37,17 @@ from ..core.jinja import get_templates  # <<< use centralized templates with fil
 templates = get_templates()
 
 router = APIRouter(dependencies=[Depends(require_ui_session)])
+
+
+def _with_project_counts(projects):
+    enriched = []
+    for project in projects:
+        tickets = list(getattr(project, "tickets", []) or [])
+        project.open_ticket_count = sum(1 for t in tickets if not getattr(t, "project_posted", 0))
+        project.posted_ticket_count = sum(1 for t in tickets if getattr(t, "project_posted", 0))
+        project.ticket_count = len(tickets)
+        enriched.append(project)
+    return enriched
 
 def _login_redirect(request: Request):
     return RedirectResponse(url=f"/login?next={request.url.path}", status_code=302)
@@ -79,6 +91,12 @@ def index_page(request: Request, db: Session = Depends(get_db)):
 def tickets_page(request: Request, db: Session = Depends(get_db)):
     records = list_tickets(db, limit=200)
     return templates.TemplateResponse("tickets.html", {"request": request, "records": records})
+
+
+@router.get("/projects", response_class=HTMLResponse)
+def projects_page(request: Request, db: Session = Depends(get_db)):
+    projects = _with_project_counts(list_projects(db, limit=200))
+    return templates.TemplateResponse("projects.html", {"request": request, "projects": projects})
 
 @router.get("/clients", response_class=HTMLResponse)
 def clients_page(request: Request):
@@ -143,6 +161,23 @@ def inventory_events_partial(request: Request, db: Session = Depends(get_db)):
 def ticket_table_partial(request: Request, db: Session = Depends(get_db)):
     records = list_tickets(db, limit=200)
     return templates.TemplateResponse("_records.html", {"request": request, "records": records})
+
+
+@router.get("/ui/project_table", response_class=HTMLResponse)
+def project_table_partial(request: Request, db: Session = Depends(get_db)):
+    projects = _with_project_counts(list_projects(db, limit=200))
+    return templates.TemplateResponse("_project_records.html", {"request": request, "projects": projects})
+
+
+@router.post("/ui/projects/{project_id}/finalize", response_class=HTMLResponse)
+def ui_finalize_project(project_id: int, db: Session = Depends(get_db)):
+    project = get_project(db, project_id)
+    if not project:
+        raise HTTPException(404, "Not found")
+    finalized = finalize_project(db, project)
+    refreshed = get_project(db, finalized.id) or finalized
+    enriched = _with_project_counts([refreshed])
+    return templates.TemplateResponse("_project_records.html", {"request": {}, "projects": enriched})
 
 @router.post("/ui/tickets/{entry_id}/toggle-completed", response_class=HTMLResponse)
 @router.post("/ui/tickets/{entry_id}/toggle", response_class=HTMLResponse)  # compat
