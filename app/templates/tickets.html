@@ -159,6 +159,7 @@
       margin-bottom: 16px;
       font-size: 0.875rem;
       color: #d01414ff;
+      white-space: pre-wrap;
     }
 
     @media (min-width: 2560px) {
@@ -1307,17 +1308,22 @@
 
     updateSortIndicators();
 
-    function ensureClientOption(key, name){
+    function ensureClientOption(key, meta){
 
       if (!key) return null;
 
-      const displayName = name && name.trim() ? name.trim() : key;
+      const info = (meta && typeof meta === 'object') ? meta : { name: meta };
+      const displayName = info && info.name && String(info.name).trim() ? String(info.name).trim() : key;
+      const invoiceNotes = info && info.invoice_notes != null
+        ? String(info.invoice_notes).trim()
+        : (info && info.invoiceNotes != null ? String(info.invoiceNotes).trim() : '');
 
       const existing = clientOptionLookup.get(key);
 
       if (existing){
 
         existing.name = displayName;
+        existing.invoiceNotes = invoiceNotes;
 
         if (existing.option){
 
@@ -1339,7 +1345,7 @@
 
       opt.dataset.clientName = displayName;
 
-      clientOptionLookup.set(key, { name: displayName, option: opt });
+      clientOptionLookup.set(key, { name: displayName, invoiceNotes, option: opt });
 
       clientKeyField.appendChild(opt);
 
@@ -1387,7 +1393,7 @@
 
         entries.forEach(([key, entry]) => {
 
-          ensureClientOption(key, entry && entry.name ? entry.name : key);
+          ensureClientOption(key, entry || { name: key });
 
         });
 
@@ -1761,10 +1767,15 @@
     }
 
     function updateSpecialNotes(){
-      const eliteClients = ["brightway", "pru", "pure", "asana"]
-      const isEliteClient = eliteClients.includes(clientKeyField.value?.toLowerCase());
-      if (isEliteClient) {
-        specialNotesField.textContent = `${clientField.value} is under management of Elite Medical Management - They request that all invoices in excess of monthly contract dues be billed to a single account regardless of location. If this ticket has a value, create an invoice (or append an existing one) with the specified item. If the value is zero, still add an invoice item with a the description and the unit price, but set the qty to zero.`;
+      if (!specialNotesField) return;
+      const keyRaw = (clientKeyField.value || '').trim();
+      const invoiceNotes = keyRaw ? (clientOptionLookup.get(keyRaw)?.invoiceNotes || '') : '';
+      const parts = [];
+      if (invoiceNotes){
+        parts.push(`Invoice Notes: ${invoiceNotes}`);
+      }
+      if (parts.length){
+        specialNotesField.textContent = parts.join('\n\n');
         specialNotesField.style.display = 'block';
       } else {
         specialNotesField.textContent = '';
@@ -2005,7 +2016,7 @@
 
         clientField.value = name;
 
-        ensureClientOption(key, name);
+        ensureClientOption(key, entry);
 
       } else {
 
@@ -2103,7 +2114,7 @@
 
       if (data.client_key){
 
-        ensureClientOption(data.client_key, data.client || data.client_key);
+        ensureClientOption(data.client_key, { name: data.client || data.client_key });
 
       }
 

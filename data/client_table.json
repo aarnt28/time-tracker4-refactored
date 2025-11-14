@@ -183,7 +183,9 @@
     "primary_contact_email": "jim@addisonstonellc.com",
     "office_manager_name": "Suzanne Sneathern",
     "office_manager_phone": "",
-    "office_manager_email": "suzanne.sneathern@addisonstonellc.com"
+    "office_manager_email": "suzanne.sneathern@addisonstonellc.com",
+    "invoice_notes": "Test",
+    "former_practices": ""
   },
   "nds": {
     "support_rate": "150",

@@ -36,8 +36,6 @@ SIXTY = Decimal("60")
 ATTACHMENTS_DIR_NAME = "attachments"
 CONTRACT_CLIENT_NOTE_PREFIX = "*** Reminder: This is a contract client, if the value on this item is zero, it's intentional; Add to invoice - but set price in QB to zero ***"
 
-ELITE_CLIENT_NOTE_PREFIX = "~~~ This Clinic is Owned by Elite MMG - Everything other than standard contract costs is billed to 'Elite - Hardware' in Quickbooks; Please do not add to individual clinic! ~~~\n"
-
 
 def _visible_ticket_clause():
     """SQL clause that hides project tickets until they are posted."""
@@ -87,19 +85,6 @@ def _is_contract_client(client_key: str | None, table: dict | None = None) -> bo
         return False
     return _coerce_bool(entry.get("contract"))
 
-def _is_elite_client(client_key: str | None, table: dict | None = None) -> bool:
-    """Special-case brand list used to control note prefixes."""
-
-    if not client_key:
-        return False
-    if table is None:
-        table = load_client_table()
-    entry = table.get(client_key) if isinstance(table, dict) else None
-    if not isinstance(entry, dict):
-        return False
-    isElite = client_key in {'brightway', 'pru', 'pure', 'asana'} 
-    return isElite
-
 def _prepend_contract_note(note: str | None, *, contract_client: bool) -> str | None:
     """Add the contract reminder banner above any existing note text."""
 
@@ -111,18 +96,6 @@ def _prepend_contract_note(note: str | None, *, contract_client: bool) -> str | 
             return existing
         return f"{CONTRACT_CLIENT_NOTE_PREFIX}\n{existing}"
     return CONTRACT_CLIENT_NOTE_PREFIX
-
-def _prepend_elite_note(note: str | None, *, client_key: str) -> str | None:
-    """Add the Elite reminder banner above any existing note text."""
-
-    if not client_key:
-        return note
-    existing = note or ""
-    if existing:
-        if existing.lstrip().startswith(ELITE_CLIENT_NOTE_PREFIX):
-            return existing
-        return f"{ELITE_CLIENT_NOTE_PREFIX}\n{existing}"
-    return ELITE_CLIENT_NOTE_PREFIX
 
 def _attachments_root() -> Path:
     """Base folder where ticket attachments are stored on disk."""
@@ -449,9 +422,6 @@ def create_entry(db: Session, payload: dict) -> Ticket:
     note_value = payload.get("note")
     if _is_contract_client(payload.get("client_key")):
         note_value = _prepend_contract_note(note_value, contract_client=True)
-    if _is_elite_client(payload.get("client_key")):
-        key = payload.get("client_key")
-        note_value = _prepend_elite_note(note_value, client_key=key)
     t = Ticket(
         client="",  # populated below
         client_key=payload["client_key"],
@@ -519,12 +489,8 @@ def update_ticket(db: Session, t: Ticket, payload: dict) -> Ticket:
     if "invoiced_total" in data:
         data["invoiced_total"] = _normalize_currency_input(data.get("invoiced_total"))
     contract_client = _is_contract_client(data.get("client_key", t.client_key))
-    elite_client = _is_elite_client(data.get("client_key", t.client_key))
     if "note" in data and contract_client:
         data["note"] = _prepend_contract_note(data.get("note"), contract_client=True)
-#    if "note" in data and elite_client:
-#        key = data.get("client_key", t.client_key)
-#        data["note"] = _prepend_elite_note(data.get("note"), client_key=key)
     for k, v in data.items():
         if k in {"client", "client_key"}:
             continue

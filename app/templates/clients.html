@@ -160,7 +160,8 @@ const DEMOGRAPHIC_FIELDS = [
   { key: 'primary_contact_email', label: 'Primary Contact Email', type: 'email', linkPrefix: 'mailto:', linkLabel: 'Email' },
   { key: 'office_manager_name', label: 'Office Manager Name' },
   { key: 'office_manager_phone', label: 'Office Manager Phone', type: 'tel', linkPrefix: 'tel:', linkLabel: 'Call' },
-  { key: 'office_manager_email', label: 'Office Manager Email', type: 'email', linkPrefix: 'mailto:', linkLabel: 'Email' }
+  { key: 'office_manager_email', label: 'Office Manager Email', type: 'email', linkPrefix: 'mailto:', linkLabel: 'Email' },
+  { key: 'invoice_notes', label: 'Invoice Notes', placeholder: 'Special billing instructions' }
 ];
 const DEMOGRAPHIC_KEYS = new Set(DEMOGRAPHIC_FIELDS.map((f) => f.key));
 const ADDRESS_AUTOCOMPLETE_MIN_CHARS = 3;
