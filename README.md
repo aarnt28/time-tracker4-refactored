@@ -271,6 +271,27 @@ Nested ticket routes – `POST /api/v1/projects/{id}/tickets` and
 from the main ticket endpoints until `project_posted` flips to `1`, mirroring
 the behaviour of the Projects UI.【F:app/routers/api_projects.py†L116-L171】【F:app/crud/tickets.py†L108-L228】
 
+Each project row in the UI now includes an **Add Ticket** button. The modal captures the client-aligned start/end timestamps and note, stages the ticket via `POST /api/v1/projects/{id}/tickets`, and keeps `project_posted = 0` so the entry stays off the Tickets dashboard until you finalize/submit the project. The modal mirrors the Tickets tab editor (entry type, hardware, deployment flat rates, invoicing, etc.) so staged rows follow the exact same schema. Click anywhere on a project row to open the editor and update its status, schedule window, notes, or client details inline, use the themed **Manage Tickets** action to review/edit staged tickets, and the **Delete** button to remove a project entirely after confirmation.
+
+#### Project API endpoints
+
+`GET /api/v1/projects` returns the most recent projects using `ProjectOut`. Every record includes the numeric `id`, so automations can capture that identifier once and reuse it with the detail/update/delete routes below.
+
+| Endpoint | Method | Description | Payload/Params |
+| --- | --- | --- | --- |
+| `/api/v1/projects` | `GET` | List projects ordered by creation time.【F:app/routers/api_projects.py†L39-L43】 | Optional pagination handled server-side (default limit 200). |
+| `/api/v1/projects` | `POST` | Create a project using the `ProjectCreate` schema.【F:app/routers/api_projects.py†L46-L56】 | JSON body: see table above. |
+| `/api/v1/projects/{id}` | `GET` | Retrieve a single project plus embedded tickets (`ProjectDetail`).【F:app/routers/api_projects.py†L59-L69】 | Path parameter `id` (int). |
+| `/api/v1/projects/{id}` | `PATCH` | Update mutable fields (`ProjectUpdate`).【F:app/routers/api_projects.py†L72-L87】 | JSON body with any subset of fields. |
+| `/api/v1/projects/{id}` | `DELETE` | Permanently delete the project.【F:app/routers/api_projects.py†L90-L97】 | Path parameter `id`. |
+| `/api/v1/projects/{id}/finalize` | `POST` | Mark all staged tickets as posted and stamp `finalized_at`.【F:app/routers/api_projects.py†L100-L111】 | Path parameter `id`. |
+| `/api/v1/projects/{id}/tickets` | `GET` | List staged tickets for a project (`EntryOut`).【F:app/routers/api_projects.py†L114-L124】 | Path parameter `id`. |
+| `/api/v1/projects/{id}/tickets` | `POST` | Create a ticket scoped to the project (`EntryCreate`).【F:app/routers/api_projects.py†L127-L140】 | JSON body matches ticket creation schema; `project_posted` is forced to `0`. |
+| `/api/v1/projects/{id}/tickets/{ticket_id}` | `PATCH` | Update a staged ticket (`EntryUpdate`).【F:app/routers/api_projects.py†L143-L167】 | Path parameters `id`, `ticket_id`; JSON body matches ticket update schema. |
+| `/api/v1/projects/{id}/tickets/{ticket_id}` | `DELETE` | Delete a staged ticket.【F:app/routers/api_projects.py†L170-L175】 | Path parameters `id`, `ticket_id`. |
+
+Because every endpoint returns or accepts the project’s numeric `id`, projects remain uniquely identifiable across all API operations. Use the list or create responses to capture this `id` before performing updates, deletions, or nested ticket management.
+
 #### Hardware payloads
 
 | Field | Type | Required | Notes |

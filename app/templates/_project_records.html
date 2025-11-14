@@ -1,6 +1,9 @@
 {% if projects %}
   {% for project in projects %}
-    <tr class="row" data-project-id="{{ project.id }}">
+    <tr
+      class="row"
+      data-project-id="{{ project.id }}"
+    >
       <td class="mono">{{ project.id }}</td>
       <td>{{ project.name }}</td>
       <td>{{ project.client }}</td>
@@ -11,12 +14,43 @@
       <td class="mono">{{ project.updated_at|fmt_dt }}</td>
       <td class="th-action">
         <div class="actions-inline">
-          <a class="btn-ghost" href="/api/v1/projects/{{ project.id }}" target="_blank" rel="noreferrer">JSON</a>
+          <button
+            class="btn btn-tonal"
+            type="button"
+            data-action="edit-project-tickets"
+            data-project-id="{{ project.id }}"
+            data-project-name="{{ project.name }}"
+            data-client-key="{{ project.client_key }}"
+            data-client-name="{{ project.client or '' }}"
+          >
+            Manage Tickets
+          </button>
+          <button
+            class="btn btn-tonal"
+            type="button"
+            data-action="add-project-ticket"
+            data-project-id="{{ project.id }}"
+            data-project-name="{{ project.name }}"
+            data-client-key="{{ project.client_key }}"
+            data-client-name="{{ project.client or '' }}"
+          >
+            Add Ticket
+          </button>
+          <a class="btn btn-ghost" href="/api/v1/projects/{{ project.id }}" target="_blank" rel="noreferrer">JSON</a>
           {% if project.open_ticket_count > 0 %}
             <button class="btn" type="button" data-action="finalize-project" data-project-id="{{ project.id }}">Finalize</button>
           {% else %}
             <span class="badge">Complete</span>
           {% endif %}
+          <button
+            class="btn btn-danger"
+            type="button"
+            data-action="delete-project"
+            data-project-id="{{ project.id }}"
+            data-project-name="{{ project.name }}"
+          >
+            Delete
+          </button>
         </div>
       </td>
     </tr>

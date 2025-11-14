@@ -25,7 +25,15 @@
       <h2 class="page-title">Projects</h2>
       <div class="actions">
         <button class="btn" type="button" id="new-project">New Project</button>
-        <button class="btn-ghost" type="button" id="refresh-projects">Refresh</button>
+        <button class="btn btn-refresh" type="button" id="refresh-projects">
+          <svg viewBox="0 0 24 24" role="img" aria-hidden="true" focusable="false">
+            <path
+              fill="currentColor"
+              d="M12 5a7 7 0 0 1 6.929 6h2.071l-3.25 3.25L14.5 11h2.071A4.571 4.571 0 1 0 12 16.571a4.53 4.53 0 0 0 2.87-1.036l1.358 1.46A6.999 6.999 0 1 1 12 5Z"
+            />
+          </svg>
+          <span>Refresh</span>
+        </button>
       </div>
       <nav class="links">
         <a href="/" class="pill">Dashboard</a>
@@ -67,23 +75,149 @@
   <div id="project-modal" class="modal-root" style="display:none;">
     <div class="modal-card modal-card--medium">
       <header class="modal-head">
-        <h2 class="modal-title">New Project</h2>
+        <h2 class="modal-title" id="project-modal-title">New Project</h2>
         <button id="project-modal-close" class="btn" type="button">Close</button>
       </header>
       <form id="project-form" class="modal-form">
+        <input type="hidden" name="id" id="project-id-field" />
         <div class="form-grid two-column">
           <label>Project Name<input name="name" required /></label>
-          <label>Client Key<input name="client_key" required /></label>
+          <label class="field-span-2">
+            Client
+            <select
+              name="client_key"
+              id="project-client-select"
+              aria-describedby="project-client-help"
+              required
+              disabled
+            >
+              <option value="">Loading clients...</option>
+            </select>
+            <small id="project-client-help" class="field-hint">
+              Choose a client name; the client key is applied automatically.
+            </small>
+          </label>
           <label>Client Name<input name="client" placeholder="Optional override" /></label>
           <label>Status<input name="status" placeholder="Draft" /></label>
           <label>Start Date<input name="start_date" type="date" /></label>
           <label>End Date<input name="end_date" type="date" /></label>
-          <label class="full-width">Notes<textarea name="note" rows="4"></textarea></label>
+          <label class="field-span-2">Notes<textarea name="note" rows="4"></textarea></label>
         </div>
         <div class="form-actions">
           <button class="btn" type="submit">Save</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <div id="project-ticket-modal" class="modal-root" style="display:none;">
+    <div class="modal-card modal-card--wide">
+      <header class="modal-head">
+        <h2 class="modal-title" id="project-ticket-modal-title">Add Ticket</h2>
+        <button id="project-ticket-close" class="btn" type="button">Close</button>
+      </header>
+      <form id="project-ticket-form" class="modal-form">
+        <input type="hidden" name="project_id" id="project-ticket-project-id" />
+        <input type="hidden" name="client_key" id="project-ticket-client-key" />
+        <input type="hidden" name="ticket_id" id="project-ticket-ticket-id" />
+        <input type="hidden" name="hardware_id" id="project-ticket-hardware-id" />
+        <div class="modal-body">
+          <div class="form-grid flexible">
+            <label>Project<input name="project_name" id="project-ticket-project-name" readonly aria-readonly="true" /></label>
+            <label>Client<input name="client" id="project-ticket-client" class="mono" readonly aria-readonly="true" /></label>
+            <label>Client Key
+              <select id="project-ticket-client-key-display" class="mono" disabled>
+                <option value="">Select a client.</option>
+              </select>
+            </label>
+            <label>Entry Type
+              <select name="entry_type" id="project-ticket-entry-type">
+                <option value="time">time</option>
+                <option value="hardware">hardware</option>
+                <option value="deployment_flat_rate">Deployment Flat Rate</option>
+              </select>
+            </label>
+            <label id="project-ticket-hardware-barcode-wrap" style="display:none;">Hardware Item
+              <select id="project-ticket-hardware-barcode" class="mono">
+                <option value="">Select hardware...</option>
+              </select>
+            </label>
+            <label id="project-ticket-hardware-description-wrap" style="display:none;">Hardware Description
+              <input name="hardware_description" id="project-ticket-hardware-description" />
+            </label>
+            <label id="project-ticket-hardware-sales-wrap" style="display:none;">Hardware Sales Price
+              <input name="hardware_sales_price" id="project-ticket-hardware-sales-price" class="mono" />
+            </label>
+            <label id="project-ticket-hardware-quantity-wrap" style="display:none;">Quantity
+              <input name="hardware_quantity" id="project-ticket-hardware-quantity" type="number" min="1" class="mono" value="1" />
+            </label>
+            <label id="project-ticket-flat-amount-wrap" style="display:none;">Flat Rate Amount
+              <input name="flat_rate_amount" id="project-ticket-flat-rate-amount" class="mono" />
+            </label>
+            <label id="project-ticket-flat-quantity-wrap" style="display:none;">Flat Rate Quantity
+              <input name="flat_rate_quantity" id="project-ticket-flat-rate-quantity" type="number" min="1" class="mono" value="1" />
+            </label>
+            <label id="project-ticket-start-wrap" data-time-label="Start" data-date-label="Date">
+              <span id="project-ticket-start-label">Start</span>
+              <input name="start_iso" id="project-ticket-start" type="datetime-local" class="mono" required />
+            </label>
+            <label id="project-ticket-end-wrap" data-project-time-only="true">End
+              <input name="end_iso" id="project-ticket-end" type="datetime-local" class="mono" />
+            </label>
+            <label data-project-time-only="true">Elapsed Minutes
+              <input name="elapsed_minutes" id="project-ticket-elapsed" class="mono" readonly />
+            </label>
+            <label data-project-time-only="true">Rounded Minutes
+              <input name="rounded_minutes" id="project-ticket-rounded-minutes" class="mono" readonly />
+            </label>
+            <label data-project-time-only="true">Rounded Hours
+              <input name="rounded_hours" id="project-ticket-rounded-hours" class="mono" readonly />
+            </label>
+            <label>Calculated Value
+              <input name="calculated_value" id="project-ticket-calculated" class="mono" readonly />
+            </label>
+            <label>Invoice #
+              <input name="invoice_number" id="project-ticket-invoice-number" class="mono" />
+            </label>
+            <label>Invoiced Total
+              <input name="invoiced_total" id="project-ticket-invoiced-total" class="mono" />
+            </label>
+            <label>Added to QB
+              <select name="completed" id="project-ticket-completed">
+                <option value="0">Open</option>
+                <option value="1">Added to QB</option>
+              </select>
+            </label>
+            <label>Sent
+              <select name="sent" id="project-ticket-sent">
+                <option value="0">Not Sent</option>
+                <option value="1">Sent</option>
+              </select>
+            </label>
+            <label>Created
+              <input name="created_at" id="project-ticket-created" class="mono" readonly />
+            </label>
+          </div>
+          <label class="form-block">Notes<textarea name="note" id="project-ticket-note" rows="4" placeholder="What work was done?"></textarea></label>
+        </div>
+        <div class="form-actions modal-actions">
+          <button class="btn project-ticket-submit" type="submit">Add Ticket</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="project-ticket-list-modal" class="modal-root" style="display:none;">
+    <div class="modal-card modal-card--wide">
+      <header class="modal-head">
+        <h2 class="modal-title" id="project-ticket-list-title">Project Tickets</h2>
+        <button id="project-ticket-list-close" class="btn" type="button">Close</button>
+      </header>
+      <div class="modal-body">
+        <div id="project-ticket-list-body" class="ticket-list-body">
+          <p class="modal-hint">Select a project to load its tickets.</p>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -95,6 +229,60 @@
     const form = document.getElementById('project-form');
     const tableBody = document.getElementById('project-records');
     const refreshBtn = document.getElementById('refresh-projects');
+    const clientSelect = document.getElementById('project-client-select');
+    const ticketModal = document.getElementById('project-ticket-modal');
+    const ticketForm = document.getElementById('project-ticket-form');
+    const ticketCloseBtn = document.getElementById('project-ticket-close');
+    const ticketProjectIdField = document.getElementById('project-ticket-project-id');
+    const ticketClientKeyField = document.getElementById('project-ticket-client-key');
+    const ticketClientKeyDisplay = document.getElementById('project-ticket-client-key-display');
+    const ticketProjectNameField = document.getElementById('project-ticket-project-name');
+    const ticketClientField = document.getElementById('project-ticket-client');
+    const ticketEntryTypeField = document.getElementById('project-ticket-entry-type');
+    const ticketHardwareWrap = document.getElementById('project-ticket-hardware-barcode-wrap');
+    const ticketHardwareSelect = document.getElementById('project-ticket-hardware-barcode');
+    const ticketHardwareIdField = document.getElementById('project-ticket-hardware-id');
+    const ticketHardwareDescriptionWrap = document.getElementById('project-ticket-hardware-description-wrap');
+    const ticketHardwareDescriptionField = document.getElementById('project-ticket-hardware-description');
+    const ticketHardwareSalesWrap = document.getElementById('project-ticket-hardware-sales-wrap');
+    const ticketHardwareSalesField = document.getElementById('project-ticket-hardware-sales-price');
+    const ticketHardwareQuantityWrap = document.getElementById('project-ticket-hardware-quantity-wrap');
+    const ticketHardwareQuantityField = document.getElementById('project-ticket-hardware-quantity');
+    const ticketFlatRateAmountWrap = document.getElementById('project-ticket-flat-amount-wrap');
+    const ticketFlatRateAmountField = document.getElementById('project-ticket-flat-rate-amount');
+    const ticketFlatRateQuantityWrap = document.getElementById('project-ticket-flat-quantity-wrap');
+    const ticketFlatRateQuantityField = document.getElementById('project-ticket-flat-rate-quantity');
+    const ticketStartWrap = document.getElementById('project-ticket-start-wrap');
+    const ticketStartLabel = document.getElementById('project-ticket-start-label');
+    const ticketStartField = document.getElementById('project-ticket-start');
+    const ticketEndWrap = document.getElementById('project-ticket-end-wrap');
+    const ticketEndField = document.getElementById('project-ticket-end');
+    const ticketElapsedField = document.getElementById('project-ticket-elapsed');
+    const ticketRoundedMinutesField = document.getElementById('project-ticket-rounded-minutes');
+    const ticketRoundedHoursField = document.getElementById('project-ticket-rounded-hours');
+    const ticketCalculatedField = document.getElementById('project-ticket-calculated');
+    const ticketInvoiceNumberField = document.getElementById('project-ticket-invoice-number');
+    const ticketInvoiceTotalField = document.getElementById('project-ticket-invoiced-total');
+    const ticketCompletedField = document.getElementById('project-ticket-completed');
+    const ticketSentField = document.getElementById('project-ticket-sent');
+    const ticketCreatedField = document.getElementById('project-ticket-created');
+    const ticketNoteField = document.getElementById('project-ticket-note');
+    const ticketTimeOnlyElements = ticketModal ? Array.from(ticketModal.querySelectorAll('[data-project-time-only="true"]')) : [];
+    const ticketSubmitBtn = ticketForm?.querySelector('.project-ticket-submit');
+    const ticketListModal = document.getElementById('project-ticket-list-modal');
+    const ticketListTitle = document.getElementById('project-ticket-list-title');
+    const ticketListBody = document.getElementById('project-ticket-list-body');
+    const ticketListCloseBtn = document.getElementById('project-ticket-list-close');
+    const ticketIdField = document.getElementById('project-ticket-ticket-id');
+    const projectIdField = document.getElementById('project-id-field');
+    const projectModalTitle = document.getElementById('project-modal-title');
+    let clientOptions = null;
+    let clientOptionsPromise = null;
+    let projectTicketLastEntryType = (ticketEntryTypeField && ticketEntryTypeField.value) || 'time';
+    let projectHardwareOptionsLoaded = false;
+    const projectHardwareOptionLookup = new Map();
+    const projectTicketCache = new Map();
+    let ticketListProjectId = null;
 
     function getApiToken(){ return window.localStorage.getItem('api_token') || ''; }
     function setApiToken(token){ if (token) window.localStorage.setItem('api_token', token); }
@@ -122,8 +310,499 @@
       return response;
     }
 
-    function openModal(){ modal.style.display = 'flex'; }
-    function closeModal(){ modal.style.display = 'none'; form.reset(); }
+    function setClientSelectMessage(message, disabled = true){
+      if (!clientSelect) return;
+      clientSelect.innerHTML = '';
+      const option = document.createElement('option');
+      option.value = '';
+      option.textContent = message;
+      option.selected = true;
+      option.disabled = disabled;
+      clientSelect.appendChild(option);
+      clientSelect.disabled = disabled;
+    }
+
+    async function ensureClientOptions(){
+      if (!clientSelect) return [];
+      if (clientOptions) return clientOptions;
+      if (clientOptionsPromise) return clientOptionsPromise;
+      setClientSelectMessage('Loading clients...', true);
+      clientOptionsPromise = safeFetch('/api/v1/clients')
+        .then(async (res) => {
+          if (!res.ok) throw new Error('Failed to load clients');
+          const payload = await res.json().catch(() => ({}));
+          const table = payload?.clients || {};
+          const options = Object.entries(table).map(([key, entry]) => ({
+            key,
+            name: (entry && entry.name) || key,
+          }));
+          options.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+          const fragment = document.createDocumentFragment();
+          const placeholder = document.createElement('option');
+          placeholder.value = '';
+          placeholder.textContent = 'Select a client';
+          placeholder.selected = true;
+          placeholder.disabled = true;
+          fragment.appendChild(placeholder);
+          options.forEach(({ key, name }) => {
+            const option = document.createElement('option');
+            option.value = key;
+            option.textContent = name;
+            fragment.appendChild(option);
+          });
+          clientSelect.innerHTML = '';
+          clientSelect.appendChild(fragment);
+          clientSelect.disabled = false;
+          clientOptions = options;
+          return options;
+        })
+        .catch((err) => {
+          console.warn('Failed to load clients', err);
+          setClientSelectMessage('Unable to load clients', true);
+          throw err;
+        })
+        .finally(() => {
+          clientOptionsPromise = null;
+        });
+      return clientOptionsPromise;
+    }
+
+    async function fetchProjectDetail(projectId){
+      const res = await safeFetch(`/api/v1/projects/${projectId}`);
+      if (!res.ok) throw new Error('Failed to load project');
+      return res.json();
+    }
+
+    function setProjectModalMode(mode){
+      if (projectModalTitle){
+        projectModalTitle.textContent = mode === 'edit' ? 'Edit Project' : 'New Project';
+      }
+      if (modal){
+        modal.dataset.mode = mode;
+      }
+    }
+
+    function resetProjectForm(){
+      if (!form) return;
+      form.reset();
+      if (projectIdField) projectIdField.value = '';
+      if (clientSelect){
+        if (clientOptions){
+          clientSelect.disabled = false;
+          if (clientSelect.options.length){
+            clientSelect.selectedIndex = 0;
+          } else {
+            clientSelect.value = '';
+          }
+        } else {
+          setClientSelectMessage('Loading clients...', true);
+        }
+      }
+    }
+
+    function normalizeDateInput(value){
+      if (!value) return '';
+      const str = String(value);
+      if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
+      if (str.includes('T')) return str.split('T')[0];
+      if (str.includes(' ')) return str.split(' ')[0];
+      return str.length >= 10 ? str.slice(0, 10) : str;
+    }
+
+    function populateProjectForm(project){
+      if (!form || !project) return;
+      const nameField = form.elements.name;
+      const clientField = form.elements.client;
+      const statusField = form.elements.status;
+      const startField = form.elements.start_date;
+      const endField = form.elements.end_date;
+      const noteField = form.elements.note;
+      if (projectIdField) projectIdField.value = project.id ? String(project.id) : '';
+      if (nameField) nameField.value = project.name || '';
+      if (clientField) clientField.value = project.client || '';
+      if (statusField) statusField.value = project.status || '';
+      if (startField) startField.value = normalizeDateInput(project.start_date);
+      if (endField) endField.value = normalizeDateInput(project.end_date);
+      if (noteField) noteField.value = project.note || '';
+      if (clientSelect){
+        const key = project.client_key || '';
+        if (key){
+          let option = Array.from(clientSelect.options || []).find((opt) => opt.value === key);
+          if (!option){
+            option = document.createElement('option');
+            option.value = key;
+            option.textContent = project.client || key;
+            clientSelect.appendChild(option);
+          }
+          clientSelect.disabled = false;
+          clientSelect.value = key;
+        } else {
+          clientSelect.value = '';
+        }
+      }
+    }
+
+    function openCreateProjectModal(){
+      resetProjectForm();
+      setProjectModalMode('create');
+      modal.style.display = 'flex';
+      ensureClientOptions().catch(() => {});
+    }
+
+    async function openProjectEditor(projectId){
+      if (!projectId) return;
+      try {
+        await ensureClientOptions();
+      } catch (err) {
+        window.alert('Unable to load client list. Please refresh and try again.');
+        return;
+      }
+      resetProjectForm();
+      setProjectModalMode('edit');
+      try {
+        const res = await safeFetch(`/api/v1/projects/${projectId}`);
+        if (!res.ok) throw new Error('Request failed');
+        const project = await res.json().catch(() => null);
+        if (!project) throw new Error('Invalid payload');
+        populateProjectForm(project);
+        modal.style.display = 'flex';
+      } catch (err) {
+        console.warn('Failed to load project', err);
+        window.alert('Unable to load this project. Please try again.');
+        resetProjectForm();
+        setProjectModalMode('create');
+      }
+    }
+
+    function setTicketClientDisplay(name, key){
+      if (!ticketClientKeyDisplay) return;
+      ticketClientKeyDisplay.innerHTML = '';
+      const option = document.createElement('option');
+      option.value = key || '';
+      option.textContent = name || key || 'Unknown client';
+      option.selected = true;
+      ticketClientKeyDisplay.appendChild(option);
+    }
+
+    function resetTicketClientDisplay(){
+      if (!ticketClientKeyDisplay) return;
+      ticketClientKeyDisplay.innerHTML = '';
+      const option = document.createElement('option');
+      option.value = '';
+      option.textContent = 'Select a client.';
+      option.selected = true;
+      ticketClientKeyDisplay.appendChild(option);
+    }
+
+    function toLocalDateTimeInput(source){
+      if (!source) return '';
+      const date = source instanceof Date ? source : new Date(source);
+      if (Number.isNaN(date.getTime())) return '';
+      const tzAdjusted = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+      return tzAdjusted.toISOString().slice(0, 16);
+    }
+
+    function fromLocalDateTimeInput(value){
+      if (!value) return null;
+      const dt = new Date(value);
+      if (Number.isNaN(dt.getTime())) return null;
+      return dt.toISOString();
+    }
+
+    function toLocalDateInput(iso){
+      if (!iso) return '';
+      if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) return iso;
+      const dt = new Date(iso);
+      if (Number.isNaN(dt.getTime())) return '';
+      const year = dt.getFullYear();
+      const month = String(dt.getMonth() + 1).padStart(2, '0');
+      const day = String(dt.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+
+    function parseStartInputValue(entryType, value){
+      if (!value) return null;
+      if ((entryType || 'time') === 'time'){
+        return fromLocalDateTimeInput(value);
+      }
+      if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+      return null;
+    }
+
+    function formatStartInputValue(entryType, iso){
+      if (!iso) return '';
+      if ((entryType || 'time') === 'time'){
+        return toLocalDateTimeInput(iso);
+      }
+      return toLocalDateInput(iso);
+    }
+
+    function ensureHardwarePlaceholder(message){
+      if (!ticketHardwareSelect) return;
+      ticketHardwareSelect.innerHTML = '';
+      const option = document.createElement('option');
+      option.value = '';
+      option.textContent = message;
+      option.selected = true;
+      ticketHardwareSelect.appendChild(option);
+    }
+
+    async function loadProjectHardwareOptions(){
+      if (!ticketHardwareSelect) return projectHardwareOptionLookup;
+      if (projectHardwareOptionsLoaded) return projectHardwareOptionLookup;
+      ensureHardwarePlaceholder('Loading hardware...');
+      try {
+        const res = await safeFetch('/api/v1/hardware?limit=500', { headers: apiHeaders(false) });
+        if (!res.ok) throw new Error('Hardware load failed');
+        const data = await res.json().catch(() => []);
+        ticketHardwareSelect.innerHTML = '';
+        const placeholder = document.createElement('option');
+        placeholder.value = '';
+        placeholder.textContent = 'Select hardware...';
+        placeholder.selected = true;
+        ticketHardwareSelect.appendChild(placeholder);
+        projectHardwareOptionLookup.clear();
+        if (Array.isArray(data)){
+          data
+            .slice()
+            .sort((a, b) => {
+              const nameA = (a.description || '').toLowerCase();
+              const nameB = (b.description || '').toLowerCase();
+              return nameA.localeCompare(nameB);
+            })
+            .forEach((item) => {
+              if (!item) return;
+              const option = document.createElement('option');
+              option.value = item.barcode || '';
+              option.textContent = item.description || item.barcode || 'Hardware item';
+              option.dataset.description = item.description || '';
+              option.dataset.salesPrice = item.sales_price || '';
+              option.dataset.hardwareId = item.id != null ? String(item.id) : '';
+              ticketHardwareSelect.appendChild(option);
+              if (option.value){
+                projectHardwareOptionLookup.set(option.value, {
+                  description: option.dataset.description || '',
+                  sales_price: option.dataset.salesPrice || '',
+                  id: option.dataset.hardwareId || '',
+                });
+              }
+            });
+        }
+        projectHardwareOptionsLoaded = true;
+      } catch (err) {
+        console.warn('Failed to load hardware options', err);
+        ensureHardwarePlaceholder('Unable to load hardware');
+        projectHardwareOptionsLoaded = false;
+        throw err;
+      }
+      return projectHardwareOptionLookup;
+    }
+
+    function renderTicketList(project){
+      if (!ticketListBody) return;
+      const tickets = project?.tickets || [];
+      if (!tickets.length){
+        ticketListBody.innerHTML = '<p class="modal-hint">No tickets have been staged for this project yet.</p>';
+        return;
+      }
+      const rows = tickets
+        .map((ticket) => {
+          const notePreview = (ticket.note || '').split(/\r?\n/)[0].slice(0, 80);
+          return `
+            <tr>
+              <td class="mono">${ticket.id}</td>
+              <td>${ticket.entry_type}</td>
+              <td>${ticket.start_iso ? new Date(ticket.start_iso).toLocaleString() : ''}</td>
+              <td>${ticket.client || ''}</td>
+              <td>${notePreview || ''}</td>
+              <td class="ticket-actions">
+                <button
+                  class="btn btn-tonal"
+                  type="button"
+                  data-ticket-action="edit"
+                  data-project-id="${project.id}"
+                  data-ticket-id="${ticket.id}"
+                >
+                  Edit
+                </button>
+              </td>
+            </tr>
+          `;
+        })
+        .join('');
+      ticketListBody.innerHTML = `
+        <table class="table ticket-list-table">
+          <thead>
+            <tr>
+              <th class="mono">ID</th>
+              <th>Type</th>
+              <th>Start</th>
+              <th>Client</th>
+              <th>Note</th>
+              <th class="th-action">Actions</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      `;
+    }
+
+    async function openProjectTicketListModal(meta){
+      if (!ticketListModal || !ticketListBody) return;
+      ticketListModal.style.display = 'flex';
+      ticketListProjectId = meta.id;
+      if (ticketListTitle){
+        ticketListTitle.textContent = `Tickets • ${meta.name || `Project #${meta.id}`}`;
+      }
+      ticketListBody.innerHTML = '<p class="modal-hint">Loading tickets…</p>';
+      try {
+        const project = await fetchProjectDetail(meta.id);
+        projectTicketCache.set(String(meta.id), project);
+        renderTicketList(project);
+      } catch (err) {
+        console.warn('Failed to load tickets', err);
+        ticketListBody.innerHTML = '<p class="modal-hint">Unable to load tickets for this project.</p>';
+      }
+    }
+
+    function closeProjectTicketListModal(){
+      if (!ticketListModal) return;
+      ticketListModal.style.display = 'none';
+      if (ticketListBody){
+        ticketListBody.innerHTML = '<p class="modal-hint">Select a project to load its tickets.</p>';
+      }
+      ticketListProjectId = null;
+    }
+
+    function applyProjectHardwareSelection({ preserveDetails = false } = {}){
+      if (!ticketHardwareSelect) return;
+      const selected = ticketHardwareSelect.selectedOptions[0];
+      if (!selected || !selected.value){
+        if (ticketHardwareIdField) ticketHardwareIdField.value = '';
+        if (!preserveDetails){
+          if (ticketHardwareDescriptionField) ticketHardwareDescriptionField.value = '';
+          if (ticketHardwareSalesField) ticketHardwareSalesField.value = '';
+        }
+        return;
+      }
+      if (ticketHardwareIdField){
+        ticketHardwareIdField.value = selected.dataset.hardwareId || '';
+      }
+      if (!preserveDetails){
+        if (ticketHardwareDescriptionField){
+          ticketHardwareDescriptionField.value = selected.dataset.description || '';
+        }
+        if (ticketHardwareSalesField){
+          ticketHardwareSalesField.value = selected.dataset.salesPrice || '';
+        }
+      }
+    }
+
+    function updateProjectTicketEntryType({ previousType = null, resetStartValue = false } = {}){
+      if (!ticketEntryTypeField) return;
+      const entryType = ticketEntryTypeField.value || 'time';
+      const isHardware = entryType === 'hardware';
+      const isFlatRate = entryType === 'deployment_flat_rate';
+      const isTimeEntry = entryType === 'time';
+
+      if (ticketHardwareWrap) ticketHardwareWrap.style.display = isHardware ? '' : 'none';
+      if (ticketHardwareDescriptionWrap) ticketHardwareDescriptionWrap.style.display = isHardware ? '' : 'none';
+      if (ticketHardwareSalesWrap) ticketHardwareSalesWrap.style.display = isHardware ? '' : 'none';
+      if (ticketHardwareQuantityWrap) ticketHardwareQuantityWrap.style.display = isHardware ? '' : 'none';
+      if (ticketHardwareSelect) ticketHardwareSelect.disabled = !isHardware;
+      if (ticketHardwareDescriptionField) ticketHardwareDescriptionField.disabled = !isHardware;
+      if (ticketHardwareSalesField) ticketHardwareSalesField.disabled = !isHardware;
+      if (ticketHardwareQuantityField){
+        ticketHardwareQuantityField.disabled = !isHardware;
+        if (!isHardware){
+          ticketHardwareQuantityField.value = '1';
+        } else if (!ticketHardwareQuantityField.value){
+          ticketHardwareQuantityField.value = '1';
+        }
+      }
+      if (!isHardware){
+        if (ticketHardwareSelect) ticketHardwareSelect.value = '';
+        if (ticketHardwareIdField) ticketHardwareIdField.value = '';
+      }
+
+      if (ticketFlatRateAmountWrap) ticketFlatRateAmountWrap.style.display = isFlatRate ? '' : 'none';
+      if (ticketFlatRateQuantityWrap) ticketFlatRateQuantityWrap.style.display = isFlatRate ? '' : 'none';
+      if (ticketFlatRateAmountField){
+        ticketFlatRateAmountField.disabled = !isFlatRate;
+        if (!isFlatRate) ticketFlatRateAmountField.value = '';
+      }
+      if (ticketFlatRateQuantityField){
+        ticketFlatRateQuantityField.disabled = !isFlatRate;
+        if (!isFlatRate){
+          ticketFlatRateQuantityField.value = '1';
+        } else if (!ticketFlatRateQuantityField.value){
+          ticketFlatRateQuantityField.value = '1';
+        }
+      }
+
+      const previous = previousType || projectTicketLastEntryType || entryType;
+      if (ticketStartField){
+        if (ticketStartWrap && ticketStartLabel){
+          const timeLabel = ticketStartWrap.dataset.timeLabel || 'Start';
+          const dateLabel = ticketStartWrap.dataset.dateLabel || 'Date';
+          ticketStartLabel.textContent = isTimeEntry ? timeLabel : dateLabel;
+        }
+        let isoValue;
+        if (resetStartValue){
+          isoValue = ticketStartField.dataset.initialIso || ticketStartField.dataset.lastIso || '';
+        } else {
+          const parsed = parseStartInputValue(previous, ticketStartField.value);
+          if (isTimeEntry && previous !== 'time'){
+            isoValue = ticketStartField.dataset.lastIso || parsed || ticketStartField.dataset.initialIso || '';
+          } else {
+            isoValue = parsed || ticketStartField.dataset.lastIso || ticketStartField.dataset.initialIso || '';
+          }
+        }
+        ticketStartField.type = isTimeEntry ? 'datetime-local' : 'date';
+        const formatted = formatStartInputValue(entryType, isoValue);
+        if (formatted !== undefined){
+          ticketStartField.value = formatted || '';
+        }
+        ticketStartField.dataset.lastIso = isoValue || '';
+      }
+
+      if (ticketEndWrap) ticketEndWrap.style.display = isTimeEntry ? '' : 'none';
+      if (ticketEndField){
+        if (isTimeEntry){
+          ticketEndField.disabled = false;
+          let endIso;
+          if (resetStartValue){
+            endIso = ticketEndField.dataset.initialIso || ticketEndField.dataset.lastIso || '';
+          } else {
+            endIso = fromLocalDateTimeInput(ticketEndField.value) || ticketEndField.dataset.lastIso || ticketEndField.dataset.initialIso || '';
+          }
+          ticketEndField.value = toLocalDateTimeInput(endIso) || '';
+          ticketEndField.dataset.lastIso = endIso || '';
+        } else {
+          const existing = fromLocalDateTimeInput(ticketEndField.value);
+          if (existing) ticketEndField.dataset.lastIso = existing;
+          ticketEndField.value = '';
+          ticketEndField.disabled = true;
+        }
+      }
+
+      ticketTimeOnlyElements.forEach((el) => {
+        el.style.display = isTimeEntry ? '' : 'none';
+      });
+      if (!isTimeEntry){
+        if (ticketElapsedField) ticketElapsedField.value = '';
+        if (ticketRoundedMinutesField) ticketRoundedMinutesField.value = '';
+        if (ticketRoundedHoursField) ticketRoundedHoursField.value = '';
+      }
+
+      projectTicketLastEntryType = entryType;
+    }
+
+    function closeModal(){
+      modal.style.display = 'none';
+      resetProjectForm();
+      setProjectModalMode('create');
+    }
 
     async function refreshProjects(){
       const res = await safeFetch('/ui/project_table');
@@ -132,8 +811,270 @@
       }
     }
 
-    openBtn?.addEventListener('click', openModal);
+    function openProjectTicketModal(meta){
+      if (!ticketModal || !ticketForm) return;
+      const projectId = meta?.id ? String(meta.id) : '';
+      const projectName = meta?.name || (projectId ? `Project #${projectId}` : 'Project');
+      const clientName = meta?.client || '';
+      const clientKey = meta?.clientKey || '';
+
+      if (ticketProjectIdField) ticketProjectIdField.value = projectId;
+      if (ticketProjectNameField) ticketProjectNameField.value = projectName;
+      if (ticketClientField) ticketClientField.value = clientName;
+      if (ticketClientKeyField) ticketClientKeyField.value = clientKey;
+      setTicketClientDisplay(clientName, clientKey);
+
+      if (ticketIdField) ticketIdField.value = '';
+      if (ticketSubmitBtn) ticketSubmitBtn.textContent = 'Add Ticket';
+      if (ticketForm){
+        ticketForm.dataset.mode = 'create';
+      }
+
+      if (ticketEntryTypeField) ticketEntryTypeField.value = 'time';
+      projectTicketLastEntryType = 'time';
+
+      const nowIso = new Date().toISOString();
+      if (ticketStartField){
+        ticketStartField.dataset.initialIso = nowIso;
+        ticketStartField.dataset.lastIso = nowIso;
+        ticketStartField.type = 'datetime-local';
+        ticketStartField.value = formatStartInputValue('time', nowIso);
+      }
+      if (ticketEndField){
+        ticketEndField.dataset.initialIso = '';
+        ticketEndField.dataset.lastIso = '';
+        ticketEndField.disabled = false;
+        ticketEndField.value = '';
+      }
+
+      if (ticketHardwareSelect) ticketHardwareSelect.value = '';
+      if (ticketHardwareIdField) ticketHardwareIdField.value = '';
+      if (ticketHardwareDescriptionField) ticketHardwareDescriptionField.value = '';
+      if (ticketHardwareSalesField) ticketHardwareSalesField.value = '';
+      if (ticketHardwareQuantityField) ticketHardwareQuantityField.value = '1';
+      if (ticketFlatRateAmountField) ticketFlatRateAmountField.value = '';
+      if (ticketFlatRateQuantityField) ticketFlatRateQuantityField.value = '1';
+      if (ticketCalculatedField) ticketCalculatedField.value = '';
+      if (ticketInvoiceNumberField) ticketInvoiceNumberField.value = '';
+      if (ticketInvoiceTotalField) ticketInvoiceTotalField.value = '';
+      if (ticketCompletedField) ticketCompletedField.value = '0';
+      if (ticketSentField) ticketSentField.value = '0';
+      if (ticketCreatedField) ticketCreatedField.value = '';
+      if (ticketElapsedField) ticketElapsedField.value = '';
+      if (ticketRoundedMinutesField) ticketRoundedMinutesField.value = '';
+      if (ticketRoundedHoursField) ticketRoundedHoursField.value = '';
+      if (ticketNoteField) ticketNoteField.value = '';
+
+      updateProjectTicketEntryType({ resetStartValue: true });
+      ticketModal.style.display = 'flex';
+    }
+
+    function openExistingProjectTicket(project, ticket){
+      if (!ticketModal || !ticketForm) return;
+      const projectId = project?.id ? String(project.id) : '';
+      const projectName = project?.name || (projectId ? `Project #${projectId}` : 'Project');
+      const clientName = ticket?.client || project?.client || '';
+      const clientKey = ticket?.client_key || project?.client_key || '';
+
+      if (ticketProjectIdField) ticketProjectIdField.value = projectId;
+      if (ticketProjectNameField) ticketProjectNameField.value = projectName;
+      if (ticketClientField) ticketClientField.value = clientName;
+      if (ticketClientKeyField) ticketClientKeyField.value = clientKey;
+      setTicketClientDisplay(clientName, clientKey);
+
+      if (ticketIdField) ticketIdField.value = ticket?.id ? String(ticket.id) : '';
+      if (ticketSubmitBtn) ticketSubmitBtn.textContent = 'Update Ticket';
+      ticketForm.dataset.mode = 'edit';
+
+      const entryType = ticket?.entry_type || 'time';
+      if (ticketEntryTypeField) ticketEntryTypeField.value = entryType;
+      projectTicketLastEntryType = entryType;
+
+      const startIso = ticket?.start_iso || '';
+      if (ticketStartField){
+        ticketStartField.dataset.initialIso = startIso;
+        ticketStartField.dataset.lastIso = startIso;
+        ticketStartField.value = formatStartInputValue(entryType, startIso);
+      }
+
+      const endIso = ticket?.end_iso || '';
+      if (ticketEndField){
+        ticketEndField.dataset.initialIso = endIso;
+        ticketEndField.dataset.lastIso = endIso;
+        ticketEndField.value = entryType === 'time' ? toLocalDateTimeInput(endIso) : '';
+        ticketEndField.disabled = entryType !== 'time';
+      }
+
+      updateProjectTicketEntryType({ resetStartValue: true });
+
+      if (ticketHardwareSelect){
+        if (ticket?.hardware_barcode){
+          let option = Array.from(ticketHardwareSelect.options || []).find((opt) => opt.value === ticket.hardware_barcode);
+          if (!option){
+            option = document.createElement('option');
+            option.value = ticket.hardware_barcode;
+            option.textContent = ticket.hardware_description || ticket.hardware_barcode;
+            ticketHardwareSelect.appendChild(option);
+          }
+          ticketHardwareSelect.value = ticket.hardware_barcode;
+        } else {
+          ticketHardwareSelect.value = '';
+        }
+      }
+      if (ticketHardwareIdField) ticketHardwareIdField.value = ticket?.hardware_id ? String(ticket.hardware_id) : '';
+      if (ticketHardwareDescriptionField) ticketHardwareDescriptionField.value = ticket?.hardware_description || '';
+      if (ticketHardwareSalesField) ticketHardwareSalesField.value = ticket?.hardware_sales_price || '';
+      if (ticketHardwareQuantityField){
+        ticketHardwareQuantityField.value = ticket?.hardware_quantity ? String(ticket.hardware_quantity) : '1';
+      }
+
+      if (ticketFlatRateAmountField) ticketFlatRateAmountField.value = ticket?.flat_rate_amount || '';
+      if (ticketFlatRateQuantityField){
+        ticketFlatRateQuantityField.value = ticket?.flat_rate_quantity ? String(ticket.flat_rate_quantity) : '1';
+      }
+
+      if (ticketElapsedField) ticketElapsedField.value = ticket?.elapsed_minutes != null ? String(ticket.elapsed_minutes) : '';
+      if (ticketRoundedMinutesField) ticketRoundedMinutesField.value = ticket?.rounded_minutes != null ? String(ticket.rounded_minutes) : '';
+      if (ticketRoundedHoursField) ticketRoundedHoursField.value = ticket?.rounded_hours || '';
+      if (ticketCalculatedField) ticketCalculatedField.value = ticket?.calculated_value || '';
+      if (ticketInvoiceNumberField) ticketInvoiceNumberField.value = ticket?.invoice_number || '';
+      if (ticketInvoiceTotalField) ticketInvoiceTotalField.value = ticket?.invoiced_total || '';
+      if (ticketCompletedField) ticketCompletedField.value = String(ticket?.completed ?? 0);
+      if (ticketSentField) ticketSentField.value = String(ticket?.sent ?? 0);
+      if (ticketCreatedField) ticketCreatedField.value = ticket?.created_at || '';
+      if (ticketNoteField) ticketNoteField.value = ticket?.note || '';
+
+      ticketModal.style.display = 'flex';
+    }
+
+    async function handleTicketEditRequest(projectId, ticketId){
+      if (!projectId || !ticketId) return;
+      const cacheKey = String(projectId);
+      let project = projectTicketCache.get(cacheKey);
+      if (!project){
+        try {
+          project = await fetchProjectDetail(projectId);
+          projectTicketCache.set(cacheKey, project);
+        } catch (err) {
+          console.warn('Ticket load failed', err);
+          window.alert('Unable to load ticket details for this project.');
+          return;
+        }
+      }
+      const ticket = (project?.tickets || []).find((entry) => String(entry.id) === String(ticketId));
+      if (!ticket){
+        window.alert('Ticket not found for this project.');
+        return;
+      }
+      openExistingProjectTicket(project, ticket);
+    }
+
+    function closeProjectTicketModal(){
+      if (!ticketModal || !ticketForm) return;
+      ticketModal.style.display = 'none';
+      ticketForm.reset();
+      resetTicketClientDisplay();
+      ticketForm.dataset.mode = 'create';
+      if (ticketSubmitBtn) ticketSubmitBtn.textContent = 'Add Ticket';
+      if (ticketProjectIdField) ticketProjectIdField.value = '';
+      if (ticketClientKeyField) ticketClientKeyField.value = '';
+      if (ticketIdField) ticketIdField.value = '';
+      if (ticketStartField){
+        ticketStartField.dataset.initialIso = '';
+        ticketStartField.dataset.lastIso = '';
+        ticketStartField.value = '';
+      }
+      if (ticketEndField){
+        ticketEndField.dataset.initialIso = '';
+        ticketEndField.dataset.lastIso = '';
+        ticketEndField.disabled = false;
+        ticketEndField.value = '';
+      }
+      if (ticketHardwareSelect) ticketHardwareSelect.value = '';
+      if (ticketHardwareIdField) ticketHardwareIdField.value = '';
+      if (ticketHardwareDescriptionField) ticketHardwareDescriptionField.value = '';
+      if (ticketHardwareSalesField) ticketHardwareSalesField.value = '';
+      if (ticketHardwareQuantityField) ticketHardwareQuantityField.value = '1';
+      if (ticketFlatRateAmountField) ticketFlatRateAmountField.value = '';
+      if (ticketFlatRateQuantityField) ticketFlatRateQuantityField.value = '1';
+      if (ticketCalculatedField) ticketCalculatedField.value = '';
+      if (ticketInvoiceNumberField) ticketInvoiceNumberField.value = '';
+      if (ticketInvoiceTotalField) ticketInvoiceTotalField.value = '';
+      if (ticketCompletedField) ticketCompletedField.value = '0';
+      if (ticketSentField) ticketSentField.value = '0';
+      if (ticketCreatedField) ticketCreatedField.value = '';
+      if (ticketElapsedField) ticketElapsedField.value = '';
+      if (ticketRoundedMinutesField) ticketRoundedMinutesField.value = '';
+      if (ticketRoundedHoursField) ticketRoundedHoursField.value = '';
+      if (ticketNoteField) ticketNoteField.value = '';
+      if (ticketEntryTypeField) ticketEntryTypeField.value = 'time';
+      projectTicketLastEntryType = 'time';
+      updateProjectTicketEntryType({ resetStartValue: true });
+    }
+
+    ensureClientOptions().catch(() => {});
+
+    if (ticketEntryTypeField){
+      ticketEntryTypeField.addEventListener('change', async () => {
+        const previous = projectTicketLastEntryType;
+        if (ticketEntryTypeField.value === 'hardware'){
+          await loadProjectHardwareOptions().catch(() => {});
+        }
+        updateProjectTicketEntryType({ previousType: previous });
+      });
+      updateProjectTicketEntryType({ resetStartValue: true });
+    }
+
+    if (ticketHardwareSelect){
+      ticketHardwareSelect.addEventListener('change', () => applyProjectHardwareSelection());
+      ticketHardwareSelect.addEventListener('focus', () => {
+        if (!projectHardwareOptionsLoaded){
+          loadProjectHardwareOptions().catch(() => {});
+        }
+      });
+    }
+
+    if (ticketStartField && ticketEndField){
+      ticketStartField.addEventListener('input', () => {
+        if (!ticketEndField.disabled && !ticketEndField.value){
+          ticketEndField.value = ticketStartField.value;
+        }
+      });
+    }
+
+    if (ticketStartField){
+      ticketStartField.addEventListener('change', () => {
+        const entryType = ticketEntryTypeField?.value || 'time';
+        const iso = parseStartInputValue(entryType, ticketStartField.value);
+        if (iso) ticketStartField.dataset.lastIso = iso;
+      });
+    }
+
+    if (ticketEndField){
+      ticketEndField.addEventListener('change', () => {
+        if (ticketEndField.disabled) return;
+        const iso = fromLocalDateTimeInput(ticketEndField.value);
+        if (iso) ticketEndField.dataset.lastIso = iso;
+      });
+    }
+
+    ticketListBody?.addEventListener('click', (ev) => {
+      const target = ev.target;
+      if (!(target instanceof HTMLElement)) return;
+      const actionBtn = target.closest('[data-ticket-action]');
+      if (!(actionBtn instanceof HTMLElement)) return;
+      const action = actionBtn.getAttribute('data-ticket-action');
+      if (action === 'edit'){
+        const projectId = actionBtn.getAttribute('data-project-id');
+        const ticketId = actionBtn.getAttribute('data-ticket-id');
+        handleTicketEditRequest(projectId, ticketId);
+      }
+    });
+
+    openBtn?.addEventListener('click', openCreateProjectModal);
     closeBtn?.addEventListener('click', closeModal);
+    ticketCloseBtn?.addEventListener('click', closeProjectTicketModal);
+    ticketListCloseBtn?.addEventListener('click', closeProjectTicketListModal);
     refreshBtn?.addEventListener('click', function(){ refreshProjects(); });
 
     form?.addEventListener('submit', async function(ev){
@@ -143,8 +1084,17 @@
       data.forEach((value, key) => {
         if (typeof value === 'string'){ const trimmed = value.trim(); if (trimmed) payload[key] = trimmed; }
       });
-      const res = await safeFetch('/api/v1/projects', {
-        method: 'POST',
+      const editingProjectId = projectIdField?.value?.trim();
+      delete payload.id;
+      if (!payload.client_key){
+        window.alert('Select a client before saving the project.');
+        clientSelect?.focus();
+        return;
+      }
+      const endpoint = editingProjectId ? `/api/v1/projects/${editingProjectId}` : '/api/v1/projects';
+      const method = editingProjectId ? 'PATCH' : 'POST';
+      const res = await safeFetch(endpoint, {
+        method,
         headers: apiHeaders(true),
         body: JSON.stringify(payload),
       });
@@ -160,18 +1110,204 @@
     tableBody?.addEventListener('click', async function(ev){
       const target = ev.target;
       if (!(target instanceof HTMLElement)) return;
-      if (target.matches('[data-action="finalize-project"]')){
-        const projectId = target.getAttribute('data-project-id');
-        if (!projectId) return;
-        const confirmFinalize = window.confirm('Finalize this project and post its tickets to the main dashboard?');
-        if (!confirmFinalize) return;
-        const res = await safeFetch(`/api/v1/projects/${projectId}/finalize`, { method: 'POST' });
-        if (res.ok){
-          await refreshProjects();
-        } else {
-          const detail = await res.json().catch(() => ({}));
-          window.alert(detail.detail || 'Unable to finalize project');
+      const actionBtn = target.closest('[data-action]');
+      if (actionBtn instanceof HTMLElement){
+        const action = actionBtn.getAttribute('data-action');
+        if (action === 'delete-project'){
+          const projectId = actionBtn.getAttribute('data-project-id');
+          if (!projectId) return;
+          const name = actionBtn.getAttribute('data-project-name') || `Project #${projectId}`;
+          const confirmed = window.confirm(`Delete ${name}? This cannot be undone.`);
+          if (!confirmed) return;
+          const res = await safeFetch(`/api/v1/projects/${projectId}`, { method: 'DELETE' });
+          if (res.ok){
+            if (projectIdField?.value === projectId){
+              closeModal();
+            }
+            if (ticketListProjectId === projectId){
+              closeProjectTicketListModal();
+            }
+            projectTicketCache.delete(projectId);
+            await refreshProjects();
+          } else {
+            const detail = await res.json().catch(() => ({}));
+            window.alert(detail.detail || 'Unable to delete this project.');
+          }
+          return;
         }
+        if (action === 'edit-project-tickets'){
+          const projectId = actionBtn.getAttribute('data-project-id');
+          if (!projectId) return;
+          openProjectTicketListModal({
+            id: projectId,
+            name: actionBtn.getAttribute('data-project-name') || '',
+            client: actionBtn.getAttribute('data-client-name') || '',
+            clientKey: actionBtn.getAttribute('data-client-key') || '',
+          });
+          return;
+        }
+        if (action === 'add-project-ticket'){
+          const projectId = actionBtn.getAttribute('data-project-id');
+          if (!projectId) return;
+          openProjectTicketModal({
+            id: projectId,
+            name: actionBtn.getAttribute('data-project-name') || '',
+            client: actionBtn.getAttribute('data-client-name') || '',
+            clientKey: actionBtn.getAttribute('data-client-key') || '',
+          });
+          return;
+        }
+        if (action === 'finalize-project'){
+          const projectId = actionBtn.getAttribute('data-project-id');
+          if (!projectId) return;
+          const confirmFinalize = window.confirm('Finalize this project and post its tickets to the main dashboard?');
+          if (!confirmFinalize) return;
+          const res = await safeFetch(`/api/v1/projects/${projectId}/finalize`, { method: 'POST' });
+          if (res.ok){
+            await refreshProjects();
+          } else {
+            const detail = await res.json().catch(() => ({}));
+            window.alert(detail.detail || 'Unable to finalize project');
+          }
+          return;
+        }
+        return;
+      }
+      if (target.closest('a, button')) return;
+      const row = target.closest('tr[data-project-id]');
+      if (!row) return;
+      const projectId = row.getAttribute('data-project-id');
+      if (!projectId) return;
+      openProjectEditor(projectId);
+    });
+
+    ticketForm?.addEventListener('submit', async function(ev){
+      ev.preventDefault();
+      const projectId = ticketProjectIdField?.value?.trim();
+      const clientKey = ticketClientKeyField?.value?.trim();
+      const ticketId = ticketIdField?.value?.trim();
+      const isEditMode = (ticketForm?.dataset?.mode || 'create') === 'edit' && Boolean(ticketId);
+      if (!projectId){
+        window.alert('Unable to determine which project to update.');
+        return;
+      }
+      if (!clientKey){
+        window.alert('This project is missing a client key, so tickets cannot be staged.');
+        return;
+      }
+
+      const data = new FormData(ticketForm);
+      const payload = {};
+      data.forEach((value, key) => {
+        if (typeof value === 'string'){
+          const trimmed = value.trim();
+          if (trimmed) payload[key] = trimmed;
+        }
+      });
+
+      delete payload.project_id;
+      delete payload.elapsed_minutes;
+      delete payload.rounded_minutes;
+      delete payload.rounded_hours;
+      delete payload.calculated_value;
+      delete payload.created_at;
+      delete payload.project_name;
+
+      const entryType = (ticketEntryTypeField?.value || payload.entry_type || 'time').trim() || 'time';
+      payload.entry_type = entryType;
+
+      const startIso = parseStartInputValue(entryType, ticketStartField?.value || '');
+      if (!startIso){
+        window.alert(entryType === 'time' ? 'Enter a valid start date and time.' : 'Enter a valid date.');
+        ticketStartField?.focus();
+        return;
+      }
+      payload.start_iso = startIso;
+
+      if (entryType === 'time'){
+        const endIso = fromLocalDateTimeInput(ticketEndField?.value || '');
+        if (endIso) payload.end_iso = endIso;
+        else delete payload.end_iso;
+      } else {
+        delete payload.end_iso;
+      }
+
+      if (ticketClientField){
+        const resolvedClient = ticketClientField.value.trim();
+        if (resolvedClient) payload.client = resolvedClient;
+      }
+      payload.client_key = clientKey;
+
+      if (ticketHardwareSelect?.value){
+        payload.hardware_barcode = ticketHardwareSelect.value;
+      }
+      if (payload.hardware_id){
+        const hardwareIdNum = Number(payload.hardware_id);
+        payload.hardware_id = Number.isNaN(hardwareIdNum) ? payload.hardware_id : hardwareIdNum;
+      }
+      if (payload.hardware_quantity){
+        const qtyNum = Number(payload.hardware_quantity);
+        if (Number.isNaN(qtyNum)){
+          delete payload.hardware_quantity;
+        } else {
+          payload.hardware_quantity = qtyNum;
+        }
+      }
+      if (payload.flat_rate_quantity){
+        const flatQty = Number(payload.flat_rate_quantity);
+        if (Number.isNaN(flatQty)){
+          delete payload.flat_rate_quantity;
+        } else {
+          payload.flat_rate_quantity = flatQty;
+        }
+      }
+
+      if (entryType !== 'hardware'){
+        delete payload.hardware_barcode;
+        delete payload.hardware_description;
+        delete payload.hardware_sales_price;
+        delete payload.hardware_quantity;
+        delete payload.hardware_id;
+      }
+      if (entryType !== 'deployment_flat_rate'){
+        delete payload.flat_rate_amount;
+        delete payload.flat_rate_quantity;
+      }
+
+      payload.completed = Number(payload.completed || 0);
+      payload.sent = Number(payload.sent || 0);
+      payload.project_posted = false;
+
+      if (!payload.note) delete payload.note;
+      if (!payload.invoice_number) delete payload.invoice_number;
+      if (!payload.invoiced_total) delete payload.invoiced_total;
+
+      const endpoint = isEditMode
+        ? `/api/v1/projects/${projectId}/tickets/${ticketId}`
+        : `/api/v1/projects/${projectId}/tickets`;
+      const method = isEditMode ? 'PATCH' : 'POST';
+      const res = await safeFetch(endpoint, {
+        method,
+        headers: apiHeaders(true),
+        body: JSON.stringify(payload),
+      });
+      if (res.ok){
+        closeProjectTicketModal();
+        await refreshProjects();
+        if (ticketListModal?.style.display === 'flex' && ticketListProjectId === projectId){
+          try {
+            const refreshed = await fetchProjectDetail(projectId);
+            projectTicketCache.set(String(projectId), refreshed);
+            renderTicketList(refreshed);
+          } catch (err) {
+            console.warn('Unable to refresh ticket list', err);
+          }
+        } else if (isEditMode){
+          projectTicketCache.delete(String(projectId));
+        }
+      } else {
+        const detail = await res.json().catch(() => ({}));
+        window.alert(detail.detail || 'Unable to add ticket to this project');
       }
     });
   })();

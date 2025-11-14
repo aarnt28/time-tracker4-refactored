@@ -49,4 +49,3 @@ class ProjectOut(ProjectBase):
 
 class ProjectDetail(ProjectOut):
     tickets: list[EntryOut] = Field(default_factory=list)
-*** End File

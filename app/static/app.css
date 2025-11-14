@@ -296,6 +296,26 @@ input[type="text"], input[type="date"], select{
   border-color:rgba(76,175,80,0.75);
   color:var(--vip-neutral-white);
 }
+.btn-tonal{
+  background:rgba(0,145,234,0.08);
+  color:var(--brand);
+  border-color:rgba(0,145,234,0.35);
+  box-shadow:none;
+}
+.btn-tonal:hover{
+  background:rgba(0,145,234,0.18);
+}
+.btn-refresh{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  padding-inline:14px 18px;
+}
+.btn-refresh svg{
+  width:16px;
+  height:16px;
+  flex:0 0 auto;
+}
 .btn-ghost{
   background:var(--vip-neutral-white);
   color:var(--brand);
@@ -325,8 +345,28 @@ input[type="text"], input[type="date"], select{
 .table tbody td.note{ padding:0; }
 .table tbody tr:hover{ background:rgba(64,196,255,0.12); }
 .table .mono{ font-family:var(--mono); }
+.projects-table tbody tr.row:not(.row-note){ cursor:pointer; }
+.projects-table tbody tr.row:not(.row-note) .actions-inline{ cursor:default; }
+.ticket-list-body{
+  max-height:60vh;
+  overflow:auto;
+}
+.ticket-list-table th,
+.ticket-list-table td{
+  font-size:13px;
+}
+.ticket-list-table .ticket-actions{
+  display:flex;
+  gap:8px;
+  justify-content:flex-end;
+}
+.modal-hint{
+  font-size:13px;
+  color:var(--muted);
+  margin:0;
+}
 
-/* Column sizing – give Notes the lion's share */
+/* Column sizing - give Notes the lion's share */
 col.col-id      { width: 56px; }
 col.col-client  { width: 200px; }
 col.col-key     { width: 100px; }
@@ -664,6 +704,18 @@ body.hide-sent #ticket-records tr[data-sent="1"]{
 .form-grid{ display:grid; gap:12px; }
 .form-grid.two-column{ grid-template-columns:repeat(2, minmax(0,1fr)); }
 .form-grid.flexible{ grid-template-columns:repeat(auto-fit, minmax(220px,1fr)); }
+.form-grid .field-span-2{ grid-column:1 / -1; }
+.field-hint{
+  display:block;
+  color:var(--muted);
+  font-size:12px;
+  margin-top:4px;
+}
+.modal-form textarea{
+  width:100%;
+  min-height:120px;
+  resize:vertical;
+}
 .form-actions{ display:flex; gap:10px; margin-top:16px; }
 .form-actions.wrap{ flex-wrap:wrap; }
 .form-inline{ display:flex; gap:8px; flex-wrap:wrap; margin-top:8px; }
@@ -1059,4 +1111,3 @@ details[open] .note-toggle{
   .table tbody td::before{ flex-basis:50%; }
   .btn, .pill{ font-size:0.9rem; }
 }
-
