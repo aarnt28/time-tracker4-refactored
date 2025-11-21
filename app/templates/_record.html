@@ -1,3 +1,12 @@
+{% set type_labels = {
+  'hardware': 'Hardware',
+  'deployment_flat_rate': 'Deployment Flat Rate',
+  'software': 'Software',
+  'component': 'Computer/Part or Component',
+  'accessory': 'Computer Accessories'
+} %}
+{% set type_label = type_labels.get(r.entry_type, r.entry_type) %}
+{% set is_product = r.entry_type in ['hardware', 'software', 'component', 'accessory'] %}
 <tr data-id="{{ r.id }}">
   <td class="mono">{{ r.id }}</td>
   <td>{{ r.client }}</td>
@@ -10,13 +19,13 @@
   <td class="mono">{{ r.hardware_sales_price or r.flat_rate_amount or '' }}</td>
 
   <td class="note">
-    {% if r.entry_type == 'hardware' %}
+    {% if is_product %}
       <div class="note-cell">
-        <div class="note-preview"><strong>{{ r.hardware_description or '(no description)' }}</strong></div>
+        <div class="note-preview"><strong>{{ type_label }}: {{ r.hardware_description or '(no description)' }}</strong></div>
       </div>
     {% elif r.entry_type == 'deployment_flat_rate' %}
       <div class="note-cell">
-        <div class="note-preview"><strong>Deployment Flat Rate · Qty {{ r.flat_rate_quantity or 1 }} @ {{ r.flat_rate_amount or '—' }}</strong>{% if r.note %} — {{ r.note }}{% endif %}</div>
+        <div class="note-preview"><strong>Deployment Flat Rate � Qty {{ r.flat_rate_quantity or 1 }} @ {{ r.flat_rate_amount or '-' }}</strong>{% if r.note %} - {{ r.note }}{% endif %}</div>
       </div>
     {% else %}
       <div class="note-cell {% if r.note %}collapsed{% endif %}">
@@ -36,6 +45,6 @@
 
   <td class="action">
     <button class="pill {{ 'ok' if r.completed else '' }} js-toggle" title="Toggle Added to QB">{{ 'Added to QB' if r.completed else 'Open' }}</button>
-    <button class="icon danger js-del" title="Delete">✕</button>
+    <button class="icon danger js-del" title="Delete">?</button>
   </td>
 </tr>

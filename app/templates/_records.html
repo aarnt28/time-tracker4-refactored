@@ -1,4 +1,13 @@
+{% set type_labels = {
+  'hardware': 'Hardware',
+  'deployment_flat_rate': 'Deployment Flat Rate',
+  'software': 'Software',
+  'component': 'Computer/Part or Component',
+  'accessory': 'Computer Accessories'
+} %}
 {% for r in records %}
+{% set type_label = type_labels.get(r.entry_type, r.entry_type) %}
+{% set is_product = r.entry_type in ['hardware', 'software', 'component', 'accessory'] %}
 <tr class="row {{ 'is-done' if r.completed else 'is-open' }} {{ 'is-sent' if r.sent else 'is-unsent' }}" data-id="{{ r.id }}" data-sent="{{ 1 if r.sent else 0 }}">
   <td class="mono" data-column-key="id" data-label="ID" data-sort-value="{{ r.id }}">
     <a href="#" class="js-edit-ticket" data-id="{{ r.id }}" style="color:inherit; text-decoration:none;">{{ r.id }}</a>
@@ -11,20 +20,14 @@
   <td class="mono hide-mobile" data-column-key="end" data-label="End" data-sort-value="{{ r.end_iso or '' }}">{{ r.end_iso | fmt_dt }}</td>
   <td class="mono" data-column-key="minutes" data-label="Minutes" data-sort-value="{{ r.minutes }}">{{ r.minutes }}</td>
   <td class="mono" data-column-key="rounded_hours" data-label="Rounded Hrs" data-sort-value="{{ r.rounded_hours }}">{{ r.rounded_hours }}</td>
-  <td class="mono" data-column-key="entry_type" data-label="Type" data-sort-value="{{ r.entry_type }}">
-    {% if r.entry_type == 'deployment_flat_rate' %}
-      Deployment Flat Rate
-    {% else %}
-      {{ r.entry_type }}
-    {% endif %}
-  </td>
+  <td class="mono" data-column-key="entry_type" data-label="Type" data-sort-value="{{ r.entry_type }}">{{ type_label }}</td>
   <td class="mono" data-column-key="unit_price" data-label="Unit Price" data-sort-value="{{ r.hardware_sales_price or r.flat_rate_amount or '' }}">{{ r.hardware_sales_price or r.flat_rate_amount or '' }}</td>
-  <td class="note" data-column-key="notes" data-label="Notes / Details" data-full-note="{{ (r.note or '')|escape }}" data-is-hardware="{{ 1 if r.entry_type == 'hardware' else 0 }}" data-is-flat-rate="{{ 1 if r.entry_type == 'deployment_flat_rate' else 0 }}">
+  <td class="note" data-column-key="notes" data-label="Notes / Details" data-full-note="{{ (r.note or '')|escape }}" data-is-hardware="{{ 1 if is_product else 0 }}" data-is-flat-rate="{{ 1 if r.entry_type == 'deployment_flat_rate' else 0 }}">
     <button class="note-preview-btn" type="button">
-      {% if r.entry_type == 'hardware' %}
-        <strong>{{ r.hardware_description or '(no description)' }}</strong>
+      {% if is_product %}
+        <strong>{{ type_label }}: {{ r.hardware_description or '(no description)' }}</strong>
       {% elif r.entry_type == 'deployment_flat_rate' %}
-        <strong>Deployment Flat Rate · Qty {{ r.flat_rate_quantity or 1 }} @ {{ r.flat_rate_amount or '—' }}</strong>{% if r.note %} — {{ r.note }}{% endif %}
+        <strong>Deployment Flat Rate � Qty {{ r.flat_rate_quantity or 1 }} @ {{ r.flat_rate_amount or '-' }}</strong>{% if r.note %} - {{ r.note }}{% endif %}
       {% else %}
         {{ r.note or '' }}
       {% endif %}

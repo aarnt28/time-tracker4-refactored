@@ -13,12 +13,16 @@ from __future__ import annotations
 from pydantic import BaseModel, Field
 from typing import Optional
 
+from ..core.ticket_types import ENTRY_TYPE_CHOICES
+
+ENTRY_TYPE_PATTERN = f"^({'|'.join(ENTRY_TYPE_CHOICES)})$"
+
 
 class EntryBase(BaseModel):
     client: Optional[str] = None
     client_key: str
     note: Optional[str] = None
-    entry_type: str = Field(default="time", pattern="^(time|hardware|deployment_flat_rate)$")
+    entry_type: str = Field(default="time", pattern=ENTRY_TYPE_PATTERN)
     hardware_id: Optional[int] = None  # when entry_type == 'hardware'
     hardware_barcode: Optional[str] = None
     hardware_quantity: Optional[int] = Field(default=None, ge=1)
@@ -48,7 +52,7 @@ class EntryUpdate(BaseModel):
     sent: Optional[int] = None
     invoice_number: Optional[str] = None
     invoiced_total: Optional[str] = None
-    entry_type: Optional[str] = Field(default=None, pattern="^(time|hardware|deployment_flat_rate)$")
+    entry_type: Optional[str] = Field(default=None, pattern=ENTRY_TYPE_PATTERN)
     hardware_id: Optional[int] = None
     hardware_barcode: Optional[str] = None
     hardware_quantity: Optional[int] = Field(default=None, ge=1)

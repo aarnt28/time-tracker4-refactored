@@ -2,19 +2,19 @@
 
 <html lang="en">
 
-<head>
+  <head>
 
-  <meta charset="utf-8" />
+    <meta charset="utf-8" />
 
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
 
-  <title>Tickets</title>
+    <title>Tickets</title>
 
-  <link rel="stylesheet" href="/static/app.css" />
+    <link rel="stylesheet" href="/static/app.css" />
 
-  <link rel="icon" href="/static/favicon.ico" />
+    <link rel="icon" href="/static/favicon.ico" />
 
-  <style>
+    <style>
 
     .tickets-table .note { max-width: 320px; }
 
@@ -330,299 +330,348 @@
 
   </style>
 
-</head>
+  </head>
 
-<body class="dashboard hide-sent">
+  <body class="dashboard hide-sent">
 
-  <header class="app-header">
+    <header class="app-header">
 
-    <div class="container">
+      <div class="container">
 
-      <div class="branding">
-        <img
-          src="/static/img/vip-full-hd-transparant-cropped-halfsize.png"
-          srcset="/static/img/vip-full-hd-transparant-cropped-halfsize.png 1x, /static/img/vip-full-hd-transparant-384x150.png 2x"
-          alt="VIP Clouds logo"
-          class="branding__logo"
-        />
-        <div class="branding__meta">
-          <span class="branding__kicker">VIP Clouds</span>
-          <h1 class="logo"><a href="/">Time Tracker</a></h1>
+        <div class="branding">
+          <img
+            src="/static/img/vip-full-hd-transparant-cropped-halfsize.png"
+            srcset="/static/img/vip-full-hd-transparant-cropped-halfsize.png 1x, /static/img/vip-full-hd-transparant-384x150.png 2x"
+            alt="VIP Clouds logo"
+            class="branding__logo" />
+          <div class="branding__meta">
+            <span class="branding__kicker">VIP Clouds</span>
+            <h1 class="logo"><a href="/">Time Tracker</a></h1>
+          </div>
         </div>
-      </div>
-      <h2 class="page-title">Tickets</h2>
+        <h2 class="page-title">Tickets</h2>
 
-      <div class="actions">
+        <div class="actions">
 
-        <button class="btn" type="button" id="new-ticket">New Ticket</button>
-        <button class="btn" type="button" id="customize-columns">Customize Columns</button>
-        <a class="btn btn-ghost" href="/reports">View Reports</a>
-
-      </div>
-
-      <div class="nav-controls">
-        <nav class="links">
-          <a href="/" class="pill">Dashboard</a>
-          <a href="/tickets" class="pill active" aria-current="page">Tickets</a>
-          <a href="/projects" class="pill">Projects</a>
-          <a href="/hardware" class="pill">Hardware</a>
-          <a href="/inventory" class="pill">Inventory</a>
-          <a href="/clients" class="pill">Clients</a>
-          <a href="/reports" class="pill">Reports</a>
-        </nav>
-        <label class="pill pill-checkbox show-sent-toggle">
-          <input type="checkbox" id="show-sent-toggle" />
-          <span>Show Sent Items</span>
-        </label>
-      </div>
-
-    </div>
-
-  </header>
-
-
-
-  <main class="container">
-
-    <section class="table-wrap">
-
-      <div class="table-scroll">
-
-        <table class="table tickets-table">
-
-          <thead>
-
-            <tr>
-              <th class="mono" data-column-key="id" data-sort-type="number" tabindex="0">ID</th>
-              <th data-column-key="client" data-sort-type="text" tabindex="0">Client</th>
-              <th class="mono" data-column-key="client_key" data-sort-type="text" tabindex="0">Client Key</th>
-              <th class="mono hide-mobile" data-column-key="start" data-sort-type="datetime" tabindex="0">Start</th>
-              <th class="mono hide-mobile" data-column-key="end" data-sort-type="datetime" tabindex="0">End</th>
-              <th class="mono" data-column-key="minutes" data-sort-type="number" tabindex="0">Minutes</th>
-              <th class="mono" data-column-key="rounded_hours" data-sort-type="number" tabindex="0">Rounded Hrs</th>
-              <th class="mono" data-column-key="entry_type" data-sort-type="text" tabindex="0">Type</th>
-              <th class="mono" data-column-key="unit_price" data-sort-type="currency" tabindex="0">Unit Price</th>
-              <th data-column-key="notes" data-sort-type="text" tabindex="0">Notes / Details</th>
-              <th class="mono" data-column-key="invoice_number" data-sort-type="text" tabindex="0">Invoice</th>
-              <th class="mono" data-column-key="invoiced_total" data-sort-type="currency" tabindex="0">Invoiced Total</th>
-              <th class="mono" data-column-key="calculated_value" data-sort-type="currency" tabindex="0">Calculated Value</th>
-              <th class="th-action" data-column-key="status" data-sortable="false">Status / Actions</th>
-            </tr>
-
-          </thead>
-
-          <tbody id="ticket-records">
-
-            {% include "_records.html" with context %}
-
-          </tbody>
-
-        </table>
-
-      </div>
-
-    </section>
-
-  </main>
-
-
-
-  <div id="client-modal" class="modal-root" style="display:none;">
-
-    <div class="modal-card modal-card--large">
-
-      <header class="modal-head">
-
-        <h2 id="client-modal-title" class="modal-title">Edit Client</h2>
-
-        <button id="client-modal-close" class="btn" type="button">Close</button>
-
-      </header>
-
-      <form id="client-form">
-
-        <div id="client-fields"></div>
-
-        <div class="form-actions">
-
-          <button class="btn" type="submit">Save</button>
+          <button class="btn" type="button" id="new-ticket">New Ticket</button>
+          <button class="btn" type="button" id="customize-columns">Customize
+            Columns</button>
+          <a class="btn btn-ghost" href="/reports">View Reports</a>
 
         </div>
 
-      </form>
+        <div class="nav-controls">
+          <nav class="links">
+            <a href="/" class="pill">Dashboard</a>
+            <a href="/tickets" class="pill active"
+              aria-current="page">Tickets</a>
+            <a href="/projects" class="pill">Projects</a>
+            <a href="/hardware" class="pill">Hardware</a>
+            <a href="/inventory" class="pill">Inventory</a>
+            <a href="/clients" class="pill">Clients</a>
+            <a href="/reports" class="pill">Reports</a>
+          </nav>
+          <label class="pill pill-checkbox show-sent-toggle">
+            <input type="checkbox" id="show-sent-toggle" />
+            <span>Show Sent Items</span>
+          </label>
+        </div>
 
-    </div>
+      </div>
 
-  </div>
+    </header>
 
+    <main class="container">
 
+      <section class="table-wrap">
 
-  <div id="ticket-modal" class="modal-root" style="display:none;">
+        <div class="table-scroll">
 
-    <div class="modal-card modal-card--wide">
+          <table class="table tickets-table">
 
-      <header class="modal-head">
+            <thead>
 
-        <h2 id="ticket-modal-title" class="modal-title">New Ticket</h2>
+              <tr>
+                <th class="mono" data-column-key="id" data-sort-type="number"
+                  tabindex="0">ID</th>
+                <th data-column-key="client" data-sort-type="text"
+                  tabindex="0">Client</th>
+                <th class="mono" data-column-key="client_key"
+                  data-sort-type="text" tabindex="0">Client Key</th>
+                <th class="mono hide-mobile" data-column-key="start"
+                  data-sort-type="datetime" tabindex="0">Start</th>
+                <th class="mono hide-mobile" data-column-key="end"
+                  data-sort-type="datetime" tabindex="0">End</th>
+                <th class="mono" data-column-key="minutes"
+                  data-sort-type="number" tabindex="0">Minutes</th>
+                <th class="mono" data-column-key="rounded_hours"
+                  data-sort-type="number" tabindex="0">Rounded Hrs</th>
+                <th class="mono" data-column-key="entry_type"
+                  data-sort-type="text" tabindex="0">Type</th>
+                <th class="mono" data-column-key="unit_price"
+                  data-sort-type="currency" tabindex="0">Unit Price</th>
+                <th data-column-key="notes" data-sort-type="text"
+                  tabindex="0">Notes / Details</th>
+                <th class="mono" data-column-key="invoice_number"
+                  data-sort-type="text" tabindex="0">Invoice</th>
+                <th class="mono" data-column-key="invoiced_total"
+                  data-sort-type="currency" tabindex="0">Invoiced Total</th>
+                <th class="mono" data-column-key="calculated_value"
+                  data-sort-type="currency" tabindex="0">Calculated Value</th>
+                <th class="th-action" data-column-key="status"
+                  data-sortable="false">Status / Actions</th>
+              </tr>
 
-        <button id="ticket-modal-close" class="btn" type="button">Close</button>
+            </thead>
 
-      </header>
+            <tbody id="ticket-records">
 
-      <form id="ticket-form" class="modal-form">
+              {% include "_records.html" with context %}
 
-        <input type="hidden" name="id" />
+            </tbody>
 
-        <div class="modal-body">
+          </table>
 
-          <div class="form-grid flexible">
+        </div>
 
-            <label>Client<input name="client" class="mono" readonly /></label>
+      </section>
 
-            <label>Client Key
+    </main>
 
-              <select name="client_key" required class="mono">
+    <div id="client-modal" class="modal-root" style="display:none;">
 
-                <option value="">Select a client…</option>
+      <div class="modal-card modal-card--large">
 
-              </select>
+        <header class="modal-head">
 
-            </label>
+          <h2 id="client-modal-title" class="modal-title">Edit Client</h2>
 
-            <label>Entry Type
+          <button id="client-modal-close" class="btn"
+            type="button">Close</button>
 
-              <select name="entry_type">
+        </header>
 
-                <option value="time">time</option>
+        <form id="client-form">
 
-                <option value="hardware">hardware</option>
+          <div id="client-fields"></div>
 
-                <option value="deployment_flat_rate">Deployment Flat Rate</option>
+          <div class="form-actions">
 
-              </select>
-
-            </label>
-
-            <label id="hardware-barcode-wrap" style="display:none;">Hardware Item
-
-              <select name="hardware_barcode" class="mono">
-
-                <option value="">Select hardware…</option>
-
-              </select>
-
-            </label>
-
-            <input type="hidden" name="hardware_id" />
-
-            <label id="hardware-description-wrap" style="display:none;">Hardware Description<input name="hardware_description" /></label>
-
-            <label id="hardware-sales-price-wrap" style="display:none;">Hardware Sales Price<input name="hardware_sales_price" class="mono" /></label>
-            <label id="hardware-quantity-wrap" style="display:none;">Quantity<input name="hardware_quantity" type="number" min="1" class="mono" value="1" /></label>
-
-            <label id="flat-rate-amount-wrap" style="display:none;">Flat Rate Amount<input name="flat_rate_amount" class="mono" /></label>
-            <label id="flat-rate-quantity-wrap" style="display:none;">Flat Rate Quantity<input name="flat_rate_quantity" type="number" min="1" class="mono" value="1" /></label>
-
-            <label id="start-field-wrap" data-time-label="Start" data-date-label="Date"><span id="start-field-label">Start</span><input name="start_iso" type="datetime-local" class="mono" required /></label>
-
-            <label id="end-time-wrap" data-time-only="true">End<input name="end_iso" type="datetime-local" class="mono" /></label>
-
-            <label data-time-only="true">Elapsed Minutes<input name="elapsed_minutes" class="mono" readonly /></label>
-
-            <label data-time-only="true">Rounded Minutes<input name="rounded_minutes" class="mono" readonly /></label>
-
-            <label data-time-only="true">Rounded Hours<input name="rounded_hours" class="mono" readonly /></label>
-
-            <label>Calculated Value<input name="calculated_value" class="mono" readonly /></label>
-
-            <label>Invoice #<input name="invoice_number" class="mono" /></label>
-            <label>Invoiced Total<input name="invoiced_total" class="mono" /></label>
-
-            <label>Added to QB
-
-              <select name="completed">
-
-                <option value="0">Open</option>
-
-                <option value="1">Added to QB</option>
-
-              </select>
-
-            </label>
-
-            <label>Sent
-
-              <select name="sent">
-
-                <option value="0">Not Sent</option>
-
-                <option value="1">Sent</option>
-
-              </select>
-
-            </label>
-
-            <label>Created<input name="created_at" class="mono" readonly /></label>
+            <button class="btn" type="submit">Save</button>
 
           </div>
-          
-          <div id="special-notes" class="special-notes" style="display:none;"></div>
 
-          <label class="form-block">Notes<textarea name="note" rows="4"></textarea></label>
+        </form>
 
-          <div id="hardware-snapshot" class="hardware-snapshot" style="display:none;"></div>
+      </div>
 
-          <section id="ticket-attachments-section" class="attachments-section">
-            <div class="attachments-header">
-              <h3>Attachments</h3>
-              <p class="attachments-help">Upload screenshots or other images that belong with this ticket.</p>
-            </div>
-            <ul id="ticket-attachments-list" class="attachment-list" aria-live="polite"></ul>
-            <p id="ticket-attachments-empty" class="attachment-empty">Save the ticket to add attachments.</p>
-            <p id="ticket-attachments-error" class="attachment-error" role="alert" style="display:none;"></p>
-            <div class="attachment-actions">
-              <label class="attachment-upload-label is-disabled" id="ticket-attachment-trigger">
-                <input type="file" id="ticket-attachment-input" accept="image/*" multiple />
-                Add Attachment
+    </div>
+
+    <div id="ticket-modal" class="modal-root" style="display:none;">
+
+      <div class="modal-card modal-card--wide">
+
+        <header class="modal-head">
+
+          <h2 id="ticket-modal-title" class="modal-title">New Ticket</h2>
+
+          <button id="ticket-modal-close" class="btn"
+            type="button">Close</button>
+
+        </header>
+
+        <form id="ticket-form" class="modal-form">
+
+          <input type="hidden" name="id" />
+
+          <div class="modal-body">
+
+            <div class="form-grid flexible">
+
+              <label>Client<input name="client" class="mono" readonly /></label>
+
+              <label>Client Key
+
+                <select name="client_key" required class="mono">
+
+                  <option value>Select a client…</option>
+
+                </select>
+
               </label>
+
+              <label>Entry Type
+
+                <select name="entry_type">
+
+                  <option value="time">time</option>
+
+                  <option value="hardware">hardware</option>
+
+                  <option value="software">Software</option>
+
+                  <option value="component">Computer/Part or Component</option>
+
+                  <option value="accessory">Computer Accessories</option>
+
+                  <option value="deployment_flat_rate">Deployment Flat
+                    Rate</option>
+
+                </select>
+
+              </label>
+
+              <label id="hardware-barcode-wrap" style="display:none;">Hardware
+                Item
+
+                <select name="hardware_barcode" class="mono">
+
+                  <option value>Select hardware…</option>
+
+                </select>
+
+              </label>
+
+              <input type="hidden" name="hardware_id" />
+
+              <label id="hardware-description-wrap"
+                style="display:none;"><span id="hardware-description-label">Hardware Description</span><input
+                  name="hardware_description" /></label>
+
+              <label id="hardware-sales-price-wrap"
+                style="display:none;"><span id="hardware-sales-price-label">Hardware Sales Price</span><input
+                  name="hardware_sales_price" class="mono" /></label>
+              <label id="hardware-quantity-wrap"
+                style="display:none;">Quantity<input name="hardware_quantity"
+                  type="number" min="1" class="mono" value="1" /></label>
+
+              <label id="flat-rate-amount-wrap" style="display:none;">Flat Rate
+                Amount<input name="flat_rate_amount" class="mono" /></label>
+              <label id="flat-rate-quantity-wrap" style="display:none;">Flat
+                Rate Quantity<input name="flat_rate_quantity" type="number"
+                  min="1" class="mono" value="1" /></label>
+
+              <label id="start-field-wrap" data-time-label="Start"
+                data-date-label="Date"><span
+                  id="start-field-label">Start</span><input name="start_iso"
+                  type="datetime-local" class="mono" required /></label>
+
+              <label id="end-time-wrap" data-time-only="true">End<input
+                  name="end_iso" type="datetime-local" class="mono" /></label>
+
+              <label data-time-only="true">Elapsed Minutes<input
+                  name="elapsed_minutes" class="mono" readonly /></label>
+
+              <label data-time-only="true">Rounded Minutes<input
+                  name="rounded_minutes" class="mono" readonly /></label>
+
+              <label data-time-only="true">Rounded Hours<input
+                  name="rounded_hours" class="mono" readonly /></label>
+
+              <label>Calculated Value<input name="calculated_value" class="mono"
+                  readonly /></label>
+
+              <label>Invoice #<input name="invoice_number"
+                  class="mono" /></label>
+              <label>Invoiced Total<input name="invoiced_total"
+                  class="mono" /></label>
+
+              <label>Added to QB
+
+                <select name="completed">
+
+                  <option value="0">Open</option>
+
+                  <option value="1">Added to QB</option>
+
+                </select>
+
+              </label>
+
+              <label>Sent
+
+                <select name="sent">
+
+                  <option value="0">Not Sent</option>
+
+                  <option value="1">Sent</option>
+
+                </select>
+
+              </label>
+
+              <label>Created<input name="created_at" class="mono"
+                  readonly /></label>
+
             </div>
-          </section>
 
-        </div>
+            <div id="special-notes" class="special-notes"
+              style="display:none;"></div>
 
-        <div class="modal-actions">
+            <label class="form-block">Notes<textarea name="note"
+                rows="4"></textarea></label>
 
-          <button class="btn" type="button" id="ticket-mark-done">Toggle Added to QB</button>
+            <div id="hardware-snapshot" class="hardware-snapshot"
+              style="display:none;"></div>
 
-          <button class="btn" type="submit">Save</button>
+            <section id="ticket-attachments-section"
+              class="attachments-section">
+              <div class="attachments-header">
+                <h3>Attachments</h3>
+                <p class="attachments-help">Upload screenshots or other images
+                  that belong with this ticket.</p>
+              </div>
+              <ul id="ticket-attachments-list" class="attachment-list"
+                aria-live="polite"></ul>
+              <p id="ticket-attachments-empty" class="attachment-empty">Save the
+                ticket to add attachments.</p>
+              <p id="ticket-attachments-error" class="attachment-error"
+                role="alert" style="display:none;"></p>
+              <div class="attachment-actions">
+                <label class="attachment-upload-label is-disabled"
+                  id="ticket-attachment-trigger">
+                  <input type="file" id="ticket-attachment-input"
+                    accept="image/*" multiple />
+                  Add Attachment
+                </label>
+              </div>
+            </section>
 
-        </div>
+          </div>
 
-      </form>
+          <div class="modal-actions">
+
+            <button class="btn" type="button" id="ticket-mark-done">Toggle Added
+              to QB</button>
+
+            <button class="btn" type="submit">Save</button>
+
+          </div>
+
+        </form>
+
+      </div>
 
     </div>
 
-  </div>
-
-  <div id="columns-modal" class="modal-root" style="display:none;">
-    <div class="modal-card modal-card--medium">
-      <header class="modal-head">
-        <h2 class="modal-title">Customize Columns</h2>
-        <button id="columns-close" class="btn" type="button">Close</button>
-      </header>
-      <form id="columns-form" class="modal-form">
-        <p class="modal-note">Choose which ticket columns should appear in the table.</p>
-        <div id="columns-options" class="column-option-list"></div>
-        <div class="form-actions">
-          <button class="btn" type="submit">Apply</button>
-        </div>
-      </form>
+    <div id="columns-modal" class="modal-root" style="display:none;">
+      <div class="modal-card modal-card--medium">
+        <header class="modal-head">
+          <h2 class="modal-title">Customize Columns</h2>
+          <button id="columns-close" class="btn" type="button">Close</button>
+        </header>
+        <form id="columns-form" class="modal-form">
+          <p class="modal-note">Choose which ticket columns should appear in the
+            table.</p>
+          <div id="columns-options" class="column-option-list"></div>
+          <div class="form-actions">
+            <button class="btn" type="submit">Apply</button>
+          </div>
+        </form>
+      </div>
     </div>
-  </div>
 
-
-
-  <script>
+    <script>
 
   (function(){
 
@@ -720,6 +769,10 @@
 
     const hardwareSalesPriceWrap = document.getElementById('hardware-sales-price-wrap');
 
+    const hardwareDescriptionLabel = document.getElementById('hardware-description-label');
+
+    const hardwareSalesPriceLabel = document.getElementById('hardware-sales-price-label');
+
     const hardwareQuantityWrap = document.getElementById('hardware-quantity-wrap');
 
     const flatRateAmountWrap = document.getElementById('flat-rate-amount-wrap');
@@ -800,6 +853,29 @@
     let currentTicketId = null;
 
     let currentTicketAttachments = [];
+
+    const ENTRY_TYPE_LABELS = {
+      time: 'Time',
+      hardware: 'Hardware',
+      deployment_flat_rate: 'Deployment Flat Rate',
+      software: 'Software',
+      component: 'Computer/Part or Component',
+      accessory: 'Computer Accessories',
+    };
+
+    const HARDWARE_LIKE_ENTRY_TYPES = new Set(['hardware', 'software', 'component', 'accessory']);
+    const MANUAL_PRODUCT_ENTRY_TYPES = new Set(['software', 'component', 'accessory']);
+
+    function entryTypeLabel(value){
+      return ENTRY_TYPE_LABELS[value] || value || '';
+    }
+
+    function productLabel(value){
+      if (value === 'software') return 'Software';
+      if (value === 'component') return 'Component';
+      if (value === 'accessory') return 'Accessory';
+      return 'Hardware';
+    }
 
     function formatCurrencyValue(value){
       if (value === null || value === undefined || value === '') return '';
@@ -1559,46 +1635,44 @@
 
     function updateEntryTypeFieldVisibility({ previousType = null, resetStartValue = false } = {}){
 
-      const entryType = entryTypeField.value || 'time';
-
-      const isHardware = entryType === 'hardware';
-
+      const entryType = (entryTypeField.value || 'time').trim() || 'time';
+      const isProductEntry = HARDWARE_LIKE_ENTRY_TYPES.has(entryType);
+      const usesCatalogHardware = entryType === 'hardware';
       const isFlatRate = entryType === 'deployment_flat_rate';
-
       const isTimeEntry = entryType === 'time';
 
-      const hardwareDisplay = isHardware ? '' : 'none';
+      const hardwareDisplay = isProductEntry ? '' : 'none';
+      const barcodeDisplay = usesCatalogHardware ? '' : 'none';
 
-      hardwareBarcodeWrap.style.display = hardwareDisplay;
-
+      hardwareBarcodeWrap.style.display = barcodeDisplay;
       hardwareDescriptionWrap.style.display = hardwareDisplay;
-
       hardwareSalesPriceWrap.style.display = hardwareDisplay;
-
       if (hardwareQuantityWrap) hardwareQuantityWrap.style.display = hardwareDisplay;
 
-      hardwareBarcodeField.disabled = !isHardware;
+      hardwareBarcodeField.disabled = !usesCatalogHardware;
+      hardwareDescriptionField.disabled = !isProductEntry;
+      hardwareSalesPriceField.disabled = !isProductEntry;
 
-      hardwareDescriptionField.disabled = !isHardware;
-
-      hardwareSalesPriceField.disabled = !isHardware;
+      if (hardwareDescriptionLabel){
+        hardwareDescriptionLabel.textContent = `${productLabel(entryType)} Description`;
+      }
+      if (hardwareSalesPriceLabel){
+        hardwareSalesPriceLabel.textContent = `${productLabel(entryType)} Sales Price`;
+      }
 
       if (hardwareQuantityField){
-        hardwareQuantityField.disabled = !isHardware;
-        if (isHardware && !hardwareQuantityField.value){
+        hardwareQuantityField.disabled = !isProductEntry;
+        if (isProductEntry && !hardwareQuantityField.value){
           hardwareQuantityField.value = '1';
         }
-        if (!isHardware){
+        if (!isProductEntry){
           hardwareQuantityField.value = '1';
         }
       }
 
-      if (!isHardware){
-
+      if (!usesCatalogHardware){
         hardwareBarcodeField.value = '';
-
         hardwareIdField.value = '';
-
       }
 
       const flatDisplay = isFlatRate ? '' : 'none';
@@ -1732,6 +1806,14 @@
 
     function applyHardwareSelection({ preserveDetails = false } = {}){
 
+      if (entryTypeField.value !== 'hardware'){
+        hardwareIdField.value = '';
+        if (!preserveDetails){
+          hardwareBarcodeField.value = '';
+        }
+        return;
+      }
+
       const selected = hardwareBarcodeField.selectedOptions[0];
 
       if (!selected || !selected.value){
@@ -1785,7 +1867,9 @@
 
     function updateHardwareSnapshot(){
 
-      if (entryTypeField.value !== 'hardware'){
+      const entryType = (entryTypeField.value || '').trim();
+
+      if (!HARDWARE_LIKE_ENTRY_TYPES.has(entryType)){
 
         hardwareSnapshot.style.display = 'none';
 
@@ -1805,15 +1889,15 @@
 
       const quantity = Number.isNaN(quantityRaw) ? 1 : Math.max(quantityRaw, 1);
 
-      const pricePart = price ? ` — ${price}` : '';
+      const pricePart = price ? ` - ${price}` : '';
 
-      const quantityPart = quantity > 1 ? ` — Qty: ${quantity}` : '';
+      const quantityPart = quantity > 1 ? ` - Qty: ${quantity}` : '';
 
-      const barcodePart = barcode ? ` (barcode: ${barcode})` : '';
+      const barcodePart = entryType === 'hardware' && barcode ? ` (barcode: ${barcode})` : '';
 
       hardwareSnapshot.style.display = 'block';
 
-      hardwareSnapshot.textContent = `Hardware Snapshot: ${desc}${pricePart}${quantityPart}${barcodePart}`;
+      hardwareSnapshot.textContent = `${productLabel(entryType)} Snapshot: ${desc}${pricePart}${quantityPart}${barcodePart}`;
 
     }
 
@@ -2378,15 +2462,15 @@
 
       const previousType = lastEntryType;
 
-      updateEntryTypeFieldVisibility({ previousType });
-
       if (entryTypeField.value === 'hardware'){
 
         await loadHardwareOptions();
 
       }
 
-      applyHardwareSelection();
+      updateEntryTypeFieldVisibility({ previousType });
+
+      applyHardwareSelection({ preserveDetails: true });
 
       updateSpecialNotes();
 
@@ -2496,7 +2580,7 @@
 
       };
 
-      if (entryType === 'hardware'){
+      if (HARDWARE_LIKE_ENTRY_TYPES.has(entryType)){
 
         const barcodeValue = (hardwareBarcodeField.value || '').trim();
 
@@ -2505,16 +2589,6 @@
         const descriptionValue = (hardwareDescriptionField.value || '').trim();
 
         const salesPriceValue = (hardwareSalesPriceField.value || '').trim();
-
-        payload.hardware_barcode = barcodeValue || null;
-
-        if (hardwareIdValue){
-
-          const parsedId = Number.parseInt(hardwareIdValue, 10);
-
-          if (!Number.isNaN(parsedId)) payload.hardware_id = parsedId;
-
-        }
 
         payload.hardware_description = descriptionValue || null;
 
@@ -2525,6 +2599,17 @@
           if (!Number.isNaN(quantityValue)){
             payload.hardware_quantity = quantityValue;
           }
+        }
+
+        if (entryType === 'hardware'){
+          payload.hardware_barcode = barcodeValue || null;
+          if (hardwareIdValue){
+            const parsedId = Number.parseInt(hardwareIdValue, 10);
+            if (!Number.isNaN(parsedId)) payload.hardware_id = parsedId;
+          }
+        } else {
+          payload.hardware_barcode = null;
+          payload.hardware_id = null;
         }
 
         payload.flat_rate_amount = null;
@@ -2920,8 +3005,3 @@
   })();
 
 </script>
-
-
-
-
-

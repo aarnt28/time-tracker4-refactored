@@ -134,6 +134,9 @@
               <select name="entry_type" id="project-ticket-entry-type">
                 <option value="time">time</option>
                 <option value="hardware">hardware</option>
+                <option value="software">Software</option>
+                <option value="component">Computer/Part or Component</option>
+                <option value="accessory">Computer Accessories</option>
                 <option value="deployment_flat_rate">Deployment Flat Rate</option>
               </select>
             </label>
@@ -142,10 +145,10 @@
                 <option value="">Select hardware...</option>
               </select>
             </label>
-            <label id="project-ticket-hardware-description-wrap" style="display:none;">Hardware Description
+            <label id="project-ticket-hardware-description-wrap" style="display:none;"><span id="project-ticket-hardware-description-label">Hardware Description</span>
               <input name="hardware_description" id="project-ticket-hardware-description" />
             </label>
-            <label id="project-ticket-hardware-sales-wrap" style="display:none;">Hardware Sales Price
+            <label id="project-ticket-hardware-sales-wrap" style="display:none;"><span id="project-ticket-hardware-sales-label">Hardware Sales Price</span>
               <input name="hardware_sales_price" id="project-ticket-hardware-sales-price" class="mono" />
             </label>
             <label id="project-ticket-hardware-quantity-wrap" style="display:none;">Quantity
@@ -246,6 +249,8 @@
     const ticketHardwareDescriptionField = document.getElementById('project-ticket-hardware-description');
     const ticketHardwareSalesWrap = document.getElementById('project-ticket-hardware-sales-wrap');
     const ticketHardwareSalesField = document.getElementById('project-ticket-hardware-sales-price');
+    const ticketHardwareDescriptionLabel = document.getElementById('project-ticket-hardware-description-label');
+    const ticketHardwareSalesLabel = document.getElementById('project-ticket-hardware-sales-label');
     const ticketHardwareQuantityWrap = document.getElementById('project-ticket-hardware-quantity-wrap');
     const ticketHardwareQuantityField = document.getElementById('project-ticket-hardware-quantity');
     const ticketFlatRateAmountWrap = document.getElementById('project-ticket-flat-amount-wrap');
@@ -283,6 +288,27 @@
     const projectHardwareOptionLookup = new Map();
     const projectTicketCache = new Map();
     let ticketListProjectId = null;
+    const ENTRY_TYPE_LABELS = {
+      time: 'Time',
+      hardware: 'Hardware',
+      deployment_flat_rate: 'Deployment Flat Rate',
+      software: 'Software',
+      component: 'Computer/Part or Component',
+      accessory: 'Computer Accessories',
+    };
+    const HARDWARE_LIKE_ENTRY_TYPES = new Set(['hardware', 'software', 'component', 'accessory']);
+    const MANUAL_PRODUCT_ENTRY_TYPES = new Set(['software', 'component', 'accessory']);
+
+    function entryTypeLabel(value){
+      return ENTRY_TYPE_LABELS[value] || value || '';
+    }
+
+    function productLabel(value){
+      if (value === 'software') return 'Software';
+      if (value === 'component') return 'Component';
+      if (value === 'accessory') return 'Accessory';
+      return 'Hardware';
+    }
 
     function getApiToken(){ return window.localStorage.getItem('api_token') || ''; }
     function setApiToken(token){ if (token) window.localStorage.setItem('api_token', token); }
@@ -611,7 +637,7 @@
           return `
             <tr>
               <td class="mono">${ticket.id}</td>
-              <td>${ticket.entry_type}</td>
+              <td>${entryTypeLabel(ticket.entry_type || '')}</td>
               <td>${ticket.start_iso ? new Date(ticket.start_iso).toLocaleString() : ''}</td>
               <td>${ticket.client || ''}</td>
               <td>${notePreview || ''}</td>
@@ -675,6 +701,12 @@
     }
 
     function applyProjectHardwareSelection({ preserveDetails = false } = {}){
+      const entryType = ticketEntryTypeField?.value || 'time';
+      if (entryType !== 'hardware'){
+        if (ticketHardwareIdField) ticketHardwareIdField.value = '';
+        if (!preserveDetails && ticketHardwareSelect) ticketHardwareSelect.value = '';
+        return;
+      }
       if (!ticketHardwareSelect) return;
       const selected = ticketHardwareSelect.selectedOptions[0];
       if (!selected || !selected.value){
@@ -700,27 +732,35 @@
 
     function updateProjectTicketEntryType({ previousType = null, resetStartValue = false } = {}){
       if (!ticketEntryTypeField) return;
-      const entryType = ticketEntryTypeField.value || 'time';
-      const isHardware = entryType === 'hardware';
+      const entryType = (ticketEntryTypeField.value || 'time').trim() || 'time';
+      const isProductEntry = HARDWARE_LIKE_ENTRY_TYPES.has(entryType);
+      const usesCatalogHardware = entryType === 'hardware';
       const isFlatRate = entryType === 'deployment_flat_rate';
       const isTimeEntry = entryType === 'time';
 
-      if (ticketHardwareWrap) ticketHardwareWrap.style.display = isHardware ? '' : 'none';
-      if (ticketHardwareDescriptionWrap) ticketHardwareDescriptionWrap.style.display = isHardware ? '' : 'none';
-      if (ticketHardwareSalesWrap) ticketHardwareSalesWrap.style.display = isHardware ? '' : 'none';
-      if (ticketHardwareQuantityWrap) ticketHardwareQuantityWrap.style.display = isHardware ? '' : 'none';
-      if (ticketHardwareSelect) ticketHardwareSelect.disabled = !isHardware;
-      if (ticketHardwareDescriptionField) ticketHardwareDescriptionField.disabled = !isHardware;
-      if (ticketHardwareSalesField) ticketHardwareSalesField.disabled = !isHardware;
+      if (ticketHardwareDescriptionLabel){
+        ticketHardwareDescriptionLabel.textContent = `${productLabel(entryType)} Description`;
+      }
+      if (ticketHardwareSalesLabel){
+        ticketHardwareSalesLabel.textContent = `${productLabel(entryType)} Sales Price`;
+      }
+
+      if (ticketHardwareWrap) ticketHardwareWrap.style.display = usesCatalogHardware ? '' : 'none';
+      if (ticketHardwareDescriptionWrap) ticketHardwareDescriptionWrap.style.display = isProductEntry ? '' : 'none';
+      if (ticketHardwareSalesWrap) ticketHardwareSalesWrap.style.display = isProductEntry ? '' : 'none';
+      if (ticketHardwareQuantityWrap) ticketHardwareQuantityWrap.style.display = isProductEntry ? '' : 'none';
+      if (ticketHardwareSelect) ticketHardwareSelect.disabled = !usesCatalogHardware;
+      if (ticketHardwareDescriptionField) ticketHardwareDescriptionField.disabled = !isProductEntry;
+      if (ticketHardwareSalesField) ticketHardwareSalesField.disabled = !isProductEntry;
       if (ticketHardwareQuantityField){
-        ticketHardwareQuantityField.disabled = !isHardware;
-        if (!isHardware){
+        ticketHardwareQuantityField.disabled = !isProductEntry;
+        if (!isProductEntry){
           ticketHardwareQuantityField.value = '1';
         } else if (!ticketHardwareQuantityField.value){
           ticketHardwareQuantityField.value = '1';
         }
       }
-      if (!isHardware){
+      if (!usesCatalogHardware){
         if (ticketHardwareSelect) ticketHardwareSelect.value = '';
         if (ticketHardwareIdField) ticketHardwareIdField.value = '';
       }
@@ -1021,6 +1061,7 @@
           await loadProjectHardwareOptions().catch(() => {});
         }
         updateProjectTicketEntryType({ previousType: previous });
+        applyProjectHardwareSelection({ preserveDetails: true });
       });
       updateProjectTicketEntryType({ resetStartValue: true });
     }
@@ -1215,6 +1256,8 @@
 
       const entryType = (ticketEntryTypeField?.value || payload.entry_type || 'time').trim() || 'time';
       payload.entry_type = entryType;
+      const isProductEntry = HARDWARE_LIKE_ENTRY_TYPES.has(entryType);
+      const isCatalogHardware = entryType === 'hardware';
 
       const startIso = parseStartInputValue(entryType, ticketStartField?.value || '');
       if (!startIso){
@@ -1238,7 +1281,7 @@
       }
       payload.client_key = clientKey;
 
-      if (ticketHardwareSelect?.value){
+      if (isCatalogHardware && ticketHardwareSelect?.value){
         payload.hardware_barcode = ticketHardwareSelect.value;
       }
       if (payload.hardware_id){
@@ -1262,12 +1305,14 @@
         }
       }
 
-      if (entryType !== 'hardware'){
+      if (!isCatalogHardware){
         delete payload.hardware_barcode;
+        delete payload.hardware_id;
+      }
+      if (!isProductEntry){
         delete payload.hardware_description;
         delete payload.hardware_sales_price;
         delete payload.hardware_quantity;
-        delete payload.hardware_id;
       }
       if (entryType !== 'deployment_flat_rate'){
         delete payload.flat_rate_amount;

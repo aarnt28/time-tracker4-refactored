@@ -20,6 +20,11 @@ from sqlalchemy.orm import Session
 
 from ..models.ticket import Ticket
 from ..services.clientsync import load_client_table
+from ..core.ticket_types import (
+    ENTRY_TYPE_DEPLOYMENT_FLAT_RATE,
+    HARDWARE_LIKE_ENTRY_TYPES,
+    normalize_entry_type,
+)
 
 TWOPLACES = Decimal("0.01")
 HOUR_PLACES = Decimal("0.01")
@@ -147,9 +152,9 @@ def calculate_ticket_metrics(
 
         revenue = Decimal("0")
 
-        entry_type = (ticket.entry_type or "time").lower()
+        entry_type = normalize_entry_type(ticket.entry_type)
 
-        if entry_type == "hardware":
+        if entry_type in HARDWARE_LIKE_ENTRY_TYPES:
             totals["hardware_ticket_count"] += 1
             metrics["hardware_count"] += 1
 
@@ -169,7 +174,7 @@ def calculate_ticket_metrics(
             if not ticket.sent:
                 unsent_hardware_revenue += revenue
                 metrics["unsent_revenue"] += revenue
-        elif entry_type == "deployment_flat_rate":
+        elif entry_type == ENTRY_TYPE_DEPLOYMENT_FLAT_RATE:
             totals["flat_rate_ticket_count"] += 1
             metrics["flat_rate_count"] += 1
 

@@ -31,6 +31,12 @@ from ..services.timecalc import compute_minutes, round_minutes
 from ..services.clientsync import resolve_client_name, load_client_table
 from ..core.config import settings
 from ..core.barcodes import barcode_aliases, normalize_barcode
+from ..core.ticket_types import (
+    ENTRY_TYPE_DEPLOYMENT_FLAT_RATE,
+    ENTRY_TYPE_HARDWARE,
+    HARDWARE_LIKE_ENTRY_TYPES,
+    normalize_entry_type,
+)
 
 SIXTY = Decimal("60")
 ATTACHMENTS_DIR_NAME = "attachments"
@@ -241,8 +247,8 @@ def _support_rate_for_client(client_key: str | None, table: dict | None = None) 
 def _calculate_ticket_amount(ticket: Ticket, table: dict | None = None) -> Decimal | None:
     """Compute the invoiceable amount for a ticket based on its type."""
 
-    entry_type = (ticket.entry_type or "time").lower()
-    if entry_type == "hardware":
+    entry_type = normalize_entry_type(ticket.entry_type)
+    if entry_type in HARDWARE_LIKE_ENTRY_TYPES:
         unit_price = _to_decimal(ticket.hardware_sales_price)
         if unit_price is None:
             return None
@@ -253,7 +259,7 @@ def _calculate_ticket_amount(ticket: Ticket, table: dict | None = None) -> Decim
             quantity_decimal = Decimal(1)
         return unit_price * quantity_decimal
 
-    if entry_type == "deployment_flat_rate":
+    if entry_type == ENTRY_TYPE_DEPLOYMENT_FLAT_RATE:
         unit_price = _to_decimal(ticket.flat_rate_amount)
         if unit_price is None:
             return None
@@ -330,8 +336,10 @@ def _apply_time_math(t: Ticket, payload: dict) -> None:
 
 
 def _apply_hardware_link(db: Session, t: Ticket, payload: dict) -> None:
-    """If entry_type is hardware, sync linked hardware details via id or barcode."""
-    if payload.get("entry_type", t.entry_type) != "hardware":
+    """Keep hardware-like fields in sync for catalog and manual product entries."""
+
+    entry_type = normalize_entry_type(payload.get("entry_type", t.entry_type))
+    if entry_type not in HARDWARE_LIKE_ENTRY_TYPES:
         t.hardware_id = None
         t.hardware_description = None
         t.hardware_sales_price = None
@@ -339,13 +347,32 @@ def _apply_hardware_link(db: Session, t: Ticket, payload: dict) -> None:
         t.hardware_quantity = None
         return
 
-    hw = _resolve_hardware(db, payload, t.hardware_id)
     desc_override = payload.get("hardware_description")
     if isinstance(desc_override, str):
         desc_override = desc_override.strip() or None
     price_override = payload.get("hardware_sales_price")
     if isinstance(price_override, str):
         price_override = price_override.strip() or None
+
+    qty_value = payload.get("hardware_quantity")
+    if qty_value is None:
+        qty_value = t.hardware_quantity if t.hardware_quantity else 1
+    try:
+        qty_int = int(qty_value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("hardware_quantity must be a positive integer") from exc
+    if qty_int <= 0:
+        raise ValueError("hardware_quantity must be a positive integer")
+
+    if entry_type != ENTRY_TYPE_HARDWARE:
+        t.hardware_id = None
+        t.hardware_barcode = None
+        t.hardware_description = desc_override if desc_override is not None else t.hardware_description
+        t.hardware_sales_price = price_override if price_override is not None else t.hardware_sales_price
+        t.hardware_quantity = qty_int
+        return
+
+    hw = _resolve_hardware(db, payload, t.hardware_id)
     barcode_raw = payload.get("hardware_barcode")
     barcode_override = normalize_barcode(barcode_raw) or ((barcode_raw or "").strip() or None)
 
@@ -360,22 +387,14 @@ def _apply_hardware_link(db: Session, t: Ticket, payload: dict) -> None:
         t.hardware_description = desc_override
         t.hardware_sales_price = price_override
 
-    qty_value = payload.get("hardware_quantity")
-    if qty_value is None:
-        qty_value = t.hardware_quantity if t.hardware_quantity else 1
-    try:
-        qty_int = int(qty_value)
-    except (TypeError, ValueError) as exc:
-        raise ValueError("hardware_quantity must be a positive integer") from exc
-    if qty_int <= 0:
-        raise ValueError("hardware_quantity must be a positive integer")
     t.hardware_quantity = qty_int
 
 
 def _apply_flat_rate_fields(t: Ticket, payload: dict) -> None:
     """Handle deployment flat-rate tickets by normalizing cost and quantity."""
 
-    if payload.get("entry_type", t.entry_type) != "deployment_flat_rate":
+    entry_type = normalize_entry_type(payload.get("entry_type", t.entry_type))
+    if entry_type != ENTRY_TYPE_DEPLOYMENT_FLAT_RATE:
         t.flat_rate_amount = None
         t.flat_rate_quantity = None
         return
@@ -433,7 +452,7 @@ def create_entry(db: Session, payload: dict) -> Ticket:
         invoice_number=payload.get("invoice_number"),
         invoiced_total=invoice_total_value,
         created_at=payload.get("created_at") or datetime.utcnow().isoformat(timespec="seconds") + "Z",
-        entry_type=payload.get("entry_type", "time"),
+        entry_type=normalize_entry_type(payload.get("entry_type", "time")),
         hardware_id=payload.get("hardware_id"),
         calculated_value=None,
         project_id=project_id,
@@ -452,7 +471,7 @@ def create_entry(db: Session, payload: dict) -> Ticket:
     db.add(t)
     db.commit()
     db.refresh(t)
-    if t.project_posted and t.entry_type == "hardware" and t.hardware_id:
+    if t.project_posted and t.entry_type == ENTRY_TYPE_HARDWARE and t.hardware_id:
         hardware = db.get(Hardware, t.hardware_id)
         unit_sale = _money_to_float(t.hardware_sales_price)
         unit_cost = _money_to_float(hardware.acquisition_cost) if hardware else None
@@ -496,6 +515,8 @@ def update_ticket(db: Session, t: Ticket, payload: dict) -> Ticket:
             continue
         if not hasattr(t, k):
             continue
+        if k == "entry_type" and isinstance(v, str):
+            v = normalize_entry_type(v)
         setattr(t, k, v)
     if any(k in payload for k in ("start_iso", "end_iso")):
         _apply_time_math(t, payload)
@@ -518,7 +539,7 @@ def update_ticket(db: Session, t: Ticket, payload: dict) -> Ticket:
     _ensure_calculated_fields(t, initialize_invoice=initialize_invoice)
     db.commit()
     db.refresh(t)
-    if t.project_posted and t.entry_type == "hardware" and t.hardware_id:
+    if t.project_posted and t.entry_type == ENTRY_TYPE_HARDWARE and t.hardware_id:
         hardware = db.get(Hardware, t.hardware_id)
         unit_sale = _money_to_float(t.hardware_sales_price)
         unit_cost = _money_to_float(hardware.acquisition_cost) if hardware else None

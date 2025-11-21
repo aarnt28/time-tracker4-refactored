@@ -2,7 +2,7 @@
 
 ## Overview
 
-**Time Tracker** is a self‑hosted web application that lets a single user track
+**Time Tracker** is a self‑hosted web application that lets a single user track
 work tickets, manage a simple client list and keep an inventory of hardware.
 The project provides both a browser‑based UI and a headless JSON API, built on
 FastAPI with SQLAlchemy ORM and Jinja2 templates.  A default SQLite database
@@ -10,8 +10,12 @@ stores data, and Docker Compose makes it easy to run everything locally.
 
 ### Features
 
-* **Ticket tracking** – Create, view, update and delete support tickets.  Each
+* **Ticket tracking** - Create, view, update and delete support tickets.  Each
   ticket tracks description, client information, and completion status.
+* **Expanded ticket types** - Track billable time, catalog hardware with
+  barcodes, flat-rate deployments, and manual product lines for software,
+  components, and accessories (all priced by description/quantity instead of
+  elapsed time).
 * **Ticket attachments** – Upload screenshots or other image files alongside
   a ticket for richer context directly from the UI or the API. Files are stored
   under the persistent data volume and exposed through secured download links.【F:app/routers/api_tickets.py†L15-L141】【F:app/templates/tickets.html†L302-L2115】
@@ -153,10 +157,23 @@ underlying Pydantic schemas.
 * `201 Created` – successful `POST` to create a resource (tickets, hardware).
 * `204 No Content` – not used; deletes return a JSON status payload.
 * `401 Unauthorized` – missing/invalid `X‑API‑Key` or unauthenticated session.
-* `404 Not Found` – resource does not exist or verification failed.
-* `409 Conflict` – attempting to create a client that already exists.
-* `422 Unprocessable Entity` – validation failed (missing required fields,
+* `404 Not Found` - resource does not exist or verification failed.
+* `409 Conflict` - attempting to create a client that already exists.
+* `422 Unprocessable Entity` - validation failed (missing required fields,
   invalid enum value, etc.).
+
+### iOS client implementation guide
+
+- **Authentication**: Store `API_TOKEN` securely (Keychain). Add `X-API-Key` to every request. If a request returns `401`, prompt for a new token and retry.
+- **Base paths**: All JSON endpoints are rooted at `/api/v1`. Tickets, projects (with nested tickets), hardware, inventory, clients, and address tools share the same token semantics.
+- **Time handling**: Send `start_iso`/`end_iso` as ISO8601 strings with timezone offsets (use `ISO8601DateFormatter` with `.withInternetDateTime`). Non-time entry types ignore `end_iso`; send `null` for those.
+- **Date-only product entries**: The web UI sends date-only strings (`YYYY-MM-DD`) for hardware-like and flat-rate entries; mirror that on iOS if you want parity with UI formatting.
+- **Ticket types**: For hardware-like types (hardware/software/component/accessory) send `hardware_description`, `hardware_sales_price`, and `hardware_quantity` (>=1). Only `entry_type="hardware"` accepts `hardware_id`/`hardware_barcode`; manual product types skip barcodes and inventory.
+- **Projects parity**: Use `/projects/{id}/tickets` to stage items; the same ticket payload rules apply. Finalize with `/projects/{id}/finalize` to post staged items to the main ticket list.
+- **Attachments**: Upload images with `multipart/form-data` and a single `file` part. Acceptable types: PNG, JPEG, GIF, WEBP. Download via the provided `attachments[i].url` path.
+- **Lists & caching**: Cache `GET /clients` and (optionally) `GET /hardware` for pickers; refresh on app start or pull-to-refresh. Manual product ticket types do not need hardware data.
+- **Currency fields**: Monetary values are strings; preserve formatting when displaying. When editing, send trimmed strings back to the API.
+- **Error handling**: Surface `detail` from `422` responses directly to the user; validation messages (e.g., missing `client_key`, quantity < 1) are returned as plaintext strings.
 
 ### Mobile integration data models
 
@@ -175,17 +192,17 @@ backend can preserve the formatting that the web UI expects.
 | --- | --- | --- | --- |
 | `client` | `String?` | No | Human readable client name; the API will fall back to the value stored for the `client_key` if omitted. |
 | `client_key` | `String` | Yes | Lookup key from the client table JSON. |
-| `start_iso` | `String` | Yes | Start timestamp, ISO 8601 string. |
+| `start_iso` | `String` | Yes | Start timestamp, ISO8601 string. |
 | `end_iso` | `String?` | No | End timestamp; omit or set `null` while a ticket is active. |
 | `note` | `String?` | No | Markdown/plain text body for the entry. |
-| `entry_type` | `String` | No | Defaults to `"time"`. Allowed values: `time`, `hardware`, `deployment_flat_rate`. |
-| `hardware_id` | `Int?` | No | Numeric hardware FK when logging a hardware sale (required with `entry_type = hardware`). |
-| `hardware_barcode` | `String?` | No | Snapshot of the barcode; send if you want the record to reflect the barcode even if the hardware ID changes. |
-| `hardware_quantity` | `Int?` | No | Quantity sold/used; must be ≥ 1. |
-| `hardware_description` | `String?` | No | Snapshot description for hardware entries. |
-| `hardware_sales_price` | `String?` | No | Currency string per unit for hardware entries. |
+| `entry_type` | `String` | No | Defaults to `"time"`. Allowed: `time`, `hardware`, `deployment_flat_rate`, `software`, `component`, `accessory`. Hardware-like types (hardware/software/component/accessory) skip time math and bill by description x sales price x quantity. |
+| `hardware_id` | `Int?` | No | Catalog FK when `entry_type = hardware`. |
+| `hardware_barcode` | `String?` | No | Snapshot of the barcode for catalog hardware entries. |
+| `hardware_quantity` | `Int?` | No | Quantity sold/used for hardware-like entries; must be >= 1. |
+| `hardware_description` | `String?` | No | Snapshot description for hardware-like entries (manual product lines use this in place of a catalog lookup). |
+| `hardware_sales_price` | `String?` | No | Currency string per unit for hardware-like entries (manual product lines provide the unit price directly). |
 | `flat_rate_amount` | `String?` | No | Currency string when `entry_type = deployment_flat_rate`. |
-| `flat_rate_quantity` | `Int?` | No | Multiplier for flat rate entries; must be ≥ 1 when provided. |
+| `flat_rate_quantity` | `Int?` | No | Multiplier for flat rate entries; must be >= 1 when provided. |
 | `invoice_number` | `String?` | No | Optional invoice reference. |
 | `sent` | `Int?` | No | Defaults to `0`. Use `1` to mark an entry as invoiced/emailed. |
 | `invoiced_total` | `String?` | No | Optional override for the billed total. |
@@ -207,7 +224,7 @@ changing.
 | `created_at` | `String` | ISO 8601 creation timestamp. |
 | `minutes` | `Int` | Persisted working minutes for the entry. |
 | `entry_type` | `String` | Echoes the entry classification. |
-| `hardware_id`, `hardware_barcode`, `hardware_description`, `hardware_sales_price`, `hardware_quantity` | Optional fields | Present for hardware sales. |
+| `hardware_id`, `hardware_barcode`, `hardware_description`, `hardware_sales_price`, `hardware_quantity` | Optional fields | Present for hardware and other product entries (software/component/accessory). |
 | `flat_rate_amount`, `flat_rate_quantity` | Optional fields | Present for deployment flat-rate tickets. |
 | `calculated_value` | `String?` | Server-calculated billing amount (rounded and formatted). |
 | `attachments` | `[TicketAttachment]` | Ordered list of attachment metadata (see below). |
@@ -226,6 +243,13 @@ changing.
 Upload new attachments by sending `multipart/form-data` with a single `file`
 part to `POST /api/v1/tickets/{id}/attachments`. Only PNG, JPEG, GIF and WEBP
 images are accepted.
+
+#### Ticket type quick reference
+
+- `time`: requires `start_iso`; optional `end_iso` for open timers. Billing is based on rounded minutes x client rate.
+- `hardware`: catalog lookup by `hardware_id` or `hardware_barcode`; copies description and sales price; creates inventory usage events; `end_iso` is ignored and set to `null`.
+- `software`, `component`, `accessory`: manual product lines that mirror hardware pricing (description + unit price + quantity) without catalog lookups, barcodes, or inventory links; `end_iso` is ignored and set to `null`.
+- `deployment_flat_rate`: uses `flat_rate_amount` and `flat_rate_quantity`; `end_iso` is ignored and set to `null`.
 
 #### Project payloads
 
@@ -271,7 +295,7 @@ Nested ticket routes – `POST /api/v1/projects/{id}/tickets` and
 from the main ticket endpoints until `project_posted` flips to `1`, mirroring
 the behaviour of the Projects UI.【F:app/routers/api_projects.py†L116-L171】【F:app/crud/tickets.py†L108-L228】
 
-Each project row in the UI now includes an **Add Ticket** button. The modal captures the client-aligned start/end timestamps and note, stages the ticket via `POST /api/v1/projects/{id}/tickets`, and keeps `project_posted = 0` so the entry stays off the Tickets dashboard until you finalize/submit the project. The modal mirrors the Tickets tab editor (entry type, hardware, deployment flat rates, invoicing, etc.) so staged rows follow the exact same schema. Click anywhere on a project row to open the editor and update its status, schedule window, notes, or client details inline, use the themed **Manage Tickets** action to review/edit staged tickets, and the **Delete** button to remove a project entirely after confirmation.
+Each project row in the UI now includes an **Add Ticket** button. The modal captures the client-aligned start/end timestamps and note, stages the ticket via `POST /api/v1/projects/{id}/tickets`, and keeps `project_posted = 0` so the entry stays off the Tickets dashboard until you finalize/submit the project. The modal mirrors the Tickets tab editor (entry type for time entries, hardware or other billable items like software/components/accessories, deployment flat rates, invoicing, etc.) so staged rows follow the exact same schema. Click anywhere on a project row to open the editor and update its status, schedule window, notes, or client details inline, use the themed **Manage Tickets** action to review/edit staged tickets, and the **Delete** button to remove a project entirely after confirmation.
 
 #### Project API endpoints
 
@@ -498,24 +522,24 @@ Content-Type: application/json
 
 ### Ticket entries API – `/api/v1/tickets`
 
-Ticket entries can represent billable time (`entry_type="time"`) or a hardware
-sale (`entry_type="hardware"`).  Hardware-linked entries automatically copy the
-current hardware description and sales price when an item is referenced by id or
-barcode.【F:app/crud/tickets.py†L46-L85】  When a ticket is saved in hardware mode,
-the system also creates (or updates) a corresponding inventory usage event so
-stock levels track every install; reverting to a time entry deletes the event if
-it exists.【F:app/crud/tickets.py†L105-L134】【F:app/crud/inventory.py†L89-L121】  Each
-record also tracks invoice status with a `sent` flag and optional
+Ticket entries can represent billable time (`entry_type="time"`), catalog hardware
+(`entry_type="hardware"`), deployment flat rates, or manual product lines for
+`software`, `component`, and `accessory`. Hardware-like entries copy or accept a
+description and unit sales price and bill by `price x quantity` instead of time
+math; only catalog hardware looks up barcodes/ids. Hardware entries also create
+inventory usage events so stock stays in sync; switching back to a time entry
+removes the usage record if present.?F:app/crud/tickets.py+L46-L134??F:app/crud/inventory.py+L89-L121?
+Every record tracks invoice status with a `sent` flag and optional
 `invoice_number`, making it easy to reconcile what's already been
-billed.【F:app/schemas/ticket.py†L15-L55】【F:app/crud/tickets.py†L90-L130】
+billed.?F:app/schemas/ticket.py+L15-L55??F:app/crud/tickets.py+L90-L130?
 
 | Method & path | Description | Auth required | Notes |
 |---------------|-------------|---------------|-------|
 | `GET /api/v1/tickets/active` | List open time entries (no `end_iso`). | Yes | Optional `client_key` filter narrows results to a single client; hardware items are excluded even when unfinished. |【F:app/routers/api_tickets.py†L11-L14】【F:app/crud/tickets.py†L19-L26】
 | `GET /api/v1/tickets` | List recent tickets (newest first). | Yes | Returns up to 100 entries (internal default); no pagination parameters are exposed. |【F:app/routers/api_tickets.py†L17-L18】【F:app/crud/tickets.py†L5-L12】
 | `GET /api/v1/tickets/{entry_id}` | Retrieve one ticket. | Yes | `404` when the id is missing. |【F:app/routers/api_tickets.py†L21-L29】
-| `POST /api/v1/tickets` | Create a ticket entry. | Yes | Body must include `client_key` and `start_iso`. Optional fields include `end_iso`, `note`, `invoice_number`, `sent`, `entry_type`, `hardware_id`, and `hardware_barcode`. |【F:app/routers/api_tickets.py†L32-L41】【F:app/schemas/ticket.py†L6-L35】【F:app/crud/tickets.py†L58-L109】
-| `PATCH /api/v1/tickets/{entry_id}` | Update fields on an existing ticket. | Yes | Any subset of fields may be supplied. Updating `client_key` or `client` revalidates the client table; changing `start_iso`/`end_iso` recomputes rounded minutes; switching to `entry_type="hardware"` will relink the referenced hardware. Fields like `sent` and `invoice_number` can be adjusted to reflect billing progress. |【F:app/routers/api_tickets.py†L44-L55】【F:app/crud/tickets.py†L77-L130】
+| `POST /api/v1/tickets` | Create a ticket entry. | Yes | Body must include `client_key` and `start_iso`. Optional fields include `end_iso`, `note`, `invoice_number`, `sent`, `entry_type`, `hardware_id`/`hardware_barcode` (catalog hardware), manual description/price/quantity for hardware-like entries, and flat-rate amount/quantity. |?F:app/routers/api_tickets.py+L32-L41??F:app/schemas/ticket.py+L6-L35??F:app/crud/tickets.py+L58-L109?
+| `PATCH /api/v1/tickets/{entry_id}` | Update fields on an existing ticket. | Yes | Any subset of fields may be supplied. Updating `client_key` or `client` revalidates the client table; changing `start_iso`/`end_iso` recomputes rounded minutes. Switching to a hardware-like type applies product math (catalog lookups only for `entry_type="hardware"`). Fields like `sent` and `invoice_number` can be adjusted to reflect billing progress. |?F:app/routers/api_tickets.py+L44-L55??F:app/crud/tickets.py+L77-L130?
 | `GET /api/v1/tickets/{entry_id}/attachments` | List image attachments for a ticket. | Yes | Returns metadata (filename, size, uploaded timestamp) and signed download URLs for each stored file. |【F:app/routers/api_tickets.py†L97-L109】【F:app/crud/tickets.py†L211-L230】
 | `POST /api/v1/tickets/{entry_id}/attachments` | Upload a new attachment. | Yes | Accepts `multipart/form-data` with a single image (`png`, `jpg`, `gif`, `webp`). Saved files are written under `/data/attachments/{ticket_id}`. |【F:app/routers/api_tickets.py†L110-L136】【F:app/crud/tickets.py†L212-L228】
 | `GET /api/v1/tickets/{entry_id}/attachments/{attachment_id}` | Download an attachment. | Yes | Streams the stored file back with the recorded filename and content type. Returns `404` when the ticket or attachment id is unknown. |【F:app/routers/api_tickets.py†L138-L141】
@@ -597,7 +621,28 @@ Content-Type: application/json
 }
 ```
 
-### Client table API – `/api/v1/clients`
+**Example - create a software ticket (manual product line)**
+
+```http
+POST /api/v1/tickets HTTP/1.1
+Host: tracker.example.com
+X-API-Key: your-token
+Content-Type: application/json
+
+{
+  "client_key": "acme-co",
+  "entry_type": "software",
+  "start_iso": "2023-09-05",
+  "note": "Annual AV license",
+  "hardware_description": "Antivirus license renewal",
+  "hardware_sales_price": "45.00",
+  "hardware_quantity": 25
+}
+```
+
+Software/component/accessory entries ignore `end_iso`, barcode, and hardware id; the API bills by `hardware_sales_price x hardware_quantity` and stores the provided description.
+
+### Client table API - `/api/v1/clients`
 
 Client metadata is persisted in `client_table.json`.  Read operations are
 public; write operations require an API key or logged-in UI session.【F:app/routers/clients.py†L14-L68】
@@ -873,3 +918,5 @@ ensure new code is well-tested and keep changes focused on a single purpose.
 
 Include the appropriate license information here if one exists.  Otherwise,
 replace this section or remove it as needed.
+
+
